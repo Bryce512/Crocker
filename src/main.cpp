@@ -21,17 +21,17 @@ void loop() {
   // put your main code here, to run repeatedly:
   if (button == HIGH) {
     loopCount++;
+    Serial.print("Button Pressed");
   }
 
+  Serial.print("Loop Count: "); Serial.println(loopCount);
   if (loopCount == 1) {
-    digitalWrite(Red, HIGH);
-    delay(1000);
+    analogWrite(Red, 255);
   } else if (loopCount == 2 ) {
-    digitalWrite(Green, HIGH);
-    delay(1000);
+    analogWrite(Green, 255);
   } else if (loopCount == 3) {
-    digitalWrite(Blue, HIGH);
-    delay(1000);
+    analogWrite(Blue, 255);
     loopCount = 0;
+    Serial.print("Loop Count Reset");
   }
 }
