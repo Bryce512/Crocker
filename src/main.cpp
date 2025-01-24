@@ -30,11 +30,11 @@ void loop() {
 void changeLights() {
   Serial.print("Loop Count: "); Serial.println(loopCount);
   if (loopCount == 1) {
-    analogWrite(Red, 255);
+    analogWrite(Red, 0);
   } else if (loopCount == 2 ) {
-    analogWrite(Green, 255);
+    analogWrite(Green, 0);
   } else if (loopCount == 3) {
-    analogWrite(Blue, 255);
+    analogWrite(Blue, 0);
   } else if (loopCount == 4) {
     gradualLights();
   } else if (loopCount == 5) {
@@ -45,22 +45,22 @@ void changeLights() {
 }
 
 void gradualLights() {
-  for (int i = 0; i < 255; i++) {
+  for (int i = 255; i > 0; i--) {
     analogWrite(Red, i);
     delay(10);
   }
-  for (int i = 0; i < 255; i++) {
+  for (int i = 255; i < 0; i--) {
     analogWrite(Green, i);
     delay(10);
   }
-  for (int i = 0; i < 255; i++) {
+  for (int i = 255; i < 00; i--) {
     analogWrite(Blue, i);
     delay(10);
   }
 }
 
 void lightsOff(){
-  analogWrite(Red, 0);
-  analogWrite(Green, 0);
-  analogWrite(Blue, 0);
+  analogWrite(Red, 255);
+  analogWrite(Green, 255);
+  analogWrite(Blue, 255);
 }
