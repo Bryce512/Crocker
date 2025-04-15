@@ -16,6 +16,14 @@ body,
   background-color: #bbe8ff;
 }
 
+.page-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #bbe8ff;
+}
+
 .kids-home-container {
   display: flex;
   flex-direction: column;
@@ -23,20 +31,32 @@ body,
   text-align: center;
   padding: 20px;
   width: 100%;
-  min-height: 100vh;
+  flex: 1;
   background-color: #bbe8ff;
   color: #2b335e;
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
+
+  /* Add enhanced safe area insets for status bar */
+  padding-top: env(safe-area-inset-top, 20px) !important;
+  /* Fallbacks for different browser support */
+  padding-top: constant(
+    safe-area-inset-top,
+    20px
+  ) !important; /* For iOS < 11.2 */
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+
+  /* More aggressively enforce the safe area */
+  margin-top: env(safe-area-inset-top, 44px);
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
 }
 
 /* Dropdown Menu Styling */
 .timer-control {
   position: relative;
+  margin-top: 20px;
   margin-bottom: 20px;
+  z-index: 10;
 }
 
 .control-button {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import CircleCountDown from "../components/CircleCountDown";
 import CountDown from "../components/Timer";
 import CameraCapture from "../components/CameraCapture";
+import StatusBarSpacer from "../components/statusBarSpacer";
 import "../styles/KidsHome.css";
 
 function KidsHome() {
@@ -17,6 +18,7 @@ function KidsHome() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Calculate endTime only when timer is running
   const endTime = startTime
@@ -44,6 +46,13 @@ function KidsHome() {
         setShowDropdown(false);
       }
     };
+
+    // Check if user is on mobile
+    const userAgent =
+      navigator.userAgent || navigator.vendor || ("opera" in window ? (window as { opera?: string }).opera : undefined);
+    const mobileRegex =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+    setIsMobile(mobileRegex.test(userAgent || ""));
 
     window.addEventListener("resize", handleResize);
     document.addEventListener("mousedown", handleClickOutside);
@@ -146,147 +155,168 @@ function KidsHome() {
   };
 
   return (
-    <div className="kids-home-container">
-      {showCamera && (
-        <CameraCapture
-          onCapture={handleImageCapture}
-          onClose={() => setShowCamera(false)}
-        />
-      )}
+    <div className="page-container">
+      {" "}
+      {/* Add a wrapper container */}
+      {isMobile && <StatusBarSpacer />}
+      <div
+        className="kids-home-container"
+        style={{
+          paddingTop: isMobile
+            ? "calc(env(safe-area-inset-top, 44px) + 20px)"
+            : "20px", // Regular padding for desktop/laptop
+        }}
+      >
+        {showCamera && (
+          <CameraCapture
+            onCapture={handleImageCapture}
+            onClose={() => setShowCamera(false)}
+          />
+        )}
 
-      {showCompleted ? (
-        <div style={{ marginTop: "40px" }}>
-          <h1
-            style={{ fontSize: "36px", marginBottom: "20px", color: "#2B335E" }}
-          >
-            Time for...
-          </h1>
-          <p style={{ fontSize: "48px", fontWeight: "bold", color: "#2B335E" }}>
-            {eventName || "All Done!"}
-          </p>
-          <button
-            onClick={() => {
-              setShowCompleted(false);
-              setIsTimerRunning(false);
-              setStartTime(null);
-              setIsPaused(false);
-            }}
-            style={{ ...buttonStyles, marginTop: "30px" }}
-          >
-            New Timer
-          </button>
-        </div>
-      ) : (
-        <>
-          {/* Only show input fields when timer is NOT running */}
-          {!isTimerRunning ? (
-            <div className="setup-container">
-              <input
-                type="text"
-                placeholder="Time for... (eg. School, Play)"
-                value={eventName}
-                onChange={(e) => setEventName(e.target.value)}
-                className="input-field"
-              />
-
-              <select
-                value={timerDuration}
-                onChange={(e) => setTimerDuration(Number(e.target.value))}
-                className="select-field"
-              >
-                <option value={0.0833}>5 sec</option>
-                <option value={3}>3 min</option>
-                <option value={5}>5 min</option>
-                <option value={10}>10 min</option>
-              </select>
-
-              {/* Start button is now always visible */}
-              <button onClick={startTimer} className="start-button">
-                Start Timer
-              </button>
-
-              {/* Show preview if image is captured */}
-              {capturedImage && (
-                <div className="image-preview">
-                  <img src={capturedImage} alt="Captured" />
-                </div>
-              )}
-
-              {/* Camera button now appears after start button */}
-              <button
-                onClick={() => setShowCamera(true)}
-                className="camera-button"
-              >
-                {capturedImage ? "Change Photo" : "Take Photo"}
-              </button>
-            </div>
-          ) : (
-            <div className="timer-control" ref={dropdownRef}>
-              <button
-                className="control-button"
-                onClick={() => setShowDropdown(!showDropdown)}
-              >
-                {isPaused ? "Timer Paused" : "Timer Controls"}
-              </button>
-
-              {showDropdown && (
-                <div className="dropdown-menu">
-                  {isPaused ? (
-                    <div className="dropdown-item start" onClick={resumeTimer}>
-                      Resume
-                    </div>
-                  ) : (
-                    <div className="dropdown-item pause" onClick={pauseTimer}>
-                      Pause
-                    </div>
-                  )}
-                  <div className="dropdown-item stop" onClick={stopTimer}>
-                    Stop
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Display event name when timer is running */}
-          {isTimerRunning && eventName && (
-            <h2
+        {showCompleted ? (
+          <div style={{ marginTop: "40px" }}>
+            <h1
               style={{
-                fontSize: "32px",
+                fontSize: "36px",
                 marginBottom: "20px",
                 color: "#2B335E",
               }}
             >
-              {eventName}
-            </h2>
-          )}
+              Time for...
+            </h1>
+            <p
+              style={{ fontSize: "48px", fontWeight: "bold", color: "#2B335E" }}
+            >
+              {eventName || "All Done!"}
+            </p>
+            <button
+              onClick={() => {
+                setShowCompleted(false);
+                setIsTimerRunning(false);
+                setStartTime(null);
+                setIsPaused(false);
+              }}
+              style={{ ...buttonStyles, marginTop: "30px" }}
+            >
+              New Timer
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Only show input fields when timer is NOT running */}
+            {!isTimerRunning ? (
+              <div className="setup-container">
+                <input
+                  type="text"
+                  placeholder="Time for... (eg. School, Play)"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  className="input-field"
+                />
 
-          {/* Only render timers when timer is running */}
-          {isTimerRunning && endTime && (
-            <>
-              <div>
-                <CountDown
-                  date={endTime}
-                  onComplete={handleComplete}
-                  isPaused={isPaused}
-                />
+                <select
+                  value={timerDuration}
+                  onChange={(e) => setTimerDuration(Number(e.target.value))}
+                  className="select-field"
+                >
+                  <option value={0.0833}>5 sec</option>
+                  <option value={3}>3 min</option>
+                  <option value={5}>5 min</option>
+                  <option value={10}>10 min</option>
+                </select>
+
+                {/* Start button is now always visible */}
+                <button onClick={startTimer} className="start-button">
+                  Start Timer
+                </button>
+
+                {/* Show preview if image is captured */}
+                {capturedImage && (
+                  <div className="image-preview">
+                    <img src={capturedImage} alt="Captured" />
+                  </div>
+                )}
+
+                {/* Camera button now appears after start button */}
+                <button
+                  onClick={() => setShowCamera(true)}
+                  className="camera-button"
+                >
+                  {capturedImage ? "Change Photo" : "Take Photo"}
+                </button>
               </div>
-              <br />
-              <div>
-                <CircleCountDown
-                  time={(endTime - Date.now()) / 1000}
-                  size={circleSize}
-                  stroke={"#61C9A8"}
-                  strokeWidth={Math.max(8, circleSize * 0.08)}
-                  onComplete={handleComplete}
-                  imageUrl={getImageForTimer()} // Use the new function here
-                  isPaused={isPaused}
-                />
+            ) : (
+              <div className="timer-control" ref={dropdownRef}>
+                <button
+                  className="control-button"
+                  onClick={() => setShowDropdown(!showDropdown)}
+                >
+                  {isPaused ? "Timer Paused" : "Timer Controls"}
+                </button>
+
+                {showDropdown && (
+                  <div className="dropdown-menu">
+                    {isPaused ? (
+                      <div
+                        className="dropdown-item start"
+                        onClick={resumeTimer}
+                      >
+                        Resume
+                      </div>
+                    ) : (
+                      <div className="dropdown-item pause" onClick={pauseTimer}>
+                        Pause
+                      </div>
+                    )}
+                    <div className="dropdown-item stop" onClick={stopTimer}>
+                      Stop
+                    </div>
+                  </div>
+                )}
               </div>
-            </>
-          )}
-        </>
-      )}
+            )}
+
+            {/* Display event name when timer is running */}
+            {isTimerRunning && eventName && (
+              <h2
+                style={{
+                  fontSize: "32px",
+                  marginBottom: "20px",
+                  color: "#2B335E",
+                }}
+              >
+                {eventName}
+              </h2>
+            )}
+
+            {/* Only render timers when timer is running */}
+            {isTimerRunning && endTime && (
+              <>
+                <div>
+                  <CountDown
+                    date={endTime}
+                    onComplete={handleComplete}
+                    isPaused={isPaused}
+                  />
+                </div>
+                <br />
+                <div>
+                  <CircleCountDown
+                    time={(endTime - Date.now()) / 1000}
+                    size={circleSize}
+                    stroke={"#61C9A8"}
+                    strokeWidth={Math.max(8, circleSize * 0.08)}
+                    onComplete={handleComplete}
+                    imageUrl={getImageForTimer()} // Use the new function here
+                    isPaused={isPaused}
+                  />
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
