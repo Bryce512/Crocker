@@ -1,0 +1,28 @@
+.timer-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 20px 0;
+  width: 100%;
+}
+
+.timer-display {
+  font-family: "Roboto", sans-serif;
+  font-size: 64px;
+  font-weight: 700;
+  color: #2b335e;
+  background-color: #73c3eb;
+  border-radius: 12px;
+  padding: 10px 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  text-align: center;
+}
+
+/* Media query for smaller screens */
+@media (max-width: 480px) {
+  .timer-display {
+    font-size: 48px;
+    padding: 8px 16px;
+  }
+}

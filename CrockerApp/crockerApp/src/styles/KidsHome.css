@@ -1,0 +1,171 @@
+/* Reset defaults */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  background-color: #bbe8ff;
+}
+
+.kids-home-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #bbe8ff;
+  color: #2b335e;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Dropdown Menu Styling */
+.timer-control {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.control-button {
+  background-color: #73c3eb;
+  color: #2b335e;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 25px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  width: 150px;
+  z-index: 100;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  color: #2b335e;
+  font-weight: 500;
+}
+
+.dropdown-item:hover {
+  background-color: #f0f0f0;
+}
+
+.dropdown-item.start {
+  color: #61c9a8;
+}
+
+.dropdown-item.pause {
+  color: #f5a623;
+}
+
+.dropdown-item.stop {
+  color: #e74c3c;
+}
+
+.setup-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 50vh;
+  padding: 20px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.input-field {
+  width: 90%;
+  max-width: 300px;
+  padding: 12px 15px;
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: 1px solid #73c3eb;
+  color: #2b335e;
+  background-color: white;
+  box-sizing: border-box;
+}
+
+.select-field {
+  width: 90%;
+  max-width: 200px;
+  padding: 12px 15px;
+  font-size: 16px;
+  text-align: center;
+  margin: 15px 0 20px 0;
+  border-radius: 8px;
+  border: 1px solid #73c3eb;
+  color: #2b335e;
+  background-color: white;
+  box-sizing: border-box;
+}
+
+.start-button {
+  padding: 12px 25px;
+  min-width: 150px;
+  font-size: 16px;
+  background-color: #73c3eb;
+  color: #2b335e;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  margin: 25px 0 30px 0;
+}
+
+.camera-button {
+  padding: 12px 25px;
+  min-width: 150px;
+  font-size: 16px;
+  background-color: #61c9a8;
+  color: #2b335e;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  margin: 15px 0;
+}
+
+.image-preview {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 15px auto;
+  border: 3px solid #73c3eb;
+}
+
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
