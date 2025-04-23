@@ -39,7 +39,7 @@ function KidsHome() {
 
   useEffect(() => {
     // Initialize audio object
-    audioRef.current = new Audio('/sounds/timer_complete.mp3');
+    audioRef.current = new Audio('/sounds/presentation_Alarm.mp3');
 
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
