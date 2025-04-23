@@ -6,6 +6,9 @@ import StatusBarSpacer from "../components/statusBarSpacer";
 import "../styles/KidsHome.css";
 
 function KidsHome() {
+  // Add audio reference
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const [showCompleted, setShowCompleted] = useState(false);
   const [eventName, setEventName] = useState("");
   const [timerDuration, setTimerDuration] = useState(3); // Default 3 minutes
@@ -19,6 +22,7 @@ function KidsHome() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
 
   // Calculate endTime only when timer is running
   const endTime = startTime
@@ -34,6 +38,9 @@ function KidsHome() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Initialize audio object
+    audioRef.current = new Audio('/sounds/timer_complete.mp3');
+
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
     };
@@ -58,15 +65,63 @@ function KidsHome() {
     document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
+      // Clean up the audio when component unmounts
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+
       window.removeEventListener("resize", handleResize);
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
+  // Add this to ensure iOS can play audio
+  useEffect(() => {
+    // Enable audio for iOS
+    const enableIOSAudio = () => {
+      // Create and play a silent audio when user interacts
+      const silentAudio = new Audio('/sounds/silent.mp3');
+      silentAudio.play().catch(error => console.log("Silent audio error:", error));
+      
+      // Remove event listener after first interaction
+      document.removeEventListener('touchstart', enableIOSAudio);
+    };
+    
+    document.addEventListener('touchstart', enableIOSAudio);
+    
+    return () => {
+      document.removeEventListener('touchstart', enableIOSAudio);
+    };
+  }, []);
+
+  const toggleMute = () => {
+    setIsMuted(prevMuted => !prevMuted);
+    if (audioRef.current) {
+      audioRef.current.muted = !isMuted;
+    }
+  };
+
+  const playCompleteSound = () => {
+    if (audioRef.current && !isMuted) {
+      audioRef.current.currentTime = 0; // Reset to beginning
+
+      // Try to play and handle potential errors (like autoplay restrictions)
+      const playPromise = audioRef.current.play();
+
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.log("Audio play error:", error);
+        });
+      }
+    }
+  };
+
   const handleComplete = () => {
     setShowCompleted(true);
     setIsTimerRunning(false);
     setIsPaused(false);
+    playCompleteSound(); // Play sound when timer completes
   };
 
   const startTimer = () => {
@@ -316,6 +371,12 @@ function KidsHome() {
             )}
           </>
         )}
+        <button 
+          onClick={toggleMute}
+          className="sound-button"
+        >
+          {isMuted ? "🔇" : "🔊"}
+        </button>
       </div>
     </div>
   );
