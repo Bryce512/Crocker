@@ -4,10 +4,10 @@ const urlsToCache = [
   '/index.html',
   '/manifest.json',
   '/logo192.png',
-  '/logo512.png',
-  '/favicon.ico',
+  // '/logo512.png',
+  // '/favicon.ico',
   '/sounds/presentation_Alarm.mp3',
-  '/sounds/silent.mp3'
+  // '/sounds/silent.mp3'
 ];
 
 // Install a service worker
