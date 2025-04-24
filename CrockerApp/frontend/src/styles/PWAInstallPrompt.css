@@ -1,0 +1,29 @@
+.install-prompt {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #73c3eb;
+  color: #2b335e;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  text-align: center;
+  max-width: 90%;
+}
+
+.install-prompt p {
+  margin: 0 0 10px 0;
+  font-weight: bold;
+}
+
+.install-prompt button {
+  background-color: #2b335e;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+}

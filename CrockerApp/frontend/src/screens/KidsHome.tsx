@@ -3,6 +3,7 @@ import CircleCountDown from "../components/CircleCountDown";
 import CountDown from "../components/Timer";
 import CameraCapture from "../components/CameraCapture";
 import StatusBarSpacer from "../components/statusBarSpacer";
+import PWAInstallPrompt from "../components/PWAInstallPrompt";
 import "../styles/KidsHome.css";
 
 function KidsHome() {
@@ -214,6 +215,7 @@ function KidsHome() {
       {" "}
       {/* Add a wrapper container */}
       {isMobile && <StatusBarSpacer />}
+      <PWAInstallPrompt />
       <div
         className="kids-home-container"
         style={{
