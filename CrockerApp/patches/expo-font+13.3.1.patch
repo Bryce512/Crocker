@@ -1,0 +1,75 @@
+diff --git a/node_modules/expo-font/ios/FontUtilsModule.swift b/node_modules/expo-font/ios/FontUtilsModule.swift
+index afbde2a..23dfc1d 100644
+--- a/node_modules/expo-font/ios/FontUtilsModule.swift
++++ b/node_modules/expo-font/ios/FontUtilsModule.swift
+@@ -20,7 +20,7 @@ public final class FontUtilsModule: Module {
+         string: glyphs,
+         attributes: [
+           .font: font,
+-          .foregroundColor: UIColor(options.color)
++          .foregroundColor: colorFromOptions(options.color)
+         ]
+       )
+ 
+@@ -45,4 +45,61 @@ public final class FontUtilsModule: Module {
+     }
+ #endif
+   }
++  
++  private func colorFromOptions(_ color: Any) -> UIColor {
++    if let colorString = color as? String {
++      // Handle hex string format
++      return UIColor(hexString: colorString) ?? .black
++    } else if let colorDict = color as? [String: Any] {
++      // Handle object with r,g,b properties
++      let red = CGFloat(colorDict["r"] as? Double ?? 0) / 255.0
++      let green = CGFloat(colorDict["g"] as? Double ?? 0) / 255.0
++      let blue = CGFloat(colorDict["b"] as? Double ?? 0) / 255.0
++      let alpha = CGFloat(colorDict["a"] as? Double ?? 1.0)
++      return UIColor(red: red, green: green, blue: blue, alpha: alpha)
++    }
++    // Default fallback
++    return .black
++  }
++}
++
++// Helper extension for hex color initialization
++extension UIColor {
++  convenience init?(hexString: String) {
++    let r, g, b, a: CGFloat
++    
++    let hexColor = hexString.hasPrefix("#") ? String(hexString.dropFirst()) : hexString
++    let scanner = Scanner(string: hexColor)
++    var hexNumber: UInt64 = 0
++    
++    if scanner.scanHexInt64(&hexNumber) {
++      switch hexColor.count {
++      case 3: // RGB (12-bit)
++        r = CGFloat((hexNumber & 0xF00) >> 8) / 15.0
++        g = CGFloat((hexNumber & 0x0F0) >> 4) / 15.0
++        b = CGFloat(hexNumber & 0x00F) / 15.0
++        a = 1.0
++      case 4: // RGBA (16-bit)
++        r = CGFloat((hexNumber & 0xF000) >> 12) / 15.0
++        g = CGFloat((hexNumber & 0x0F00) >> 8) / 15.0
++        b = CGFloat((hexNumber & 0x00F0) >> 4) / 15.0
++        a = CGFloat(hexNumber & 0x000F) / 15.0
++      case 6: // RGB (24-bit)
++        r = CGFloat((hexNumber & 0xFF0000) >> 16) / 255.0
++        g = CGFloat((hexNumber & 0x00FF00) >> 8) / 255.0
++        b = CGFloat(hexNumber & 0x0000FF) / 255.0
++        a = 1.0
++      case 8: // RGBA (32-bit)
++        r = CGFloat((hexNumber & 0xFF000000) >> 24) / 255.0
++        g = CGFloat((hexNumber & 0x00FF0000) >> 16) / 255.0
++        b = CGFloat((hexNumber & 0x0000FF00) >> 8) / 255.0
++        a = CGFloat(hexNumber & 0x000000FF) / 255.0
++      default:
++        return nil
++      }
++      self.init(red: r, green: g, blue: b, alpha: a)
++    } else {
++      return nil
++    }
++  }
+ }

@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "Mychanic",
+    "slug": "Mychanic",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bryce512.Mychanic",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
+        "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
+        "UIBackgroundModes": [
+          "bluetooth-central"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.bryce512.Mychanic",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "react-native-ble-manager",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "infoPlist": {
+              "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
+              "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
+              "UIBackgroundModes": [
+                "bluetooth-central"
+              ]
+            }
+          },
+          "android": {
+            "permissions": [
+              "android.permission.BLUETOOTH",
+              "android.permission.BLUETOOTH_ADMIN",
+              "android.permission.BLUETOOTH_CONNECT",
+              "android.permission.BLUETOOTH_SCAN",
+              "android.permission.ACCESS_FINE_LOCATION"
+            ]
+          }
+        }
+      ],
+      "react-native-ble-plx"
+    ]
+  }
+}
