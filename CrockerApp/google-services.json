@@ -10,7 +10,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:578434461817:android:93c126c762ba34dac524a8",
         "android_client_info": {
-          "package_name": "com.Mychanic.mychanic"
+          "package_name": "com.sori.sori"
         }
       },
       "oauth_client": [
@@ -35,7 +35,7 @@
               "client_id": "578434461817-i6080geine5mmnkneeeolij2huq3lofp.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "app.mychanic.device"
+                "bundle_id": "app.sori.device"
               }
             }
           ]

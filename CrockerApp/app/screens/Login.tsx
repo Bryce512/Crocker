@@ -1,286 +1,344 @@
-import React, { useState } from "react"
+import React, { useState } from "react";
 import {
   View,
   Text,
   TextInput,
-  StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
-  useColorScheme,
+  StyleSheet,
+  Dimensions,
+  StatusBar,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { useNavigation } from "@react-navigation/native"
-import { Feather } from "@expo/vector-icons"
-import Button from "../components/Button"
-import { useAuth } from "../contexts/AuthContext"
-import { colors } from "../theme/colors"
+  ActivityIndicator,
+} from "react-native";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import LinearGradient from "react-native-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { RootStackParamList } from "../navigation/AppNavigator";
 
-export default function LoginScreen() {
-  const navigation = useNavigation()
-  const colorScheme = useColorScheme()
-  const isDark = colorScheme === "dark"
-  const { signIn } = useAuth()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+const Login = () => {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password")
-      return
+    if (!username.trim() || !password.trim()) {
+      Alert.alert("Error", "Please enter both username and password");
+      return;
     }
 
-    setLoading(true)
-    setErrorMessage(null)
+    setIsLoading(true);
 
     try {
-      const { error } = await signIn(email, password)
-    }
-    catch (error) {
-      setErrorMessage("An unexpected error occurred")
-      console.error(error)
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Store auth state
+      await AsyncStorage.setItem("isAuthenticated", "true");
+      await AsyncStorage.setItem("username", username);
+
+      navigation.navigate("Home");
+    } catch (error) {
+      Alert.alert("Error", "Login failed. Please try again.");
     } finally {
-      setLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
+
+  const handleForgotPassword = () => {
+    Alert.alert(
+      "Coming Soon",
+      "Forgot password functionality will be implemented later"
+    );
+  };
+
+  const handleCreateAccount = () => {
+    Alert.alert("Coming Soon", "Account creation will be implemented later");
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoidingView}>
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <View style={styles.logoContainer}>
-            <Feather name="tool" size={40} color={colors.primary[500]} />
-            <Text style={[styles.logoText, isDark && styles.textLight]}>Mychanic</Text>
+    <LinearGradient colors={["#f8fafc", "#eff6ff"]} style={styles.container}>
+      <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+
+      {/* Status Bar */}
+      <View style={styles.statusBar}>
+        <Text style={styles.time}>8:48</Text>
+        <View style={styles.notch}>
+          <View style={styles.notchInner} />
+        </View>
+        <View style={styles.indicators}>
+          <View style={styles.signalDots}>
+            <View style={[styles.dot, styles.dotActive]} />
+            <View style={[styles.dot, styles.dotActive]} />
+            <View style={[styles.dot, styles.dotActive]} />
+            <View style={[styles.dot, styles.dotInactive]} />
           </View>
+          <View style={styles.battery} />
+        </View>
+      </View>
 
-          <Text style={[styles.title, isDark && styles.textLight]}>Welcome Back</Text>
-          <Text style={[styles.subtitle, isDark && styles.textMutedLight]}>Sign in to your account to continue</Text>
+      <View style={styles.content}>
+        {/* Logo Section */}
+        <View style={styles.logoSection}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logo}>
+              <Text style={styles.logoS}>s</Text>
+              <Text style={styles.logoO}>o</Text>
+              <Text style={styles.logoR}>r</Text>
+              <Text style={styles.logoI}>i</Text>
+            </Text>
+            <Text style={styles.tagline}>soften the switch</Text>
+          </View>
+        </View>
 
-          <View style={styles.form}>
-            {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+        {/* Login Form */}
+        <View style={styles.formContainer}>
+          <Text style={styles.title}>Sign into your account</Text>
 
-            <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, isDark && styles.textLight]}>Email</Text>
-              <View style={styles.inputWrapper}>
-                <Feather
-                  name="mail"
-                  size={18}
-                  color={isDark ? colors.gray[400] : colors.gray[500]}
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={[styles.input, isDark && styles.inputDark, { paddingLeft: 40 }]}
-                  placeholder="Enter your email"
-                  placeholderTextColor={isDark ? colors.gray[400] : colors.gray[500]}
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, isDark && styles.textLight]}>Password</Text>
-              <View style={styles.inputWrapper}>
-                <Feather
-                  name="lock"
-                  size={18}
-                  color={isDark ? colors.gray[400] : colors.gray[500]}
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={[styles.input, isDark && styles.inputDark, { paddingLeft: 40, paddingRight: 40 }]}
-                  placeholder="Enter your password"
-                  placeholderTextColor={isDark ? colors.gray[400] : colors.gray[500]}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity style={styles.passwordToggle} onPress={() => setShowPassword(!showPassword)}>
-                  <Feather
-                    name={showPassword ? "eye-off" : "eye"}
-                    size={18}
-                    color={isDark ? colors.gray[400] : colors.gray[500]}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={[styles.forgotPasswordText, isDark && { color: colors.primary[400] }]}>
-                Forgot Password?
-              </Text>
-            </TouchableOpacity>
-
-            <Button title="Sign In" onPress={handleLogin} loading={loading} fullWidth style={styles.loginButton} />
-
-            <View style={styles.divider}>
-              <View style={[styles.dividerLine, isDark && styles.dividerLineDark]} />
-              <Text style={[styles.dividerText, isDark && styles.textMutedLight]}>OR</Text>
-              <View style={[styles.dividerLine, isDark && styles.dividerLineDark]} />
-            </View>
-
-            <Button
-              title="Sign In as Mechanic"
-              onPress={() => {}}
-              variant="outline"
-              fullWidth
-              style={styles.mechanicButton}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Username"
+              placeholderTextColor="#94a3b8"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
 
-          <View style={styles.footer}>
-            <Text style={[styles.footerText, isDark && styles.textMutedLight]}>Don't have an account?</Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Signup" as never)}>
-              <Text style={[styles.signupText, isDark && { color: colors.primary[400] }]}>Sign Up</Text>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#94a3b8"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <Text style={styles.loginButtonText}>Button</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleForgotPassword}
+            style={styles.forgotPassword}
+          >
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          </TouchableOpacity>
+
+          <View style={styles.createAccountSection}>
+            <Text style={styles.createAccountLabel}>
+              Don't have an account?
+            </Text>
+            <TouchableOpacity
+              style={styles.createAccountButton}
+              onPress={handleCreateAccount}
+            >
+              <Text style={styles.createAccountButtonText}>
+                Create an Account
+              </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  )
-}
+        </View>
+      </View>
+    </LinearGradient>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  keyboardAvoidingView: {
-    flex: 1,
+  statusBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
-  scrollContainer: {
-    flexGrow: 1,
-    padding: 20,
-    justifyContent: "center",
+  time: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#1e293b",
   },
-  logoContainer: {
+  notch: {
+    backgroundColor: "#1e293b",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  notchInner: {
+    width: 32,
+    height: 4,
+    backgroundColor: "#1e293b",
+    borderRadius: 2,
+  },
+  indicators: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 40,
-    gap: 12,
+    gap: 4,
   },
-  logoText: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: colors.gray[900],
+  signalDots: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+  },
+  dotActive: {
+    backgroundColor: "#1e293b",
+  },
+  dotInactive: {
+    backgroundColor: "#94a3b8",
+  },
+  battery: {
+    width: 24,
+    height: 12,
+    backgroundColor: "#1e293b",
+    borderRadius: 2,
+    marginLeft: 8,
+  },
+  content: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    paddingBottom: 64,
+  },
+  logoSection: {
+    alignItems: "center",
+    marginBottom: 64,
+  },
+  logoContainer: {
+    alignItems: "center",
+  },
+  logo: {
+    fontSize: 60,
+    fontWeight: "700",
+    letterSpacing: 3,
+    marginBottom: 8,
+  },
+  logoS: {
+    color: "#60a5fa",
+  },
+  logoO: {
+    color: "#2dd4bf",
+  },
+  logoR: {
+    color: "#60a5fa",
+  },
+  logoI: {
+    color: "#60a5fa",
+  },
+  tagline: {
+    color: "#2dd4bf",
+    fontSize: 18,
+    fontWeight: "500",
+    letterSpacing: 0.5,
+  },
+  formContainer: {
+    width: "100%",
+    maxWidth: 384,
+    alignSelf: "center",
   },
   title: {
     fontSize: 24,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 8,
-    color: colors.gray[900],
-  },
-  subtitle: {
-    fontSize: 16,
+    fontWeight: "600",
+    color: "#334155",
     textAlign: "center",
     marginBottom: 32,
-    color: colors.gray[600],
-  },
-  form: {
-    gap: 20,
   },
   inputContainer: {
-    gap: 8,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.gray[900],
-  },
-  inputWrapper: {
-    position: "relative",
-  },
-  inputIcon: {
-    position: "absolute",
-    left: 12,
-    top: 12,
-    zIndex: 1,
+    marginBottom: 16,
   },
   input: {
-    height: 44,
-    borderWidth: 1,
-    borderColor: colors.gray[300],
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    backgroundColor: colors.white,
-  },
-  inputDark: {
-    borderColor: colors.gray[700],
-    backgroundColor: colors.gray[800],
-    color: colors.white,
-  },
-  passwordToggle: {
-    position: "absolute",
-    right: 12,
-    top: 12,
-    zIndex: 1,
-  },
-  forgotPassword: {
-    alignSelf: "flex-end",
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: colors.primary[500],
+    height: 56,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    borderRadius: 28,
+    paddingHorizontal: 24,
+    fontSize: 16,
+    color: "#475569",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   loginButton: {
-    marginTop: 8,
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.gray[300],
-  },
-  dividerLineDark: {
-    backgroundColor: colors.gray[700],
-  },
-  dividerText: {
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: colors.gray[500],
-  },
-  mechanicButton: {
-    marginBottom: 8,
-  },
-  footer: {
-    flexDirection: "row",
+    height: 56,
+    backgroundColor: "#2dd4bf",
+    borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 32,
-    gap: 4,
+    marginTop: 16,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  footerText: {
-    fontSize: 14,
-    color: colors.gray[600],
-  },
-  signupText: {
-    fontSize: 14,
+  loginButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
     fontWeight: "500",
-    color: colors.primary[500],
   },
-  textLight: {
-    color: colors.white,
+  forgotPassword: {
+    alignItems: "center",
+    marginTop: 24,
   },
-  textMutedLight: {
-    color: colors.gray[400],
+  forgotPasswordText: {
+    color: "#475569",
+    fontSize: 16,
+    fontWeight: "500",
+    textDecorationLine: "underline",
   },
-  errorText: {
-    color: "red",
-    marginBottom: 15,
-    textAlign: "center",
+  createAccountSection: {
+    alignItems: "center",
+    marginTop: 32,
   },
-})
+  createAccountLabel: {
+    color: "#475569",
+    fontSize: 16,
+    fontWeight: "500",
+    marginBottom: 16,
+  },
+  createAccountButton: {
+    width: "100%",
+    height: 56,
+    borderWidth: 2,
+    borderColor: "#475569",
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  createAccountButtonText: {
+    color: "#475569",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+});
 
+export default Login;

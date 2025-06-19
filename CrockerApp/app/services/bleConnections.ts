@@ -18,7 +18,7 @@ const bleEmitter = new NativeEventEmitter(NativeModules.BleManager);
 const SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb";
 const WRITE_UUID = "0000fff2-0000-1000-8000-00805f9b34fb";
 const READ_UUID = "0000fff1-0000-1000-8000-00805f9b34fb";
-const REMEMBERED_DEVICE_KEY = "@MychanicApp:rememberedDevice";
+const REMEMBERED_DEVICE_KEY = "@soriApp:rememberedDevice";
 const blePlxManager = new BlePlxManager();
 const TARGET_DEVICE_NAME = "OBDII"; // Change to your device's Bluetooth name
 const TARGET_DEVICE_ID = "53fc0537-e506-0bcf-81ec-e757067e9ed3"; // Change to your device's ID
@@ -613,7 +613,7 @@ export const useBleConnection = (options?: {
         `❌ Error initializing OBD for remembered device: ${error instanceof Error ? error.message : String(error)}`
       );
       return false;
-    } 
+    }
   };
 
   // Save device for later use
@@ -842,7 +842,6 @@ export const useBleConnection = (options?: {
     }
   };
 
-
   // Discover device characteristics
   const discoverDeviceProfile = async (
     targetDeviceId: string
@@ -964,7 +963,6 @@ export const useBleConnection = (options?: {
       return false;
     }
   };
-
 
   // Initialize OBD device
   const initializeOBD = async (
@@ -1312,6 +1310,5 @@ export const useBleConnection = (options?: {
     // Setters for discoveredDevices if needed externally
     setDiscoveredDevices,
     connectToBondedDeviceIfAvailable,
-
   };
 };

@@ -1,4 +1,4 @@
-package com.bryce512.Mychanic
+package com.bryce512.sori
 
 import android.os.Build
 import android.os.Bundle

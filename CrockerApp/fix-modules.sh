@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🔧 Fixing node modules for Mychanic app..."
+echo "🔧 Fixing node modules for sori app..."
 
 # Install dependencies if needed
 if [ ! -d "node_modules/patch-package" ]; then

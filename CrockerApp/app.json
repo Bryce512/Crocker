@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Mychanic",
-    "slug": "Mychanic",
+    "name": "Sori",
+    "slug": "Sori",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bryce512.Mychanic",
+      "bundleIdentifier": "com.bryce512.Sori",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
@@ -30,7 +30,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.bryce512.Mychanic",
+      "package": "com.bryce512.Sori",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.BLUETOOTH",

@@ -27,7 +27,7 @@ def firebase_pods
   # pod 'Firebase/Storage'
 end
 
-target 'Mychanic' do
+target 'Sori' do
   use_expo_modules!
   use_frameworks! :linkage => :static  # Add this to fix Swift header issues
 
