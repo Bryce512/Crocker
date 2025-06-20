@@ -1,44 +1,26 @@
 {
   "project_info": {
-    "project_number": "578434461817",
-    "firebase_url": "https://fluid-tangent-405719-default-rtdb.firebaseio.com",
-    "project_id": "fluid-tangent-405719",
-    "storage_bucket": "fluid-tangent-405719.firebasestorage.app"
+    "project_number": "729289409049",
+    "project_id": "crocker-78644",
+    "storage_bucket": "crocker-78644.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:578434461817:android:93c126c762ba34dac524a8",
+        "mobilesdk_app_id": "1:729289409049:android:053fe4597c594f3bb7a088",
         "android_client_info": {
-          "package_name": "com.sori.sori"
+          "package_name": "com.Crocker.app"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "578434461817-994bl7g0rqsqljs8e29cncfulv70ej6c.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBTp-1gGjxtGWbjVvnBncunC3yqskawuOI"
+          "current_key": "AIzaSyDJy4IvjkKkjtJBQmO2F3rPvZs_J3WeNZ8"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "578434461817-994bl7g0rqsqljs8e29cncfulv70ej6c.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "578434461817-i6080geine5mmnkneeeolij2huq3lofp.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "app.sori.device"
-              }
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

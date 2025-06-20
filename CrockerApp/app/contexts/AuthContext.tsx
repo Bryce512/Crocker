@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const storedUserData = await AsyncStorage.getItem("userData");
         if (storedUserData) {
-          setUser(JSON.parse(storedUserData));
+          setUser(JSON.parse(storedUserData))
         }
       } catch (error) {
         console.error("Failed to load authentication state:", error);
@@ -79,10 +79,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Your existing sign out logic
       await firebaseService.signOut();
-
       // Clear stored user data
       await AsyncStorage.removeItem("userData");
       setUser(null);
+      console.log("User signed out successfully");
     } catch (error) {
       console.error("Sign out error:", error);
     }

@@ -8,6 +8,7 @@ import firebaseService from "./app/services/firebaseService";
 import { View, Text } from "react-native";
 import AppNavigator from "./app/navigation/AppNavigator";
 import { BluetoothProvider } from "./app/contexts/BluetoothContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Stack = createNativeStackNavigator();
 
@@ -60,13 +61,9 @@ export default function App() {
       <AuthProvider>
         <BluetoothProvider>
           <NavigationContainer>
-            <StatusBar style="auto" />
-            {/* <Stack.Navigator initialRouteName="Login">
-              <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="Signup" component={SignupScreen} options={{ headerShown: false }} />
-            </Stack.Navigator> */}
+          <SafeAreaView style={{ flex: 1 }}>
             <AppNavigator />
+          </SafeAreaView>
           </NavigationContainer>
         </BluetoothProvider>
       </AuthProvider>

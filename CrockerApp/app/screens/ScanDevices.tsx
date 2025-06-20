@@ -9,15 +9,10 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
 import { RootStackParamList } from "../navigation/AppNavigator";
 
-type DeviceConnectionNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "ScanDevices"
->;
 
 interface Device {
   id: string;
@@ -27,7 +22,7 @@ interface Device {
 }
 
 const DeviceConnection = () => {
-  const navigation = useNavigation<DeviceConnectionNavigationProp>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [devices, setDevices] = useState<Device[]>([]);
   const [isScanning, setIsScanning] = useState(false);
 
@@ -72,23 +67,6 @@ const DeviceConnection = () => {
   return (
     <LinearGradient colors={["#f8fafc", "#eff6ff"]} style={styles.container}>
       <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
-
-      {/* Status Bar */}
-      <View style={styles.statusBar}>
-        <Text style={styles.time}>8:48</Text>
-        <View style={styles.notch}>
-          <View style={styles.notchInner} />
-        </View>
-        <View style={styles.indicators}>
-          <View style={styles.signalDots}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotInactive]} />
-          </View>
-          <View style={styles.battery} />
-        </View>
-      </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Header */}

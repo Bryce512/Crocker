@@ -22,17 +22,6 @@ import {
 } from '@react-native-firebase/database';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyAZ2Xk8Kkbc-0tdkJBqWhqNZie8Ls7cEnc",
-  authDomain: "fluid-tangent-405719.firebaseapp.com",
-  databaseURL: "https://fluid-tangent-405719-default-rtdb.firebaseio.com",
-  projectId: "fluid-tangent-405719",
-  storageBucket: "fluid-tangent-405719.firebasestorage.app",
-  messagingSenderId: "578434461817",
-  appId: "1:578434461817:ios:5509bcf8e73151e2c524a8"
-};
-
 // Flag to track initialization status
 let isInitialized = false;
 
@@ -48,8 +37,8 @@ export const initializeFirebase = async () => {
     // Check if already initialized
     if (getApps().length === 0) {
       // Only initialize if no apps exist
-      initializeApp(firebaseConfig);
-      console.log("Firebase initialized successfully");
+      // initializeApp(firebaseConfig);
+      // console.log("Firebase initialized successfully");
     } else {
       console.log("Firebase app already exists, using existing app");
     }

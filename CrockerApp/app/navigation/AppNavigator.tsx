@@ -38,13 +38,14 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user ? (
-        <></>
-      ) : (
         <>
           <Stack.Screen name="ScanDevices" component={DeviceConnection} />
           <Stack.Screen name="Home" component={Home} />
           <Stack.Screen name="CalendarScreen" component={CalendarScreen} />
-          <Stack.Screen name="EventCreation" component={EventCreation} />
+          <Stack.Screen name="EventCreation" component={EventCreation} /></>
+      ) : (
+        <>
+
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />
           {/* <Stack.Screen name='DriverOnboarding' component={DriverOnboardingScreen} />

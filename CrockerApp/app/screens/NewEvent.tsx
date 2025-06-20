@@ -9,17 +9,11 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
 import { RootStackParamList } from "../navigation/AppNavigator";
 
-type EventCreationNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "EventCreation"
->;
-
 const EventCreation = () => {
-  const navigation = useNavigation<EventCreationNavigationProp>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
   const [startDate, setStartDate] = useState("JAN 7, 2025");
@@ -72,23 +66,6 @@ const EventCreation = () => {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
-
-      {/* Status Bar */}
-      <View style={styles.statusBar}>
-        <Text style={styles.time}>8:48</Text>
-        <View style={styles.notch}>
-          <View style={styles.notchInner} />
-        </View>
-        <View style={styles.indicators}>
-          <View style={styles.signalDots}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotInactive]} />
-          </View>
-          <View style={styles.battery} />
-        </View>
-      </View>
 
       {/* Header */}
       <View style={styles.header}>

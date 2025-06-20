@@ -5,43 +5,40 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   StatusBar,
   Alert,
   ActivityIndicator,
 } from "react-native";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import LinearGradient from "react-native-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../navigation/AppNavigator";
+import { useAuth } from "../contexts/AuthContext"; // Assuming you have a custom hook for authentication
 
 
 const Login = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { signIn } = useAuth(); // Assuming useAuth is a custom hook for authentication
 
   const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) {
-      Alert.alert("Error", "Please enter both username and password");
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter both email and password");
       return;
     }
 
     setIsLoading(true);
+    setErrorMessage(null);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Store auth state
-      await AsyncStorage.setItem("isAuthenticated", "true");
-      await AsyncStorage.setItem("username", username);
-
-      navigation.navigate("Home");
+       await signIn(email, password);
     } catch (error) {
-      Alert.alert("Error", "Login failed. Please try again.");
+      setErrorMessage("An unexpected error occurred");
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -62,22 +59,6 @@ const Login = () => {
     <LinearGradient colors={["#f8fafc", "#eff6ff"]} style={styles.container}>
       <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
 
-      {/* Status Bar */}
-      <View style={styles.statusBar}>
-        <Text style={styles.time}>8:48</Text>
-        <View style={styles.notch}>
-          <View style={styles.notchInner} />
-        </View>
-        <View style={styles.indicators}>
-          <View style={styles.signalDots}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotInactive]} />
-          </View>
-          <View style={styles.battery} />
-        </View>
-      </View>
 
       <View style={styles.content}>
         {/* Logo Section */}
@@ -100,10 +81,10 @@ const Login = () => {
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="Username"
+              placeholder="Email"
               placeholderTextColor="#94a3b8"
-              value={username}
-              onChangeText={setUsername}
+              value={email}
+              onChangeText={setEmail}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -130,7 +111,7 @@ const Login = () => {
             {isLoading ? (
               <ActivityIndicator color="#ffffff" size="small" />
             ) : (
-              <Text style={styles.loginButtonText}>Button</Text>
+              <Text style={styles.loginButtonText}>Log In</Text>
             )}
           </TouchableOpacity>
 

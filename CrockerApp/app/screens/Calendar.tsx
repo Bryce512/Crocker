@@ -8,20 +8,14 @@ import {
   ScrollView,
   Dimensions,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
-import {RootStackParamList}  from "../navigation/AppNavigator";
-
-type CalendarNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "CalendarScreen"
->;
+import { RootStackParamList } from "../navigation/AppNavigator";
 
 const { width } = Dimensions.get("window");
 
 const Calendar = () => {
-  const navigation = useNavigation<CalendarNavigationProp>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [selectedDate, setSelectedDate] = useState(7);
 
   const timeSlots = [
@@ -53,23 +47,6 @@ const Calendar = () => {
   return (
     <LinearGradient colors={["#dbeafe", "#f8fafc"]} style={styles.container}>
       <StatusBar backgroundColor="#dbeafe" barStyle="dark-content" />
-
-      {/* Status Bar */}
-      <View style={styles.statusBar}>
-        <Text style={styles.time}>8:48</Text>
-        <View style={styles.notch}>
-          <View style={styles.notchInner} />
-        </View>
-        <View style={styles.indicators}>
-          <View style={styles.signalDots}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotInactive]} />
-          </View>
-          <View style={styles.battery} />
-        </View>
-      </View>
 
       {/* Header */}
       <View style={styles.header}>

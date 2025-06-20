@@ -8,82 +8,24 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../navigation/AppNavigator";
+import { useAuth } from "../contexts/AuthContext"; // Assuming you have a custom hook for authentication
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "Home"
->;
 
 const Home = () => {
-  const navigation = useNavigation<HomeScreenNavigationProp>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [username, setUsername] = useState<string>("");
+  const { signOut } = useAuth(); // Assuming you have a custom hook for authentication
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
 
-  const checkAuth = async () => {
-    try {
-      const isAuthenticated = await AsyncStorage.getItem("isAuthenticated");
-      if (!isAuthenticated) {
-        navigation.navigate("Login");
-        return;
-      }
-
-      const storedUsername = await AsyncStorage.getItem("username");
-      if (storedUsername) {
-        setUsername(storedUsername);
-      }
-    } catch (error) {
-      console.error("Error checking auth:", error);
-      navigation.navigate("Login");
-    }
-  };
-
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await AsyncStorage.removeItem("isAuthenticated");
-            await AsyncStorage.removeItem("username");
-            navigation.navigate("Login");
-          } catch (error) {
-            console.error("Error logging out:", error);
-          }
-        },
-      },
-    ]);
-  };
 
   return (
     <LinearGradient colors={["#f8fafc", "#eff6ff"]} style={styles.container}>
       <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
 
-      {/* Status Bar */}
-      <View style={styles.statusBar}>
-        <Text style={styles.time}>8:48</Text>
-        <View style={styles.notch}>
-          <View style={styles.notchInner} />
-        </View>
-        <View style={styles.indicators}>
-          <View style={styles.signalDots}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={[styles.dot, styles.dotInactive]} />
-          </View>
-          <View style={styles.battery} />
-        </View>
-      </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Header */}
@@ -94,7 +36,7 @@ const Home = () => {
               <Text style={styles.username}>Hello, {username}</Text>
             ) : null}
           </View>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
