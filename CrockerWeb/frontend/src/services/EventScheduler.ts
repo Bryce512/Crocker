@@ -18,7 +18,7 @@ export type EventCallback = (event: ScheduledEvent, timestamp: number) => void;
 
 export class BasicEventScheduler {
   private events: Record<number, ScheduledEvent[]> = {};
-  private activeTimeout: NodeJS.Timeout | null = null;
+  private activeTimeout: number | null = null;
   private onEventTriggered?: EventCallback;
   private storageKey = "scheduledEvents";
 
@@ -118,7 +118,7 @@ export class BasicEventScheduler {
   private scheduleNextEvent(): void {
     // Clear any existing timeout first
     if (this.activeTimeout) {
-      clearTimeout(this.activeTimeout);
+      window.clearTimeout(this.activeTimeout);
       this.activeTimeout = null;
     }
 
@@ -143,7 +143,7 @@ export class BasicEventScheduler {
     );
 
     // Schedule ONLY the next event - this is efficient!
-    this.activeTimeout = setTimeout(() => {
+    this.activeTimeout = window.setTimeout(() => {
       this.triggerEvents(nextEventTime);
       this.scheduleNextEvent(); // After triggering, schedule the next one
     }, millisecondsUntilEvent);
@@ -346,7 +346,7 @@ export class BasicEventScheduler {
     this.saveEventsToStorage();
 
     if (this.activeTimeout) {
-      clearTimeout(this.activeTimeout);
+      window.clearTimeout(this.activeTimeout);
       this.activeTimeout = null;
     }
   }
@@ -364,7 +364,7 @@ export class BasicEventScheduler {
    */
   public destroy(): void {
     if (this.activeTimeout) {
-      clearTimeout(this.activeTimeout);
+      window.clearTimeout(this.activeTimeout);
       this.activeTimeout = null;
     }
   }

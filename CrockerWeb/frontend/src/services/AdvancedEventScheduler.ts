@@ -26,7 +26,7 @@ export class AdvancedEventScheduler {
   private dbName = "EventSchedulerDB";
   private dbVersion = 1;
   private db: IDBDatabase | null = null;
-  private scheduledTimeouts: Map<number, NodeJS.Timeout> = new Map();
+  private scheduledTimeouts: Map<number, number> = new Map();
   private onEventTriggered?: AdvancedEventCallback;
   private isInitialized = false;
 
@@ -60,7 +60,7 @@ export class AdvancedEventScheduler {
   private initDatabase(): Promise<void> {
     return new Promise((resolve, reject) => {
       // Add a timeout to prevent hanging
-      const timeout = setTimeout(() => {
+      const timeout = window.setTimeout(() => {
         console.error("Database initialization timeout");
         reject(new Error("Database initialization timeout"));
       }, 10000); // 10 second timeout
@@ -68,13 +68,13 @@ export class AdvancedEventScheduler {
       const request = indexedDB.open(this.dbName, this.dbVersion);
 
       request.onerror = () => {
-        clearTimeout(timeout);
+        window.clearTimeout(timeout);
         console.error("Database error:", request.error);
         reject(request.error);
       };
 
       request.onsuccess = () => {
-        clearTimeout(timeout);
+        window.clearTimeout(timeout);
         this.db = request.result;
         console.log("Database opened successfully");
         resolve();
@@ -103,7 +103,7 @@ export class AdvancedEventScheduler {
             imageStore.createIndex("timestamp", "timestamp", { unique: false });
           }
         } catch (error) {
-          clearTimeout(timeout);
+          window.clearTimeout(timeout);
           console.error("Error during database upgrade:", error);
           reject(error);
         }
@@ -328,7 +328,7 @@ export class AdvancedEventScheduler {
     const delay = event.timestamp - Date.now();
 
     if (delay > 0 && event.id) {
-      const timeout = setTimeout(async () => {
+      const timeout = window.setTimeout(async () => {
         await this.triggerEvent(event);
         this.scheduledTimeouts.delete(event.id!);
       }, delay);
@@ -671,7 +671,7 @@ export class AdvancedEventScheduler {
 
     // Cancel scheduled timeout
     if (this.scheduledTimeouts.has(eventId)) {
-      clearTimeout(this.scheduledTimeouts.get(eventId)!);
+      window.clearTimeout(this.scheduledTimeouts.get(eventId)!);
       this.scheduledTimeouts.delete(eventId);
     }
 
@@ -701,7 +701,7 @@ export class AdvancedEventScheduler {
     await this.waitForInit();
 
     // Cancel all scheduled timeouts
-    this.scheduledTimeouts.forEach((timeout) => clearTimeout(timeout));
+    this.scheduledTimeouts.forEach((timeout) => window.clearTimeout(timeout));
     this.scheduledTimeouts.clear();
 
     return new Promise((resolve, reject) => {
@@ -749,7 +749,7 @@ export class AdvancedEventScheduler {
    */
   public destroy(): void {
     // Cancel all scheduled timeouts
-    this.scheduledTimeouts.forEach((timeout) => clearTimeout(timeout));
+    this.scheduledTimeouts.forEach((timeout) => window.clearTimeout(timeout));
     this.scheduledTimeouts.clear();
 
     // Close database connection
