@@ -1,0 +1,507 @@
+/* Styles for the Event Scheduler Component */
+
+.event-scheduler {
+  margin: 1rem 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+}
+
+.toggle-scheduler-btn {
+  background-color: #73c3eb;
+  color: #2b335e;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-scheduler-btn:hover {
+  background-color: #61b7e2;
+}
+
+.scheduler-panel {
+  background-color: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scheduler-panel h3 {
+  color: #2b335e;
+  font-size: 1.25rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #2b335e;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+}
+
+.schedule-btn,
+.cancel-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.2s ease;
+}
+
+.schedule-btn {
+  background-color: #61c9a8;
+  color: white;
+}
+
+.schedule-btn:hover {
+  background-color: #52b899;
+}
+
+.schedule-btn:disabled {
+  background-color: #a8e0d0;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  background-color: #f5f5f5;
+  color: #666;
+}
+
+.cancel-btn:hover {
+  background-color: #e0e0e0;
+}
+
+.image-preview {
+  margin: 1rem 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.image-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.camera-btn {
+  background-color: #73c3eb;
+  color: #2b335e;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.camera-btn:hover {
+  background-color: #61b7e2;
+}
+
+.camera-btn:before {
+  content: "📷";
+  margin-right: 0.5rem;
+}
+
+.retake-photo-btn {
+  background-color: #f5f5f5;
+  color: #666;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.retake-photo-btn:hover {
+  background-color: #e0e0e0;
+}
+
+.remove-photo-btn {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  transition: background-color 0.2s ease;
+}
+
+.remove-photo-btn:hover {
+  background-color: #d32f2f;
+}
+
+.upcoming-events {
+  margin-top: 2rem;
+  border-top: 1px solid #eee;
+  padding-top: 1.5rem;
+}
+
+.no-events {
+  color: #888;
+  text-align: center;
+  font-style: italic;
+}
+
+.events-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.event-item {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background-color: #f9f9f9;
+}
+
+.event-time {
+  font-weight: bold;
+  color: #2b335e;
+  margin-bottom: 0.75rem;
+}
+
+.event-details {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+
+.event-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  margin-right: 1rem;
+}
+
+.event-name {
+  flex: 1;
+  font-size: 1rem;
+}
+
+.remove-event-btn {
+  background-color: #ff6b6b;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  transition: background-color 0.2s ease;
+}
+
+.remove-event-btn:hover {
+  background-color: #ff5252;
+}
+
+.notification-permission {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #fafafa;
+  border-radius: 8px;
+  border: 1px dashed #ddd;
+  text-align: center;
+}
+
+.notification-permission p {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #666;
+}
+
+.notification-permission button {
+  background-color: #73c3eb;
+  color: #2b335e;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.notification-permission button:hover {
+  background-color: #61b7e2;
+}
+
+/* Custom notification styling for in-app notifications */
+.event-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: white;
+  border: 2px solid #73c3eb;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 10000;
+  max-width: 300px;
+  animation: slideIn 0.3s ease-out;
+}
+
+.advanced-event-notification {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  z-index: 10001;
+  max-width: 400px;
+  min-width: 300px;
+  text-align: center;
+  animation: bounceIn 0.6s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Modal styles for the Event Scheduler */
+.scheduler-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.scheduler-modal {
+  background-color: white;
+  border-radius: 16px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease;
+}
+
+.scheduler-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 1.5rem 0.5rem 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 1.5rem;
+}
+
+.scheduler-modal-header h3 {
+  color: #2b335e;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.close-modal-btn:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Update existing scheduler panel to work inside modal */
+.scheduler-modal .scheduler-panel {
+  background: none;
+  border-radius: 0;
+  padding: 0 1.5rem 1.5rem 1.5rem;
+  margin: 0;
+  box-shadow: none;
+  animation: none;
+}
+
+/* Camera overlay within modal */
+.camera-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.9);
+  z-index: 1001;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* Mobile responsive adjustments for modal */
+@media (max-width: 768px) {
+  .scheduler-modal-backdrop {
+    padding: 0.5rem;
+  }
+
+  .scheduler-modal {
+    max-height: 95vh;
+    border-radius: 12px;
+  }
+
+  .scheduler-modal-header {
+    padding: 1rem 1rem 0.5rem 1rem;
+  }
+
+  .scheduler-modal .scheduler-panel {
+    padding: 0 1rem 1rem 1rem;
+  }
+
+  .scheduler-modal .form-row {
+    flex-direction: column;
+  }
+
+  .scheduler-modal .form-group {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Animation improvements */
+@media (prefers-reduced-motion: reduce) {
+  .scheduler-modal {
+    animation: none;
+  }
+
+  @keyframes modalSlideIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .event-scheduler {
+    padding: 0 1rem;
+  }
+}

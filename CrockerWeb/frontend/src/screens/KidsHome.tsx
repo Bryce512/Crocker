@@ -1,69 +1,90 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import CircleCountDown from "../components/CircleCountDown";
-import CountDown from "../components/Timer";
-import CameraCapture from "../components/CameraCapture";
 import StatusBarSpacer from "../components/statusBarSpacer";
 import PWAInstallPrompt from "../components/PWAInstallPrompt";
+import EventSchedulerComponent from "../components/EventSchedulerComponent";
+import { EventNotification } from "../services/EventScheduler";
 import "../styles/KidsHome.css";
 
 function KidsHome() {
   // Add audio reference
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const [showCompleted, setShowCompleted] = useState(false);
-  const [eventName, setEventName] = useState("");
-  const [timerDuration, setTimerDuration] = useState(3); // Default 3 minutes
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [pausedTimeRemaining, setPausedTimeRemaining] = useState<number | null>(
-    null
-  );
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [showCamera, setShowCamera] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [showScheduler, setShowScheduler] = useState(false);
 
-  // Calculate endTime only when timer is running
-  const endTime = startTime
-    ? isPaused && pausedTimeRemaining
-      ? Date.now() + pausedTimeRemaining
-      : startTime + timerDuration * 60 * 1000
-    : null;
+  // New state for next scheduled event
+  const [nextEvent, setNextEvent] = useState<{
+    name: string;
+    image: string;
+    timestamp: number;
+  } | null>(null);
+
+  // State for all events (past, current, future)
+  const [allEvents, setAllEvents] = useState<{
+    past: EventNotification[];
+    future: EventNotification[];
+  }>({ past: [], future: [] });
+
+  // State for current active event (when timer goes off)
+  const [currentEvent, setCurrentEvent] = useState<{
+    name: string;
+    image: string;
+    timestamp: number;
+  } | null>(null);
 
   // Get window width for responsive size
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  // Ref for dropdown menu (to detect clicks outside)
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     // Initialize audio object
-    audioRef.current = new Audio('/sounds/presentation_Alarm.mp3');
+    audioRef.current = new Audio("/sounds/presentation_Alarm.mp3");
+
+    // Restore current active event from localStorage if it exists and is recent
+    const storedCurrentEvent = localStorage.getItem("currentActiveEvent");
+    if (storedCurrentEvent) {
+      try {
+        const parsed = JSON.parse(storedCurrentEvent);
+        const timeSinceStart = Date.now() - parsed.startTime;
+        // Only restore if it's been less than 30 seconds since the event started
+        if (timeSinceStart < 30000) {
+          setCurrentEvent({
+            name: parsed.name,
+            image: parsed.image,
+            timestamp: parsed.timestamp,
+          });
+
+          // Set up auto-clear for remaining time
+          const remainingTime = 30000 - timeSinceStart;
+          setTimeout(() => {
+            setCurrentEvent(null);
+            localStorage.removeItem("currentActiveEvent");
+          }, remainingTime);
+        } else {
+          // Remove expired event
+          localStorage.removeItem("currentActiveEvent");
+        }
+      } catch (error) {
+        console.error("Error parsing stored current event:", error);
+        localStorage.removeItem("currentActiveEvent");
+      }
+    }
 
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
     };
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowDropdown(false);
-      }
-    };
-
     // Check if user is on mobile
     const userAgent =
-      navigator.userAgent || navigator.vendor || ("opera" in window ? (window as { opera?: string }).opera : undefined);
+      navigator.userAgent ||
+      navigator.vendor ||
+      ("opera" in window ? (window as { opera?: string }).opera : undefined);
     const mobileRegex =
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
     setIsMobile(mobileRegex.test(userAgent || ""));
 
     window.addEventListener("resize", handleResize);
-    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
       // Clean up the audio when component unmounts
@@ -73,7 +94,6 @@ function KidsHome() {
       }
 
       window.removeEventListener("resize", handleResize);
-      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -82,28 +102,30 @@ function KidsHome() {
     // Enable audio for iOS
     const enableIOSAudio = () => {
       // Create and play a silent audio when user interacts
-      const silentAudio = new Audio('/sounds/silent.mp3');
-      silentAudio.play().catch(error => console.log("Silent audio error:", error));
-      
+      const silentAudio = new Audio("/sounds/silent.mp3");
+      silentAudio
+        .play()
+        .catch((error) => console.log("Silent audio error:", error));
+
       // Remove event listener after first interaction
-      document.removeEventListener('touchstart', enableIOSAudio);
+      document.removeEventListener("touchstart", enableIOSAudio);
     };
-    
-    document.addEventListener('touchstart', enableIOSAudio);
-    
+
+    document.addEventListener("touchstart", enableIOSAudio);
+
     return () => {
-      document.removeEventListener('touchstart', enableIOSAudio);
+      document.removeEventListener("touchstart", enableIOSAudio);
     };
   }, []);
 
   const toggleMute = () => {
-    setIsMuted(prevMuted => !prevMuted);
+    setIsMuted((prevMuted) => !prevMuted);
     if (audioRef.current) {
       audioRef.current.muted = !isMuted;
     }
   };
 
-  const playCompleteSound = () => {
+  const playCompleteSound = useCallback(() => {
     if (audioRef.current && !isMuted) {
       audioRef.current.currentTime = 0; // Reset to beginning
 
@@ -111,109 +133,160 @@ function KidsHome() {
       const playPromise = audioRef.current.play();
 
       if (playPromise !== undefined) {
-        playPromise.catch(error => {
+        playPromise.catch((error) => {
           console.log("Audio play error:", error);
         });
       }
     }
-  };
-
-  const handleComplete = () => {
-    setShowCompleted(true);
-    setIsTimerRunning(false);
-    setIsPaused(false);
-    playCompleteSound(); // Play sound when timer completes
-  };
-
-  const startTimer = () => {
-    setStartTime(Date.now());
-    setShowCompleted(false);
-    setIsTimerRunning(true);
-    setIsPaused(false);
-    setShowDropdown(false);
-  };
-
-  const pauseTimer = () => {
-    if (endTime) {
-      setPausedTimeRemaining(endTime - Date.now());
-      setIsPaused(true);
-      setShowDropdown(false);
-    }
-  };
-
-  const resumeTimer = () => {
-    if (pausedTimeRemaining) {
-      setStartTime(
-        Date.now() - (timerDuration * 60 * 1000 - pausedTimeRemaining)
-      );
-      setIsPaused(false);
-      setPausedTimeRemaining(null);
-      setShowDropdown(false);
-    }
-  };
-
-  const stopTimer = () => {
-    setIsTimerRunning(false);
-    setIsPaused(false);
-    setStartTime(null);
-    setPausedTimeRemaining(null);
-    setShowDropdown(false);
-  };
+  }, [isMuted]);
 
   // Calculate circle size based on screen width (70% of width, max 300px)
   const circleSize = Math.min(windowWidth * 0.7, 300);
 
-  const buttonStyles = {
-    padding: "12px 25px",
-    fontSize: "16px",
-    backgroundColor: "#73C3EB",
-    color: "#2B335E",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontWeight: "bold",
-    marginBottom: "30px",
-  };
+  // const buttonStyles = {
+  //   padding: "12px 25px",
+  //   fontSize: "16px",
+  //   backgroundColor: "#73C3EB",
+  //   color: "#2B335E",
+  //   border: "none",
+  //   borderRadius: "8px",
+  //   cursor: "pointer",
+  //   fontWeight: "bold",
+  //   marginBottom: "30px",
+  // };
 
   // Add this function to determine which image to show:
-  const getImageForEvent = (name: string) => {
-    const lowerCaseName = name.toLowerCase();
+  // const getImageForEvent = (name: string) => {
+  //   const lowerCaseName = name.toLowerCase();
 
-    if (lowerCaseName.includes("school") || lowerCaseName.includes("class")) {
-      return "https://cdn-icons-png.flaticon.com/512/8074/8074794.png";
-    } else if (
-      lowerCaseName.includes("bed") ||
-      lowerCaseName.includes("sleep")
-    ) {
-      return "https://cdn-icons-png.flaticon.com/512/3094/3094837.png";
-    } else if (
-      lowerCaseName.includes("play") ||
-      lowerCaseName.includes("toy")
-    ) {
-      return "https://cdn-icons-png.flaticon.com/512/2163/2163318.png";
+  //   if (lowerCaseName.includes("school") || lowerCaseName.includes("class")) {
+  //     return "https://cdn-icons-png.flaticon.com/512/8074/8074794.png";
+  //   } else if (
+  //     lowerCaseName.includes("bed") ||
+  //     lowerCaseName.includes("sleep")
+  //   ) {
+  //     return "https://cdn-icons-png.flaticon.com/512/3094/3094837.png";
+  //   } else if (
+  //     lowerCaseName.includes("play") ||
+  //     lowerCaseName.includes("toy")
+  //   ) {
+  //     return "https://cdn-icons-png.flaticon.com/512/2163/2163318.png";
+  //   } else {
+  //     return "https://cdn-icons-png.flaticon.com/512/3239/3239945.png"; // Default clock icon
+  //   }
+  // };
+
+  // Scheduled events handler - memoized to avoid re-renders
+  const handleScheduledEvent = useCallback(
+    (eventName: string, imagePath: string) => {
+      // Set the current event when timer goes off or when restoring from DB
+      const newCurrentEvent = {
+        name: eventName,
+        image: imagePath,
+        timestamp: Date.now(),
+      };
+
+      setCurrentEvent(newCurrentEvent);
+
+      // Store current event in localStorage for persistence across reloads
+      localStorage.setItem(
+        "currentActiveEvent",
+        JSON.stringify({
+          ...newCurrentEvent,
+          startTime: Date.now(),
+        })
+      );
+
+      // Clear the next event since it's now current
+      setNextEvent(null);
+
+      // Auto-clear current event after 30 seconds
+      setTimeout(() => {
+        setCurrentEvent(null);
+        localStorage.removeItem("currentActiveEvent");
+      }, 30000);
+
+      // Play sound when a scheduled event is triggered (but not when restoring)
+      if (nextEvent && nextEvent.name === eventName) {
+        playCompleteSound();
+      }
+
+      // Refresh events list immediately after completion
+      setTimeout(() => {
+        // Trigger a refresh of the events
+        window.dispatchEvent(new CustomEvent("refreshScheduledEvents"));
+      }, 1000);
+    },
+    [playCompleteSound, nextEvent]
+  );
+
+  // Handle upcoming events from scheduler - memoized to avoid re-renders
+  const handleUpcomingEvent = useCallback(
+    (name: string, image: string, timestamp: number) => {
+      // Only update if the timestamp is in the future
+      if (timestamp > Date.now()) {
+        // Always update the next event, even if a current task is showing
+        setNextEvent({
+          name,
+          image,
+          timestamp,
+        });
+      }
+    },
+    []
+  );
+
+  // Handle all events update from scheduler (past and future)
+  const handleAllEventsUpdate = useCallback(
+    (pastEvents: EventNotification[], futureEvents: EventNotification[]) => {
+      console.log("KidsHome received all events update:", {
+        pastCount: pastEvents.length,
+        futureCount: futureEvents.length,
+        pastEvents: pastEvents.map((e) => ({
+          timestamp: e.timestamp,
+          events: e.events.map((ev) => ev.name),
+        })),
+        futureEvents: futureEvents.map((e) => ({
+          timestamp: e.timestamp,
+          events: e.events.map((ev) => ev.name),
+        })),
+      });
+      setAllEvents({ past: pastEvents, future: futureEvents });
+    },
+    []
+  );
+
+  // Handle upcoming events update from scheduler - memoized to avoid re-renders (kept for compatibility)
+  const handleEventsUpdate = useCallback((events: EventNotification[]) => {
+    // This is kept for compatibility but we now primarily use allEvents
+    console.log("Legacy upcoming events updated:", events.length);
+  }, []);
+
+  // Format event time for display
+  const formatEventTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const isTomorrow =
+      date.toDateString() ===
+      new Date(now.getTime() + 24 * 60 * 60 * 1000).toDateString();
+
+    if (isToday) {
+      return `Today at ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    } else if (isTomorrow) {
+      return `Tomorrow at ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
     } else {
-      return "https://cdn-icons-png.flaticon.com/512/3239/3239945.png"; // Default clock icon
+      return date.toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     }
-  };
-
-  // Handle image capture
-  const handleImageCapture = (imageSrc: string) => {
-    setCapturedImage(imageSrc);
-    setShowCamera(false);
-  };
-
-  // Function to get image (prioritize captured image)
-  const getImageForTimer = () => {
-    if (capturedImage) {
-      return capturedImage;
-    }
-    return getImageForEvent(eventName);
   };
 
   return (
     <div className="page-container">
-      {" "}
-      {/* Add a wrapper container */}
       {isMobile && <StatusBarSpacer />}
       <PWAInstallPrompt />
       <div
@@ -224,161 +297,175 @@ function KidsHome() {
             : "20px", // Regular padding for desktop/laptop
         }}
       >
-        {showCamera && (
-          <CameraCapture
-            onCapture={handleImageCapture}
-            onClose={() => setShowCamera(false)}
-          />
-        )}
+        {/* Header with sound and add event buttons */}
+        <div className="header-buttons">
+          <button onClick={toggleMute} className="sound-button">
+            {isMuted ? "🔇" : "🔊"}
+          </button>
+          <button
+            className="add-event-btn"
+            onClick={() => setShowScheduler(true)}
+            title="Add Event"
+          >
+            +
+          </button>
+        </div>
 
-        {showCompleted ? (
-          <div style={{ marginTop: "40px" }}>
-            <h1
-              style={{
-                fontSize: "36px",
-                marginBottom: "20px",
-                color: "#2B335E",
-              }}
-            >
-              Time for...
-            </h1>
-            <p
-              style={{ fontSize: "48px", fontWeight: "bold", color: "#2B335E" }}
-            >
-              {eventName || "All Done!"}
-            </p>
-            <button
-              onClick={() => {
-                setShowCompleted(false);
-                setIsTimerRunning(false);
-                setStartTime(null);
-                setIsPaused(false);
-              }}
-              style={{ ...buttonStyles, marginTop: "30px" }}
-            >
-              New Timer
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Only show input fields when timer is NOT running */}
-            {!isTimerRunning ? (
-              <div className="setup-container">
-                <input
-                  type="text"
-                  placeholder="Time for... (eg. School, Play)"
-                  value={eventName}
-                  onChange={(e) => setEventName(e.target.value)}
-                  className="input-field"
-                />
-
-                <select
-                  value={timerDuration}
-                  onChange={(e) => setTimerDuration(Number(e.target.value))}
-                  className="select-field"
-                >
-                  <option value={0.0833}>5 sec</option>
-                  <option value={3}>3 min</option>
-                  <option value={5}>5 min</option>
-                  <option value={10}>10 min</option>
-                </select>
-
-                {/* Start button is now always visible */}
-                <button onClick={startTimer} className="start-button">
-                  Start Timer
-                </button>
-
-                {/* Show preview if image is captured */}
-                {capturedImage && (
-                  <div className="image-preview">
-                    <img src={capturedImage} alt="Captured" />
-                  </div>
-                )}
-
-                {/* Camera button now appears after start button */}
-                <button
-                  onClick={() => setShowCamera(true)}
-                  className="camera-button"
-                >
-                  {capturedImage ? "Change Photo" : "Take Photo"}
-                </button>
-              </div>
-            ) : (
-              <div className="timer-control" ref={dropdownRef}>
-                <button
-                  className="control-button"
-                  onClick={() => setShowDropdown(!showDropdown)}
-                >
-                  {isPaused ? "Timer Paused" : "Timer Controls"}
-                </button>
-
-                {showDropdown && (
-                  <div className="dropdown-menu">
-                    {isPaused ? (
-                      <div
-                        className="dropdown-item start"
-                        onClick={resumeTimer}
-                      >
-                        Resume
-                      </div>
-                    ) : (
-                      <div className="dropdown-item pause" onClick={pauseTimer}>
-                        Pause
-                      </div>
-                    )}
-                    <div className="dropdown-item stop" onClick={stopTimer}>
-                      Stop
+        {/* Main content with scrollable sections */}
+        <div className="main-content">
+          {/* Past Events Section */}
+          {allEvents.past.length > 0 && (
+            <div className="past-events-section">
+              <h3>Past Events</h3>
+              <div className="events-list">
+                {allEvents.past.map((notification) => (
+                  <div
+                    key={`past-notification-${notification.timestamp}`}
+                    className="event-item past-event"
+                  >
+                    <div className="event-time">
+                      {formatEventTime(notification.timestamp)}
                     </div>
+                    {notification.events.map((event, eventIndex) => (
+                      <div
+                        key={`past-event-${notification.timestamp}-${eventIndex}`}
+                        className="event-details"
+                      >
+                        {event.image ? (
+                          <img
+                            src={event.image}
+                            alt={event.name}
+                            className="event-image"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display =
+                                "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="event-no-image">
+                            <span className="event-icon">✅</span>
+                          </div>
+                        )}
+                        <div className="event-name">{event.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Current Event Section - Prominent Display */}
+          {currentEvent && (
+            <div className="current-event-section-main">
+              <h2 className="current-event-title">🎉 Current Activity</h2>
+              <div className="current-event-content">
+                <p className="current-event-name">{currentEvent.name}</p>
+                {currentEvent.image && (
+                  <div className="current-event-image">
+                    <img
+                      src={currentEvent.image}
+                      alt={currentEvent.name}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
                   </div>
                 )}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Display event name when timer is running */}
-            {isTimerRunning && eventName && (
-              <h2
-                style={{
-                  fontSize: "32px",
-                  marginBottom: "20px",
-                  color: "#2B335E",
-                }}
-              >
-                {eventName}
-              </h2>
-            )}
-
-            {/* Only render timers when timer is running */}
-            {isTimerRunning && endTime && (
-              <>
-                <div>
-                  <CountDown
-                    date={endTime}
-                    onComplete={handleComplete}
-                    isPaused={isPaused}
-                  />
+          {/* Next Event Timer Section - Prominent Display */}
+          {nextEvent && nextEvent.timestamp > Date.now() && (
+            <div className="next-event-section-main">
+              <h2 className="next-event-title">Next Up</h2>
+              <div className="next-event-content">
+                <p className="next-event-name">{nextEvent.name}</p>
+                <div className="next-event-time">
+                  {new Date(nextEvent.timestamp).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </div>
-                <br />
-                <div>
+                <div className="next-event-countdown">
                   <CircleCountDown
-                    time={(endTime - Date.now()) / 1000}
+                    time={(nextEvent.timestamp - Date.now()) / 1000}
                     size={circleSize}
                     stroke={"#61C9A8"}
                     strokeWidth={Math.max(8, circleSize * 0.08)}
-                    onComplete={handleComplete}
-                    imageUrl={getImageForTimer()} // Use the new function here
-                    isPaused={isPaused}
+                    imageUrl={nextEvent.image}
+                    isPaused={false}
+                    onComplete={() =>
+                      handleScheduledEvent(nextEvent.name, nextEvent.image)
+                    }
                   />
                 </div>
-              </>
-            )}
-          </>
-        )}
-        <button 
-          onClick={toggleMute}
-          className="sound-button"
-        >
-          {isMuted ? "🔇" : "🔊"}
-        </button>
+              </div>
+            </div>
+          )}
+
+          {!nextEvent && !currentEvent && (
+            <div className="no-events-message">
+              <h2>No scheduled events</h2>
+              <p>Tap the + button to schedule your first event</p>
+            </div>
+          )}
+
+          {/* Future Events Section */}
+          {allEvents.future.length > 0 && (
+            <div className="future-events-section">
+              <h3>Upcoming Events</h3>
+              <div className="events-list">
+                {allEvents.future.map((notification) => (
+                  <div
+                    key={`future-notification-${notification.timestamp}`}
+                    className="event-item future-event"
+                  >
+                    <div className="event-time">
+                      {formatEventTime(notification.timestamp)}
+                    </div>
+                    {notification.events.map((event, eventIndex) => (
+                      <div
+                        key={`future-event-${notification.timestamp}-${eventIndex}`}
+                        className="event-details"
+                      >
+                        {event.image ? (
+                          <img
+                            src={event.image}
+                            alt={event.name}
+                            className="event-image"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display =
+                                "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="event-no-image">
+                            <span className="event-icon">📅</span>
+                          </div>
+                        )}
+                        <div className="event-name">{event.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Event Scheduler Component */}
+        <EventSchedulerComponent
+          onEventTriggered={handleScheduledEvent}
+          onUpcomingEvent={handleUpcomingEvent}
+          onEventsUpdated={handleEventsUpdate}
+          onAllEventsUpdated={handleAllEventsUpdate}
+          useAdvancedScheduler={true}
+          useServiceWorker={true}
+          showScheduler={showScheduler}
+          onHideScheduler={() => setShowScheduler(false)}
+        />
       </div>
     </div>
   );
