@@ -3,6 +3,8 @@
  * This class avoids continuous polling by calculating exact delays to the next event
  */
 
+import { AudioAlert } from "../utils/audioUtils";
+
 export interface ScheduledEvent {
   name: string;
   image: string;
@@ -184,6 +186,9 @@ export class BasicEventScheduler {
 
     // Create custom UI notification
     this.createCustomNotification(event.name, event.image);
+
+    // Play alert sound
+    AudioAlert.playNotificationSound();
   }
 
   /**

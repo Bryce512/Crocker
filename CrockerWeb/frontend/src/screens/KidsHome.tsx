@@ -39,7 +39,7 @@ function KidsHome() {
 
   useEffect(() => {
     // Initialize audio object
-    audioRef.current = new Audio("/sounds/presentation_Alarm.mp3");
+    audioRef.current = new Audio("/sounds/Drops_Sound.mp3");
 
     // Restore current active event from localStorage if it exists and is recent
     const storedCurrentEvent = localStorage.getItem("currentActiveEvent");
@@ -133,10 +133,43 @@ function KidsHome() {
       const playPromise = audioRef.current.play();
 
       if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.log("Audio play error:", error);
-        });
+        playPromise
+          .then(() => {
+            // Audio started playing successfully
+            console.log("Alarm sound started playing");
+
+            // Add event listener for when audio ends
+            const handleAudioEnd = () => {
+              console.log("Alarm sound finished playing, refreshing page...");
+              // Remove the event listener
+              audioRef.current?.removeEventListener("ended", handleAudioEnd);
+
+              // Refresh the page after audio finishes
+              setTimeout(() => {
+                window.location.reload();
+              }, 500); // Small delay to ensure cleanup
+            };
+
+            audioRef.current?.addEventListener("ended", handleAudioEnd);
+          })
+          .catch((error) => {
+            console.log("Audio play error:", error);
+            // If audio fails, still refresh after a delay
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
+          });
+      } else {
+        // Fallback: if no promise returned, refresh after estimated audio duration
+        setTimeout(() => {
+          window.location.reload();
+        }, 3000); // Adjust based on your audio file length
       }
+    } else {
+      // If muted or no audio, still refresh the page
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     }
   }, [isMuted]);
 
@@ -316,42 +349,48 @@ function KidsHome() {
           {/* Past Events Section */}
           {allEvents.past.length > 0 && (
             <div className="past-events-section">
-              <h3>Past Events</h3>
               <div className="events-list">
-                {allEvents.past.map((notification) => (
-                  <div
-                    key={`past-notification-${notification.timestamp}`}
-                    className="event-item past-event"
-                  >
-                    <div className="event-time">
-                      {formatEventTime(notification.timestamp)}
-                    </div>
-                    {notification.events.map((event, eventIndex) => (
-                      <div
-                        key={`past-event-${notification.timestamp}-${eventIndex}`}
-                        className="event-details"
-                      >
-                        {event.image ? (
-                          <img
-                            src={event.image}
-                            alt={event.name}
-                            className="event-image"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display =
-                                "none";
-                            }}
-                          />
-                        ) : (
-                          <div className="event-no-image">
-                            <span className="event-icon">✅</span>
-                          </div>
-                        )}
-                        <div className="event-name">{event.name}</div>
+                {allEvents.past
+                  // Filter out notifications more than 24 hours in the future (if that's the intent)
+                  .filter(
+                    (notification) =>
+                      notification.timestamp >= Date.now() - 24 * 60 * 60 * 1000
+                  )
+                  .map((notification) => (
+                    <div
+                      key={`past-notification-${notification.timestamp}`}
+                      className="event-item past-event"
+                    >
+                      <div className="event-time">
+                        {formatEventTime(notification.timestamp)}
                       </div>
-                    ))}
-                  </div>
-                ))}
+                      {notification.events.map((event, eventIndex) => (
+                        <div
+                          key={`past-event-${notification.timestamp}-${eventIndex}`}
+                          className="event-details"
+                        >
+                          {event.image ? (
+                            <img
+                              src={event.image}
+                              alt={event.name}
+                              className="event-image"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                              }}
+                            />
+                          ) : (
+                            <div className="event-no-image">
+                              <span className="event-icon">✅</span>
+                            </div>
+                          )}
+                          <div className="event-name">{event.name}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
               </div>
+              <h3>Past Events</h3>
             </div>
           )}
 

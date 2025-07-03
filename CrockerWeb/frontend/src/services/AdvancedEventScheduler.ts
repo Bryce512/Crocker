@@ -3,6 +3,8 @@
  * This scheduler can store images locally and provides more advanced persistence
  */
 
+import { AudioAlert } from "../utils/audioUtils";
+
 export interface StoredEvent {
   id?: number;
   timestamp: number;
@@ -32,22 +34,56 @@ export class AdvancedEventScheduler {
 
   constructor(onEventTriggered?: AdvancedEventCallback) {
     this.onEventTriggered = onEventTriggered;
-    this.init();
+    // Initialize asynchronously without blocking constructor
+    this.init().catch((error) => {
+      console.error("Failed to initialize AdvancedEventScheduler:", error);
+      this.isInitialized = true; // Set to true to prevent infinite waiting
+    });
   }
 
   /**
    * Initialize the database and load existing events
    */
   private async init(): Promise<void> {
+    const startTime = performance.now();
     try {
       console.log("Starting AdvancedEventScheduler initialization...");
+
+      // Check storage quota first
+      if ("storage" in navigator && "estimate" in navigator.storage) {
+        try {
+          const estimate = await navigator.storage.estimate();
+          console.log("Storage quota:", {
+            quota: estimate.quota,
+            usage: estimate.usage,
+            available: estimate.quota
+              ? estimate.quota - (estimate.usage || 0)
+              : "unknown",
+          });
+        } catch (error) {
+          console.warn("Could not check storage quota:", error);
+        }
+      }
+
       await this.initDatabase();
-      console.log("Database initialized, loading existing events...");
+      const dbInitTime = performance.now();
+      console.log(
+        `Database initialized in ${Math.round(dbInitTime - startTime)}ms, loading existing events...`
+      );
+
       await this.loadAndScheduleEvents();
+      const totalTime = performance.now();
+      console.log(
+        `Advanced Event Scheduler initialized successfully in ${Math.round(totalTime - startTime)}ms`
+      );
+
       this.isInitialized = true;
-      console.log("Advanced Event Scheduler initialized successfully");
     } catch (error) {
-      console.error("Failed to initialize Advanced Event Scheduler:", error);
+      const totalTime = performance.now();
+      console.error(
+        `Failed to initialize Advanced Event Scheduler after ${Math.round(totalTime - startTime)}ms:`,
+        error
+      );
       // Set initialized to true even if there's an error to prevent infinite waiting
       this.isInitialized = true;
       // Don't throw error to prevent blocking the UI
@@ -59,55 +95,96 @@ export class AdvancedEventScheduler {
    */
   private initDatabase(): Promise<void> {
     return new Promise((resolve, reject) => {
-      // Add a timeout to prevent hanging
+      const startTime = performance.now();
+      console.log("Attempting to open IndexedDB:", this.dbName);
+
+      // Check if IndexedDB is available
+      if (!window.indexedDB) {
+        const error = new Error("IndexedDB is not supported in this browser");
+        console.error(error.message);
+        reject(error);
+        return;
+      }
+
+      // Increase timeout but add progress logging
       const timeout = window.setTimeout(() => {
-        console.error("Database initialization timeout");
+        const elapsed = Math.round(performance.now() - startTime);
+        console.error(`Database initialization timeout after ${elapsed}ms`);
         reject(new Error("Database initialization timeout"));
-      }, 10000); // 10 second timeout
+      }, 35000); // 35 second timeout to see what happens
 
-      const request = indexedDB.open(this.dbName, this.dbVersion);
+      try {
+        const request = indexedDB.open(this.dbName, this.dbVersion);
+        console.log(
+          `IndexedDB open request created at ${Math.round(performance.now() - startTime)}ms`
+        );
 
-      request.onerror = () => {
-        window.clearTimeout(timeout);
-        console.error("Database error:", request.error);
-        reject(request.error);
-      };
-
-      request.onsuccess = () => {
-        window.clearTimeout(timeout);
-        this.db = request.result;
-        console.log("Database opened successfully");
-        resolve();
-      };
-
-      request.onupgradeneeded = (event) => {
-        try {
-          const db = (event.target as IDBOpenDBRequest).result;
-
-          // Create events store
-          if (!db.objectStoreNames.contains("events")) {
-            const eventStore = db.createObjectStore("events", {
-              keyPath: "id",
-              autoIncrement: true,
-            });
-            eventStore.createIndex("timestamp", "timestamp", { unique: false });
-            eventStore.createIndex("triggered", "triggered", { unique: false });
-            eventStore.createIndex("name", "name", { unique: false });
-          }
-
-          // Create images store for local image storage
-          if (!db.objectStoreNames.contains("images")) {
-            const imageStore = db.createObjectStore("images", {
-              keyPath: "path",
-            });
-            imageStore.createIndex("timestamp", "timestamp", { unique: false });
-          }
-        } catch (error) {
+        request.onerror = () => {
           window.clearTimeout(timeout);
-          console.error("Error during database upgrade:", error);
-          reject(error);
-        }
-      };
+          const elapsed = Math.round(performance.now() - startTime);
+          console.error(
+            `IndexedDB open error after ${elapsed}ms:`,
+            request.error
+          );
+          reject(request.error || new Error("Unknown IndexedDB error"));
+        };
+
+        request.onsuccess = () => {
+          window.clearTimeout(timeout);
+          const elapsed = Math.round(performance.now() - startTime);
+          this.db = request.result;
+          console.log(`IndexedDB opened successfully after ${elapsed}ms`);
+          resolve();
+        };
+
+        request.onupgradeneeded = (event) => {
+          console.log("IndexedDB upgrade needed");
+          try {
+            const db = (event.target as IDBOpenDBRequest).result;
+
+            // Create events store
+            if (!db.objectStoreNames.contains("events")) {
+              console.log("Creating events object store");
+              const eventStore = db.createObjectStore("events", {
+                keyPath: "id",
+                autoIncrement: true,
+              });
+              eventStore.createIndex("timestamp", "timestamp", {
+                unique: false,
+              });
+              eventStore.createIndex("triggered", "triggered", {
+                unique: false,
+              });
+              eventStore.createIndex("name", "name", { unique: false });
+            }
+
+            // Create images store for local image storage
+            if (!db.objectStoreNames.contains("images")) {
+              console.log("Creating images object store");
+              const imageStore = db.createObjectStore("images", {
+                keyPath: "path",
+              });
+              imageStore.createIndex("timestamp", "timestamp", {
+                unique: false,
+              });
+            }
+            console.log("IndexedDB schema setup complete");
+          } catch (error) {
+            window.clearTimeout(timeout);
+            console.error("Error during database upgrade:", error);
+            reject(error);
+          }
+        };
+
+        request.onblocked = () => {
+          console.warn("IndexedDB open request blocked");
+          // Don't reject here, just log - the request might still succeed
+        };
+      } catch (error) {
+        window.clearTimeout(timeout);
+        console.error("Error creating IndexedDB request:", error);
+        reject(error);
+      }
     });
   }
 
@@ -116,7 +193,7 @@ export class AdvancedEventScheduler {
    */
   private async waitForInit(): Promise<void> {
     let attempts = 0;
-    const maxAttempts = 30; // 3 seconds max wait time
+    const maxAttempts = 15; // 1.5 seconds max wait time (reduced)
 
     while (!this.isInitialized && attempts < maxAttempts) {
       console.log(
@@ -127,12 +204,12 @@ export class AdvancedEventScheduler {
     }
 
     if (!this.isInitialized) {
-      console.error(
-        "AdvancedEventScheduler failed to initialize within timeout period"
+      console.warn(
+        "AdvancedEventScheduler initialization timeout - proceeding without database"
       );
-      throw new Error(
-        "AdvancedEventScheduler failed to initialize within timeout period"
-      );
+      // Force initialization to true to prevent blocking
+      this.isInitialized = true;
+      return;
     }
 
     console.log("AdvancedEventScheduler initialization complete");
@@ -347,6 +424,9 @@ export class AdvancedEventScheduler {
     console.log("Triggering event:", event.name);
 
     try {
+      // Play alert sound
+      await AudioAlert.playNotificationSound();
+
       // Get stored image
       const imageData = await this.getStoredImage(event.imagePath);
 
@@ -536,7 +616,12 @@ export class AdvancedEventScheduler {
     imageUrl?: string
   ): Promise<number | null> {
     console.log("AdvancedEventScheduler.addEvent called, waiting for init...");
-    await this.waitForInit();
+    try {
+      await this.waitForInit();
+    } catch (error) {
+      console.warn("Initialization failed, cannot add event:", error);
+      return null;
+    }
     console.log("AdvancedEventScheduler.addEvent init complete, proceeding...");
 
     const timestamp = new Date(dateTime).getTime();
@@ -594,24 +679,46 @@ export class AdvancedEventScheduler {
    * Get all events from database
    */
   public async getAllEvents(): Promise<StoredEvent[]> {
-    await this.waitForInit();
+    try {
+      await this.waitForInit();
+    } catch (error) {
+      console.warn(
+        "Initialization failed, returning empty events array:",
+        error
+      );
+      return [];
+    }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (!this.db) {
-        reject(new Error("Database not initialized"));
+        console.warn("Database not initialized, returning empty events array");
+        resolve([]);
         return;
       }
 
-      const transaction = this.db.transaction(["events"], "readonly");
-      const store = transaction.objectStore("events");
-      const request = store.getAll();
+      try {
+        const transaction = this.db.transaction(["events"], "readonly");
+        const store = transaction.objectStore("events");
+        const request = store.getAll();
 
-      request.onsuccess = () => {
-        const events = request.result as StoredEvent[];
-        resolve(events.sort((a, b) => a.timestamp - b.timestamp));
-      };
+        request.onsuccess = () => {
+          const events = request.result as StoredEvent[];
+          resolve(events.sort((a, b) => a.timestamp - b.timestamp));
+        };
 
-      request.onerror = () => reject(request.error);
+        request.onerror = () => {
+          console.warn("Error loading events:", request.error);
+          resolve([]);
+        };
+
+        transaction.onerror = () => {
+          console.warn("Transaction error:", transaction.error);
+          resolve([]);
+        };
+      } catch (error) {
+        console.warn("Error creating transaction:", error);
+        resolve([]);
+      }
     });
   }
 
@@ -742,6 +849,28 @@ export class AdvancedEventScheduler {
   public async getTimeUntilNextEvent(): Promise<number | null> {
     const upcoming = await this.getUpcomingEvents();
     return upcoming.length > 0 ? upcoming[0].timestamp - Date.now() : null;
+  }
+
+  /**
+   * Check if the scheduler is properly initialized and database is available
+   */
+  public isReady(): boolean {
+    return this.isInitialized && this.db !== null;
+  }
+
+  /**
+   * Get a simple status of the scheduler
+   */
+  public getStatus(): {
+    initialized: boolean;
+    databaseReady: boolean;
+    canStore: boolean;
+  } {
+    return {
+      initialized: this.isInitialized,
+      databaseReady: this.db !== null,
+      canStore: this.isInitialized && this.db !== null,
+    };
   }
 
   /**
