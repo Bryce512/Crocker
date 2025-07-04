@@ -14,6 +14,9 @@ body,
   height: 100%;
   overflow-x: hidden;
   background-color: #bbe8ff;
+  /* Fix for mobile browser white screen */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
 }
 
 .page-container {
@@ -21,7 +24,11 @@ body,
   flex-direction: column;
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile */
   background-color: #bbe8ff;
+  /* Ensure content is visible on mobile browsers */
+  position: relative;
+  z-index: 1;
 }
 
 .kids-home-container {
@@ -42,6 +49,14 @@ body,
   /* Fallbacks for different browser support */
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
+
+  /* Mobile browser specific fixes */
+  min-height: calc(
+    100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+  );
+  min-height: calc(
+    100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+  );
 }
 
 /* Dropdown Menu Styling */
@@ -698,5 +713,42 @@ body,
 
   .next-event-section-main .next-event-title {
     font-size: 1.4rem;
+  }
+}
+
+/* Mobile browser specific fixes */
+@media screen and (max-device-width: 480px) {
+  html,
+  body,
+  #root {
+    height: 100% !important;
+    min-height: 100% !important;
+    background-color: #bbe8ff !important;
+  }
+
+  .page-container {
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    background-color: #bbe8ff !important;
+  }
+
+  .kids-home-container {
+    background-color: #bbe8ff !important;
+    min-height: calc(100vh - 90px) !important;
+    min-height: calc(100dvh - 90px) !important;
+  }
+}
+
+/* PWA specific styles when launched from home screen */
+@media all and (display-mode: standalone) {
+  .kids-home-container {
+    padding-top: calc(60px + env(safe-area-inset-top, 20px)) !important;
+  }
+}
+
+/* Fallback for browsers that don't support PWA display modes */
+@media all and (display-mode: browser) {
+  .kids-home-container {
+    padding-top: calc(90px + env(safe-area-inset-top, 20px)) !important;
   }
 }

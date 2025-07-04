@@ -36,10 +36,35 @@ function KidsHome() {
 
   // Get window width for responsive size
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [isInBrowser, setIsInBrowser] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // Initialize audio object
-    audioRef.current = new Audio("/sounds/Drops_Sound.mp3");
+    // Initialize audio object with correct path (URL encoded for spaces)
+    audioRef.current = new Audio("../../public/sounds/Drops_Sound.mp3");
+
+    // Detect if running in browser vs PWA
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as { standalone?: boolean }).standalone ||
+      document.referrer.includes("android-app://");
+    setIsInBrowser(!isStandalone);
+
+    // Check if user is on mobile first
+    const userAgent =
+      navigator.userAgent ||
+      navigator.vendor ||
+      ("opera" in window ? (window as { opera?: string }).opera : undefined);
+    const mobileRegex =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+    const isMobileDevice = mobileRegex.test(userAgent || "");
+    setIsMobile(isMobileDevice);
+
+    // Force background color on mobile browsers
+    if (isMobileDevice && !isStandalone) {
+      document.body.style.backgroundColor = "#bbe8ff";
+      document.documentElement.style.backgroundColor = "#bbe8ff";
+    }
 
     // Restore current active event from localStorage if it exists and is recent
     const storedCurrentEvent = localStorage.getItem("currentActiveEvent");
@@ -75,16 +100,12 @@ function KidsHome() {
       setWindowWidth(window.innerWidth);
     };
 
-    // Check if user is on mobile
-    const userAgent =
-      navigator.userAgent ||
-      navigator.vendor ||
-      ("opera" in window ? (window as { opera?: string }).opera : undefined);
-    const mobileRegex =
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
-    setIsMobile(mobileRegex.test(userAgent || ""));
-
     window.addEventListener("resize", handleResize);
+
+    // Mark as loaded after initial setup to ensure content is visible
+    setTimeout(() => {
+      setIsLoaded(true);
+    }, 100);
 
     return () => {
       // Clean up the audio when component unmounts
@@ -319,54 +340,174 @@ function KidsHome() {
   };
 
   return (
-    <div className="page-container">
+    <div className="page-container" style={{ backgroundColor: "#bbe8ff" }}>
       {isMobile && <StatusBarSpacer />}
       <PWAInstallPrompt />
-      <div
-        className="kids-home-container"
-        style={{
-          paddingTop: isMobile
-            ? "calc(env(safe-area-inset-top, 44px) + 20px)"
-            : "20px", // Regular padding for desktop/laptop
-        }}
-      >
-        {/* Header with sound and add event buttons */}
-        <div className="header-buttons">
-          <button onClick={toggleMute} className="sound-button">
-            {isMuted ? "🔇" : "🔊"}
-          </button>
-          <button
-            className="add-event-btn"
-            onClick={() => setShowScheduler(true)}
-            title="Add Event"
-          >
-            +
-          </button>
+      {!isLoaded ? (
+        // Loading fallback for mobile browsers
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "100vh",
+            backgroundColor: "#bbe8ff",
+            color: "#2b335e",
+            fontSize: "18px",
+          }}
+        >
+          Loading...
         </div>
+      ) : (
+        <div
+          className="kids-home-container"
+          style={{
+            paddingTop: isMobile
+              ? isInBrowser
+                ? "calc(env(safe-area-inset-top, 44px) + 20px)"
+                : "calc(env(safe-area-inset-top, 44px) + 20px)"
+              : "20px", // Regular padding for desktop/laptop
+            backgroundColor: "#bbe8ff", // Ensure background is always set
+          }}
+        >
+          {/* Header with sound and add event buttons */}
+          <div className="header-buttons">
+            <button onClick={toggleMute} className="sound-button">
+              {isMuted ? "🔇" : "🔊"}
+            </button>
+            <button
+              className="add-event-btn"
+              onClick={() => setShowScheduler(true)}
+              title="Add Event"
+            >
+              +
+            </button>
+          </div>
 
-        {/* Main content with scrollable sections */}
-        <div className="main-content">
-          {/* Past Events Section */}
-          {allEvents.past.length > 0 && (
-            <div className="past-events-section">
-              <div className="events-list">
-                {allEvents.past
-                  // Filter out notifications more than 24 hours in the future (if that's the intent)
-                  .filter(
-                    (notification) =>
-                      notification.timestamp >= Date.now() - 24 * 60 * 60 * 1000
-                  )
-                  .map((notification) => (
+          {/* Main content with scrollable sections */}
+          <div className="main-content">
+            {/* Past Events Section */}
+            {allEvents.past.length > 0 && (
+              <div className="past-events-section">
+                <div className="events-list">
+                  {allEvents.past
+                    // Filter out notifications more than 24 hours in the future (if that's the intent)
+                    .filter(
+                      (notification) =>
+                        notification.timestamp >=
+                        Date.now() - 24 * 60 * 60 * 1000
+                    )
+                    .map((notification) => (
+                      <div
+                        key={`past-notification-${notification.timestamp}`}
+                        className="event-item past-event"
+                      >
+                        <div className="event-time">
+                          {formatEventTime(notification.timestamp)}
+                        </div>
+                        {notification.events.map((event, eventIndex) => (
+                          <div
+                            key={`past-event-${notification.timestamp}-${eventIndex}`}
+                            className="event-details"
+                          >
+                            {event.image ? (
+                              <img
+                                src={event.image}
+                                alt={event.name}
+                                className="event-image"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display =
+                                    "none";
+                                }}
+                              />
+                            ) : (
+                              <div className="event-no-image">
+                                <span className="event-icon">✅</span>
+                              </div>
+                            )}
+                            <div className="event-name">{event.name}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                </div>
+                <h3>Past Events</h3>
+              </div>
+            )}
+
+            {/* Current Event Section - Prominent Display */}
+            {currentEvent && (
+              <div className="current-event-section-main">
+                <h2 className="current-event-title">🎉 Current Activity</h2>
+                <div className="current-event-content">
+                  <p className="current-event-name">{currentEvent.name}</p>
+                  {currentEvent.image && (
+                    <div className="current-event-image">
+                      <img
+                        src={currentEvent.image}
+                        alt={currentEvent.name}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Next Event Timer Section - Prominent Display */}
+            {nextEvent && nextEvent.timestamp > Date.now() && (
+              <div className="next-event-section-main">
+                <h2 className="next-event-title">Next Up</h2>
+                <div className="next-event-content">
+                  <p className="next-event-name">{nextEvent.name}</p>
+                  <div className="next-event-time">
+                    {new Date(nextEvent.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                  <div className="next-event-countdown">
+                    <CircleCountDown
+                      time={(nextEvent.timestamp - Date.now()) / 1000}
+                      size={circleSize}
+                      stroke={"#61C9A8"}
+                      strokeWidth={Math.max(8, circleSize * 0.08)}
+                      imageUrl={nextEvent.image}
+                      isPaused={false}
+                      onComplete={() =>
+                        handleScheduledEvent(nextEvent.name, nextEvent.image)
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!nextEvent && !currentEvent && (
+              <div className="no-events-message">
+                <h2>No scheduled events</h2>
+                <p>Tap the + button to schedule your first event</p>
+              </div>
+            )}
+
+            {/* Future Events Section */}
+            {allEvents.future.length > 0 && (
+              <div className="future-events-section">
+                <h3>Upcoming Events</h3>
+                <div className="events-list">
+                  {allEvents.future.map((notification) => (
                     <div
-                      key={`past-notification-${notification.timestamp}`}
-                      className="event-item past-event"
+                      key={`future-notification-${notification.timestamp}`}
+                      className="event-item future-event"
                     >
                       <div className="event-time">
                         {formatEventTime(notification.timestamp)}
                       </div>
                       {notification.events.map((event, eventIndex) => (
                         <div
-                          key={`past-event-${notification.timestamp}-${eventIndex}`}
+                          key={`future-event-${notification.timestamp}-${eventIndex}`}
                           className="event-details"
                         >
                           {event.image ? (
@@ -381,7 +522,7 @@ function KidsHome() {
                             />
                           ) : (
                             <div className="event-no-image">
-                              <span className="event-icon">✅</span>
+                              <span className="event-icon">📅</span>
                             </div>
                           )}
                           <div className="event-name">{event.name}</div>
@@ -389,123 +530,24 @@ function KidsHome() {
                       ))}
                     </div>
                   ))}
-              </div>
-              <h3>Past Events</h3>
-            </div>
-          )}
-
-          {/* Current Event Section - Prominent Display */}
-          {currentEvent && (
-            <div className="current-event-section-main">
-              <h2 className="current-event-title">🎉 Current Activity</h2>
-              <div className="current-event-content">
-                <p className="current-event-name">{currentEvent.name}</p>
-                {currentEvent.image && (
-                  <div className="current-event-image">
-                    <img
-                      src={currentEvent.image}
-                      alt={currentEvent.name}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Next Event Timer Section - Prominent Display */}
-          {nextEvent && nextEvent.timestamp > Date.now() && (
-            <div className="next-event-section-main">
-              <h2 className="next-event-title">Next Up</h2>
-              <div className="next-event-content">
-                <p className="next-event-name">{nextEvent.name}</p>
-                <div className="next-event-time">
-                  {new Date(nextEvent.timestamp).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </div>
-                <div className="next-event-countdown">
-                  <CircleCountDown
-                    time={(nextEvent.timestamp - Date.now()) / 1000}
-                    size={circleSize}
-                    stroke={"#61C9A8"}
-                    strokeWidth={Math.max(8, circleSize * 0.08)}
-                    imageUrl={nextEvent.image}
-                    isPaused={false}
-                    onComplete={() =>
-                      handleScheduledEvent(nextEvent.name, nextEvent.image)
-                    }
-                  />
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {!nextEvent && !currentEvent && (
-            <div className="no-events-message">
-              <h2>No scheduled events</h2>
-              <p>Tap the + button to schedule your first event</p>
-            </div>
-          )}
-
-          {/* Future Events Section */}
-          {allEvents.future.length > 0 && (
-            <div className="future-events-section">
-              <h3>Upcoming Events</h3>
-              <div className="events-list">
-                {allEvents.future.map((notification) => (
-                  <div
-                    key={`future-notification-${notification.timestamp}`}
-                    className="event-item future-event"
-                  >
-                    <div className="event-time">
-                      {formatEventTime(notification.timestamp)}
-                    </div>
-                    {notification.events.map((event, eventIndex) => (
-                      <div
-                        key={`future-event-${notification.timestamp}-${eventIndex}`}
-                        className="event-details"
-                      >
-                        {event.image ? (
-                          <img
-                            src={event.image}
-                            alt={event.name}
-                            className="event-image"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display =
-                                "none";
-                            }}
-                          />
-                        ) : (
-                          <div className="event-no-image">
-                            <span className="event-icon">📅</span>
-                          </div>
-                        )}
-                        <div className="event-name">{event.name}</div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Event Scheduler Component */}
+          <EventSchedulerComponent
+            onEventTriggered={handleScheduledEvent}
+            onUpcomingEvent={handleUpcomingEvent}
+            onEventsUpdated={handleEventsUpdate}
+            onAllEventsUpdated={handleAllEventsUpdate}
+            useAdvancedScheduler={true}
+            useServiceWorker={true}
+            showScheduler={showScheduler}
+            onHideScheduler={() => setShowScheduler(false)}
+          />
         </div>
-
-        {/* Event Scheduler Component */}
-        <EventSchedulerComponent
-          onEventTriggered={handleScheduledEvent}
-          onUpcomingEvent={handleUpcomingEvent}
-          onEventsUpdated={handleEventsUpdate}
-          onAllEventsUpdated={handleAllEventsUpdate}
-          useAdvancedScheduler={true}
-          useServiceWorker={true}
-          showScheduler={showScheduler}
-          onHideScheduler={() => setShowScheduler(false)}
-        />
-      </div>
+      )}
     </div>
   );
 }

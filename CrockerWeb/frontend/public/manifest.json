@@ -1,6 +1,6 @@
 {
-  "short_name": "Timer App",
-  "name": "Kids Timer",
+  "short_name": "Sori",
+  "name": "Sori Sensory",
   "icons": [
     {
       "src": "favicon.ico",
@@ -18,7 +18,7 @@
       "sizes": "512x512"
     },
     {
-      "src": "maskable_icon.png",
+      "src": "logo.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"
