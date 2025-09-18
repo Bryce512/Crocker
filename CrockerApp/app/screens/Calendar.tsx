@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,11 @@ import {
   RefreshControl,
   Modal,
   Platform,
+  PanResponder,
+  Dimensions,
+  GestureResponderEvent,
+  PanResponderGestureState,
+  Animated,
 } from "react-native";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
@@ -42,6 +47,115 @@ const Calendar = () => {
   );
   const [showViewModeDropdown, setShowViewModeDropdown] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Animation values
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Get screen dimensions for responsive calculations
+  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+  // PanResponder for swipe gestures between dates
+  const panResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+      // Only respond to horizontal swipes that are more horizontal than vertical
+      const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      const hasMinimumDistance = Math.abs(gestureState.dx) > 15;
+      const isNotVerticalScroll = Math.abs(gestureState.dy) < 30;
+      return isHorizontal && hasMinimumDistance && isNotVerticalScroll;
+    },
+    onMoveShouldSetPanResponderCapture: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+      // Capture horizontal swipes early but allow vertical scrolling
+      const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      const hasMinimumDistance = Math.abs(gestureState.dx) > 15;
+      const isNotVerticalScroll = Math.abs(gestureState.dy) < 30;
+      return isHorizontal && hasMinimumDistance && isNotVerticalScroll;
+    },
+    onPanResponderGrant: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+      // Reset animation values when gesture starts
+      slideAnim.setValue(0);
+    },
+    onPanResponderMove: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+      // Update slide animation based on gesture
+      const progress = Math.max(-1, Math.min(1, gestureState.dx / (screenWidth * 0.3)));
+      slideAnim.setValue(progress);
+      
+      // Enhanced fade effect during swipe - more dramatic
+      const fadeValue = Math.max(0.4, 1 - Math.abs(progress) * 0.6);
+      fadeAnim.setValue(fadeValue);
+    },
+    onPanResponderRelease: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+      // Swipe threshold (20% of screen width)
+      const swipeThreshold = screenWidth * 0.2;
+      
+      if (gestureState.dx > swipeThreshold) {
+        // Swipe right - go to previous day with animation
+        animateTransition(() => goToPreviousDay(), 'right');
+      } else if (gestureState.dx < -swipeThreshold) {
+        // Swipe left - go to next day with animation
+        animateTransition(() => goToNextDay(), 'left');
+      } else {
+        // Reset animation if swipe wasn't far enough
+        resetAnimation();
+      }
+    },
+    onPanResponderTerminationRequest: () => false, // Don't allow termination during horizontal swipes
+  });
+
+  // Animation functions
+  const animateTransition = (dateChangeCallback: () => void, direction: 'left' | 'right') => {
+    const slideValue = direction === 'left' ? -1 : 1;
+    
+    // Animate out with more pronounced fade
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: slideValue,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 0.3, // More dramatic fade out
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Change the date
+      dateChangeCallback();
+      
+      // Reset position and prepare for fade in
+      slideAnim.setValue(-slideValue);
+      fadeAnim.setValue(0.2); // Start very faded
+      
+      // Animate in with smooth fade
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300, // Slightly longer fade in for smoothness
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
+
+  const resetAnimation = () => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   useEffect(() => {
     // Auto-refresh when component mounts
@@ -160,6 +274,15 @@ const Calendar = () => {
     setSelectedDate(nextDay);
   };
 
+  // Enhanced navigation with animation
+  const goToPreviousDayWithAnimation = () => {
+    animateTransition(() => goToPreviousDay(), 'right');
+  };
+
+  const goToNextDayWithAnimation = () => {
+    animateTransition(() => goToNextDay(), 'left');
+  };
+
   const goToToday = () => {
     setSelectedDate(new Date());
   };
@@ -250,6 +373,9 @@ const Calendar = () => {
       topOffset,
       height,
       duration,
+      // Use dynamic height calculations
+      pixelTop: topOffset * hourBlockHeight,
+      pixelHeight: Math.max(height * hourBlockHeight, eventBlockMinHeight),
     };
   };
 
@@ -271,6 +397,10 @@ const Calendar = () => {
 
   const todaysEvents = getEventsForSelectedDate();
   const hourBlocks = generateHourBlocks();
+
+  // Calculate responsive dimensions
+  const hourBlockHeight = Math.max(screenHeight * 0.08, 60); // 8% of screen height, minimum 60px
+  const eventBlockMinHeight = Math.max(hourBlockHeight * 0.25, 15); // 25% of hour block, minimum 15px
 
   return (
     <LinearGradient colors={["#dbeafe", "#f8fafc"]} style={styles.container}>
@@ -338,7 +468,7 @@ const Calendar = () => {
       {/* Date Selector */}
       <View style={styles.dateSelector}>
         {/* Previous day arrow */}
-        <TouchableOpacity onPress={goToPreviousDay} style={styles.navArrow}>
+        <TouchableOpacity onPress={goToPreviousDayWithAnimation} style={styles.navArrow}>
           <Text style={styles.navArrowText}>‹</Text>
         </TouchableOpacity>
 
@@ -354,7 +484,7 @@ const Calendar = () => {
         </TouchableOpacity>
 
         {/* Next day arrow */}
-        <TouchableOpacity onPress={goToNextDay} style={styles.navArrow}>
+        <TouchableOpacity onPress={goToNextDayWithAnimation} style={styles.navArrow}>
           <Text style={styles.navArrowText}>›</Text>
         </TouchableOpacity>
 
@@ -368,13 +498,29 @@ const Calendar = () => {
       </View>
 
       {/* Schedule View */}
-      <ScrollView
-        style={styles.scheduleContainer}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={{ flex: 1 }} {...panResponder.panHandlers}>
+        <Animated.View
+          style={{
+            flex: 1,
+            transform: [
+              {
+                translateX: slideAnim.interpolate({
+                  inputRange: [-1, 0, 1],
+                  outputRange: [-screenWidth * 0.1, 0, screenWidth * 0.1],
+                }),
+              },
+            ],
+            opacity: fadeAnim,
+          }}
+        >
+          <ScrollView
+            style={styles.scheduleContainer}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={true}
+          >
         {/* Debug info */}
         <View style={styles.debugContainer}>
           <Text style={styles.debugText}>
@@ -403,6 +549,9 @@ const Calendar = () => {
                 ? "Some events are missing date information and need to be re-imported"
                 : "Tap + to add an event or import from your calendar"}
             </Text>
+            <Text style={styles.swipeHint}>
+              Swipe left/right to navigate between days
+            </Text>
           </View>
         ) : (
           <View style={styles.scheduleGrid}>
@@ -416,7 +565,7 @@ const Calendar = () => {
               });
 
               return (
-                <View key={hour} style={styles.hourBlock}>
+                <View key={hour} style={[styles.hourBlock, { height: hourBlockHeight }]}>
                   <View style={styles.hourLabel}>
                     <Text style={styles.hourText}>{formatHour(hour)}</Text>
                   </View>
@@ -434,8 +583,8 @@ const Calendar = () => {
                           style={[
                             styles.eventBlock,
                             {
-                              top: position.topOffset * 60, // 60px per hour
-                              height: Math.max(position.height * 60, 15), // minimum 15px height
+                              top: position.pixelTop,
+                              height: position.pixelHeight,
                             },
                           ]}
                         >
@@ -475,6 +624,8 @@ const Calendar = () => {
           </View>
         )}
       </ScrollView>
+        </Animated.View>
+      </View>
 
       {/* View Mode Dropdown Modal */}
       <Modal
@@ -708,6 +859,13 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginTop: 2,
     textAlign: "center",
+  },
+  swipeHint: {
+    fontSize: 10,
+    color: "#9ca3af",
+    marginTop: 1,
+    textAlign: "center",
+    fontStyle: "italic",
   },
   eventsContainer: {
     flex: 1,
