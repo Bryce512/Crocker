@@ -60,6 +60,10 @@
     <string>This app uses Bluetooth to connect to your OBD-II device.</string>
     <key>NSBluetoothPeripheralUsageDescription</key>
     <string>This app uses Bluetooth to connect to your OBD-II device.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>This app needs access to your calendar to schedule transition alerts for your child.</string>
+    <key>NSRemindersUsageDescription</key>
+    <string>This app needs access to your reminders to help manage your child's schedule.</string>
     <key>UIBackgroundModes</key>
     <array>
       <string>bluetooth-central</string>

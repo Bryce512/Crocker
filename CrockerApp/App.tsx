@@ -8,6 +8,7 @@ import firebaseService from "./app/services/firebaseService";
 import { View, Text } from "react-native";
 import AppNavigator from "./app/navigation/AppNavigator";
 import { BluetoothProvider } from "./app/contexts/BluetoothContext";
+import { CalendarProvider } from "./app/contexts/CalendarContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const Stack = createNativeStackNavigator();
@@ -60,11 +61,13 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <BluetoothProvider>
-          <NavigationContainer>
-          <SafeAreaView style={{ flex: 1 }}>
-            <AppNavigator />
-          </SafeAreaView>
-          </NavigationContainer>
+          <CalendarProvider>
+            <NavigationContainer>
+              <SafeAreaView style={{ flex: 1 }}>
+                <AppNavigator />
+              </SafeAreaView>
+            </NavigationContainer>
+          </CalendarProvider>
         </BluetoothProvider>
       </AuthProvider>
     </ThemeProvider>

@@ -1,90 +1,123 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
+import type { User } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firebaseService from "../services/firebaseService";
 
 type AuthContextType = {
-  user: FirebaseAuthTypes.User | null;
+  user: User | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (
     email: string,
     password: string
-  ) => Promise<{ error: any; user: FirebaseAuthTypes.User | null }>;
+  ) => Promise<{ error: any; user: User | null }>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load stored user data when app starts
+  // Set up Firebase auth state listener
   useEffect(() => {
-    // Check for stored credentials on startup
-    const loadStoredUser = async () => {
+    console.log("🔄 Setting up Firebase auth state listener...");
+
+    const setupAuthListener = async () => {
       try {
-        const storedUserData = await AsyncStorage.getItem("userData");
-        if (storedUserData) {
-          setUser(JSON.parse(storedUserData))
-        }
+        // Ensure Firebase is initialized
+        await firebaseService.initializeFirebase();
+
+        // Set up auth state listener
+        const unsubscribe = firebaseService.onAuthChange((user) => {
+          console.log(
+            "🔍 Auth state changed:",
+            user ? `User: ${user.uid}` : "No user"
+          );
+          setUser(user);
+          setIsLoading(false);
+
+          // Store/clear user data in AsyncStorage
+          if (user) {
+            AsyncStorage.setItem(
+              "userData",
+              JSON.stringify({
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+              })
+            );
+          } else {
+            AsyncStorage.removeItem("userData");
+          }
+        });
+
+        return unsubscribe;
       } catch (error) {
-        console.error("Failed to load authentication state:", error);
-      } finally {
+        console.error("Failed to set up auth listener:", error);
         setIsLoading(false);
       }
     };
 
-    loadStoredUser();
+    const unsubscribePromise = setupAuthListener();
+
+    // Cleanup function
+    return () => {
+      unsubscribePromise.then((unsubscribe) => {
+        if (unsubscribe) {
+          unsubscribe();
+        }
+      });
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Your existing sign in logic
+      console.log("🔄 Signing in user...");
       const response = await firebaseService.signIn(email, password);
 
-      // If login successful, store user data
       if (response.user && !response.error) {
-        await AsyncStorage.setItem("userData", JSON.stringify(response.user));
-        setUser(response.user);
+        console.log("✅ Sign in successful");
+        // The auth state listener will handle setting the user
+        return { error: null };
       }
 
-      return response;
+      console.log("❌ Sign in failed:", response.error);
+      return { error: response.error };
     } catch (error) {
+      console.error("❌ Sign in error:", error);
       return { error };
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
-      // Your existing sign up logic
+      console.log("🔄 Signing up user...");
       const response = await firebaseService.signUp(email, password);
 
-      // If signup successful, store user data
       if (response.user && !response.error) {
-        await AsyncStorage.setItem("userData", JSON.stringify(response.user));
-        setUser(response.user);
+        console.log("✅ Sign up successful");
+        // The auth state listener will handle setting the user
         return { user: response.user, error: null };
       }
 
-      // If signup failed, ensure both user and error are present
+      console.log("❌ Sign up failed:", response.error);
       return { user: null, error: response.error ?? "Unknown error" };
     } catch (error) {
+      console.error("❌ Sign up error:", error);
       return { user: null, error };
     }
   };
 
   const signOut = async () => {
     try {
-      // Your existing sign out logic
+      console.log("🔄 Signing out user...");
       await firebaseService.signOut();
-      // Clear stored user data
-      await AsyncStorage.removeItem("userData");
-      setUser(null);
-      console.log("User signed out successfully");
+      // The auth state listener will handle clearing the user
+      console.log("✅ User signed out successfully");
     } catch (error) {
-      console.error("Sign out error:", error);
+      console.error("❌ Sign out error:", error);
     }
   };
 

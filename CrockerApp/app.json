@@ -19,9 +19,9 @@
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
         "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
-        "UIBackgroundModes": [
-          "bluetooth-central"
-        ]
+        "NSCalendarsUsageDescription": "This app needs access to your calendar to schedule transition alerts for your child.",
+        "NSRemindersUsageDescription": "This app needs access to your reminders to help manage your child's schedule.",
+        "UIBackgroundModes": ["bluetooth-central"]
       }
     },
     "android": {
@@ -37,7 +37,9 @@
         "android.permission.BLUETOOTH_ADMIN",
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.BLUETOOTH_SCAN",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
       ]
     },
     "web": {
@@ -54,9 +56,9 @@
             "infoPlist": {
               "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
               "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
-              "UIBackgroundModes": [
-                "bluetooth-central"
-              ]
+              "NSCalendarsUsageDescription": "This app needs access to your calendar to schedule transition alerts for your child.",
+              "NSRemindersUsageDescription": "This app needs access to your reminders to help manage your child's schedule.",
+              "UIBackgroundModes": ["bluetooth-central"]
             }
           },
           "android": {
@@ -65,7 +67,9 @@
               "android.permission.BLUETOOTH_ADMIN",
               "android.permission.BLUETOOTH_CONNECT",
               "android.permission.BLUETOOTH_SCAN",
-              "android.permission.ACCESS_FINE_LOCATION"
+              "android.permission.ACCESS_FINE_LOCATION",
+              "android.permission.READ_CALENDAR",
+              "android.permission.WRITE_CALENDAR"
             ]
           }
         }

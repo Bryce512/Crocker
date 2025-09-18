@@ -19,6 +19,7 @@ import { Feather } from "@expo/vector-icons";
 import Button from "../components1/Button";
 import { useAuth } from "../contexts/AuthContext";
 import { colors } from "../theme/colors";
+import firebaseService from "../services/firebaseService";
 
 export default function SignupScreen() {
   const navigation = useNavigation();
@@ -43,25 +44,107 @@ export default function SignupScreen() {
       return;
     }
 
+    if (password.length < 6) {
+      Alert.alert("Error", "Password must be at least 6 characters");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      console.log("🔍 DEBUG: Attempting signup with email:", email);
       const { error, user } = await signUp(email, password);
+      console.log("🔍 DEBUG: Signup result - user:", !!user, "error:", error);
 
       if (error) {
-        Alert.alert("Error", error.message);
+        console.error("❌ DEBUG: Signup error:", error);
+        let errorMessage = "Failed to create account";
+
+        // Handle specific Firebase error codes
+        if (typeof error === "object" && error.code) {
+          switch (error.code) {
+            case "auth/email-already-in-use":
+              errorMessage = "An account with this email already exists";
+              break;
+            case "auth/invalid-email":
+              errorMessage = "Invalid email format";
+              break;
+            case "auth/weak-password":
+              errorMessage = "Password is too weak";
+              break;
+            case "auth/network-request-failed":
+              errorMessage = "Network error. Please check your connection.";
+              break;
+            default:
+              errorMessage = error.message || "Failed to create account";
+          }
+        } else if (typeof error === "string") {
+          errorMessage = error;
+        }
+
+        Alert.alert("Signup Error", errorMessage);
       } else if (user) {
-        // User successfully created and signed in
-        Alert.alert("Success", "Account created successfully!");
-        navigation.navigate("Home" as never); // Navigate to Home instead of Login
+        console.log(
+          "✅ DEBUG: Account created successfully for user:",
+          user.uid
+        );
+        Alert.alert("Success", "Account created successfully!", [
+          {
+            text: "OK",
+            onPress: () => {
+              // Navigation will happen automatically via AuthContext
+              console.log(
+                "🔍 DEBUG: Account creation completed, user should be logged in"
+              );
+            },
+          },
+        ]);
       } else {
-        // Handle the case where signup requires email verification
+        console.log("⚠️ DEBUG: Signup completed but no user or error returned");
         Alert.alert("Success", "Please check your email for verification!");
         navigation.navigate("Login" as never);
       }
     } catch (error) {
-      Alert.alert("Error", "An unexpected error occurred");
-      console.error(error);
+      console.error("❌ DEBUG: Unexpected signup error:", error);
+      Alert.alert("Error", "An unexpected error occurred during signup");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignupAuthOnly = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter email and password");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Error", "Password must be at least 6 characters");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      console.log("🔍 DEBUG: Testing auth-only signup...");
+      const result = await firebaseService.signUpAuthOnly(email, password);
+
+      if (result.error) {
+        console.error("❌ DEBUG: Auth-only signup failed:", result.error);
+        Alert.alert(
+          "Auth Test Failed",
+          result.error.message || "Authentication failed"
+        );
+      } else if (result.user) {
+        console.log("✅ DEBUG: Auth-only signup succeeded:", result.user.uid);
+        Alert.alert(
+          "Auth Test Success",
+          "Authentication works! Database issue confirmed."
+        );
+      }
+    } catch (error) {
+      console.error("❌ DEBUG: Auth-only signup error:", error);
+      Alert.alert("Error", "Auth test failed");
     } finally {
       setLoading(false);
     }
@@ -190,6 +273,15 @@ export default function SignupScreen() {
               loading={loading}
               fullWidth
               style={styles.signupButton}
+            />
+
+            <Button
+              title="🔍 Test Auth Only"
+              onPress={handleSignupAuthOnly}
+              loading={loading}
+              fullWidth
+              variant="outline"
+              style={styles.testButton}
             />
 
             <View style={styles.divider}>
@@ -322,6 +414,9 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   signupButton: {
+    marginTop: 8,
+  },
+  testButton: {
     marginTop: 8,
   },
   divider: {

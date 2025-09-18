@@ -208,7 +208,9 @@ export const useBleConnection = (options?: {
       return true;
     } catch (error) {
       logMessage(
-        `❌ Error during disconnect: ${error instanceof Error ? error.message : String(error)}`
+        `❌ Error during disconnect: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
 
       // Check if we're actually still connected
@@ -273,7 +275,9 @@ export const useBleConnection = (options?: {
             const exists = prevDevices.some((d) => d.id === device.id);
             if (!exists) {
               logMessage(
-                `🔍 Found device: ${device.name || "Unnamed"} (${device.id}), RSSI: ${device.rssi}`
+                `🔍 Found device: ${device.name || "Unnamed"} (${
+                  device.id
+                }), RSSI: ${device.rssi}`
               );
               return [
                 ...prevDevices,
@@ -319,7 +323,9 @@ export const useBleConnection = (options?: {
           }
         } catch (err) {
           logMessage(
-            `❌ Error stopping scan: ${err instanceof Error ? err.message : String(err)}`
+            `❌ Error stopping scan: ${
+              err instanceof Error ? err.message : String(err)
+            }`
           );
         }
 
@@ -329,7 +335,9 @@ export const useBleConnection = (options?: {
     } catch (err) {
       setIsScanning(false);
       logMessage(
-        `❌ Error during scan: ${err instanceof Error ? err.message : String(err)}`
+        `❌ Error during scan: ${
+          err instanceof Error ? err.message : String(err)
+        }`
       );
     }
   };
@@ -433,7 +441,9 @@ export const useBleConnection = (options?: {
       await loadRememberedDevice();
     } catch (error) {
       logMessage(
-        `❌ Failed to initialize BLE: ${error instanceof Error ? error.message : String(error)}`
+        `❌ Failed to initialize BLE: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   };
@@ -489,7 +499,9 @@ export const useBleConnection = (options?: {
       logMessage("✅ Notifications started");
     } catch (err) {
       logMessage(
-        `❌ startNotification failed: ${err instanceof Error ? err.message : String(err)}`
+        `❌ startNotification failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`
       );
     }
   };
@@ -520,13 +532,17 @@ export const useBleConnection = (options?: {
         return true;
       } catch (rssiError) {
         logMessage(
-          `❌ Device failed RSSI check: ${rssiError instanceof Error ? rssiError.message : String(rssiError)}`
+          `❌ Device failed RSSI check: ${
+            rssiError instanceof Error ? rssiError.message : String(rssiError)
+          }`
         );
         return false;
       }
     } catch (error) {
       logMessage(
-        `❌ Error verifying connection: ${error instanceof Error ? error.message : String(error)}`
+        `❌ Error verifying connection: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
       return false;
     }
@@ -542,7 +558,9 @@ export const useBleConnection = (options?: {
         const device = JSON.parse(deviceJson);
         setRememberedDevice(device);
         logMessage(
-          `✅ Remembered device found: ${device.name || "Unnamed device"} (${device.id})`
+          `✅ Remembered device found: ${device.name || "Unnamed device"} (${
+            device.id
+          })`
         );
         return device;
       } else {
@@ -551,7 +569,9 @@ export const useBleConnection = (options?: {
       }
     } catch (error) {
       logMessage(
-        `❌ Failed to load remembered device: ${error instanceof Error ? error.message : String(error)}`
+        `❌ Failed to load remembered device: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
       return null;
     }
@@ -610,7 +630,9 @@ export const useBleConnection = (options?: {
       return true;
     } catch (error) {
       logMessage(
-        `❌ Error initializing OBD for remembered device: ${error instanceof Error ? error.message : String(error)}`
+        `❌ Error initializing OBD for remembered device: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
       return false;
     }
@@ -622,11 +644,15 @@ export const useBleConnection = (options?: {
       await AsyncStorage.setItem(REMEMBERED_DEVICE_KEY, JSON.stringify(device));
       setRememberedDevice(device);
       logMessage(
-        `💾 Device saved for future connections: ${device.name || "Unnamed device"}`
+        `💾 Device saved for future connections: ${
+          device.name || "Unnamed device"
+        }`
       );
     } catch (error) {
       logMessage(
-        `❌ Failed to save device: ${error instanceof Error ? error.message : String(error)}`
+        `❌ Failed to save device: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   };
@@ -639,7 +665,9 @@ export const useBleConnection = (options?: {
       logMessage("🗑️ Remembered device has been forgotten");
     } catch (error) {
       logMessage(
-        `❌ Failed to forget device: ${error instanceof Error ? error.message : String(error)}`
+        `❌ Failed to forget device: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   };
@@ -698,7 +726,9 @@ export const useBleConnection = (options?: {
       }
     } catch (error) {
       logMessage(
-        `❌ Error requesting permissions: ${error instanceof Error ? error.message : String(error)}`
+        `❌ Error requesting permissions: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
       return false;
     }
@@ -778,7 +808,9 @@ export const useBleConnection = (options?: {
         });
       } catch (err) {
         logMessage(
-          `❌ Error getting connected devices: ${err instanceof Error ? err.message : String(err)}`
+          `❌ Error getting connected devices: ${
+            err instanceof Error ? err.message : String(err)
+          }`
         );
       }
 
@@ -798,7 +830,9 @@ export const useBleConnection = (options?: {
               `🔍 Total devices discovered by BleManager: ${discoveredFromManager.length}`
             );
             logMessage(
-              `📱 Named devices: ${namedDevices.length}, Unnamed devices: ${discoveredFromManager.length - namedDevices.length}`
+              `📱 Named devices: ${namedDevices.length}, Unnamed devices: ${
+                discoveredFromManager.length - namedDevices.length
+              }`
             );
 
             // Update the state with named devices directly from the manager
@@ -822,12 +856,16 @@ export const useBleConnection = (options?: {
             }
           } catch (err) {
             logMessage(
-              `❌ Error getting discovered devices: ${err instanceof Error ? err.message : String(err)}`
+              `❌ Error getting discovered devices: ${
+                err instanceof Error ? err.message : String(err)
+              }`
             );
           }
         } catch (err) {
           logMessage(
-            `❌ Error stopping scan: ${err instanceof Error ? err.message : String(err)}`
+            `❌ Error stopping scan: ${
+              err instanceof Error ? err.message : String(err)
+            }`
           );
         }
 
@@ -837,7 +875,9 @@ export const useBleConnection = (options?: {
     } catch (err) {
       setIsScanning(false);
       logMessage(
-        `❌ Error during scan: ${err instanceof Error ? err.message : String(err)}`
+        `❌ Error during scan: ${
+          err instanceof Error ? err.message : String(err)
+        }`
       );
     }
   };
@@ -868,7 +908,9 @@ export const useBleConnection = (options?: {
         } catch (error) {
           retryCount--;
           logMessage(
-            `Failed to get services: ${error instanceof Error ? error.message : String(error)}`
+            `Failed to get services: ${
+              error instanceof Error ? error.message : String(error)
+            }`
           );
           if (retryCount > 0) {
             logMessage(`Waiting before retry...`);
@@ -958,7 +1000,9 @@ export const useBleConnection = (options?: {
       }
     } catch (error) {
       logMessage(
-        `❌ Error in device profile discovery: ${error instanceof Error ? error.message : String(error)}`
+        `❌ Error in device profile discovery: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
       return false;
     }
@@ -1017,7 +1061,9 @@ export const useBleConnection = (options?: {
       return true;
     } catch (error) {
       logMessage(
-        `❌ OBD initialization failed: ${error instanceof Error ? error.message : String(error)}`
+        `❌ OBD initialization failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
       return false;
     }
@@ -1062,7 +1108,9 @@ export const useBleConnection = (options?: {
       return null;
     } catch (error) {
       logMessage(
-        `❌ Error getting PLX device: ${error instanceof Error ? error.message : String(error)}`
+        `❌ Error getting PLX device: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
       return null;
     }
@@ -1274,6 +1322,134 @@ export const useBleConnection = (options?: {
     throw lastError || new Error("Unknown command error");
   };
 
+  // Send JSON alert batch to ESP32 device
+  const sendJSONAlert = async (
+    jsonPayload: string,
+    targetDeviceId?: string
+  ): Promise<boolean> => {
+    try {
+      if (!isConnected) {
+        logMessage("Not connected to any device");
+        return false;
+      }
+
+      const device = targetDeviceId
+        ? deviceId === targetDeviceId
+          ? plxDevice
+          : null
+        : plxDevice;
+
+      if (!device) {
+        logMessage(
+          `Target device ${targetDeviceId || "current"} not available`
+        );
+        return false;
+      }
+
+      logMessage(
+        `Sending JSON alert batch (${jsonPayload.length} bytes) to ${
+          device.name || device.id
+        }`
+      );
+
+      // Convert JSON to bytes for ESP32
+      const jsonBytes = Buffer.from(jsonPayload, "utf8");
+      const base64Data = jsonBytes.toString("base64");
+
+      // Send in chunks if payload is large (ESP32 has limited buffer)
+      const CHUNK_SIZE = 500; // ESP32 safe chunk size
+      const chunks = [];
+
+      for (let i = 0; i < base64Data.length; i += CHUNK_SIZE) {
+        chunks.push(base64Data.substring(i, i + CHUNK_SIZE));
+      }
+
+      logMessage(`Sending JSON in ${chunks.length} chunks`);
+
+      // Send header with total chunks and payload info
+      const header = JSON.stringify({
+        type: "ALERT_BATCH",
+        totalChunks: chunks.length,
+        payloadSize: jsonPayload.length,
+        timestamp: Math.floor(Date.now() / 1000),
+      });
+
+      // Send header first
+      await sendCommand(device, `JSON_HEADER:${header}`);
+      await new Promise((resolve) => setTimeout(resolve, 100)); // Small delay
+
+      // Send each chunk
+      for (let i = 0; i < chunks.length; i++) {
+        await sendCommand(device, `JSON_CHUNK:${i}:${chunks[i]}`);
+        await new Promise((resolve) => setTimeout(resolve, 50)); // Small delay between chunks
+        logMessage(`Sent chunk ${i + 1}/${chunks.length}`);
+      }
+
+      // Send completion signal
+      await sendCommand(device, "JSON_COMPLETE");
+
+      logMessage(
+        `Successfully sent JSON alert batch to ${device.name || device.id}`
+      );
+      return true;
+    } catch (error) {
+      logMessage(
+        `Error sending JSON alert: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return false;
+    }
+  };
+
+  // Send single immediate alert (for testing or urgent alerts)
+  const sendImmediateAlert = async (
+    alertTitle: string,
+    minutesUntil: number,
+    targetDeviceId?: string
+  ): Promise<boolean> => {
+    const immediateAlert = {
+      type: "IMMEDIATE_ALERT",
+      title: alertTitle.substring(0, 50), // Limit for ESP32
+      minutes_until: minutesUntil,
+      timestamp: Math.floor(Date.now() / 1000),
+      vibration: minutesUntil <= 5 ? [500, 200, 500] : [200, 100, 200],
+    };
+
+    return await sendJSONAlert(JSON.stringify(immediateAlert), targetDeviceId);
+  };
+
+  // Verify ESP32 received and processed alert batch
+  const verifyAlertBatchDelivery = async (
+    checksum: string,
+    targetDeviceId?: string
+  ): Promise<boolean> => {
+    try {
+      const device = targetDeviceId
+        ? deviceId === targetDeviceId
+          ? plxDevice
+          : null
+        : plxDevice;
+
+      if (!device) {
+        return false;
+      }
+
+      // Request ESP32 to confirm batch with checksum
+      const response = await sendCommand(device, `VERIFY_BATCH:${checksum}`);
+
+      // ESP32 should respond with 'BATCH_OK' or 'BATCH_ERROR'
+      return response.includes("BATCH_OK");
+    } catch (error) {
+      logMessage(
+        `Error verifying alert batch: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return false;
+    }
+  };
+
   // Methods
   return {
     // State Variables
@@ -1306,6 +1482,11 @@ export const useBleConnection = (options?: {
     forceClearLock,
     getPlxDeviceFromConnection,
     wakeUpDevice,
+
+    // JSON Alert functions for ESP32
+    sendJSONAlert,
+    sendImmediateAlert,
+    verifyAlertBatchDelivery,
 
     // Setters for discoveredDevices if needed externally
     setDiscoveredDevices,
