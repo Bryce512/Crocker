@@ -53,47 +53,67 @@ const Calendar = () => {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   // Get screen dimensions for responsive calculations
-  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+  const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
   // PanResponder for swipe gestures between dates
   const panResponder = PanResponder.create({
-    onMoveShouldSetPanResponder: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+    onMoveShouldSetPanResponder: (
+      evt: GestureResponderEvent,
+      gestureState: PanResponderGestureState
+    ) => {
       // Only respond to horizontal swipes that are more horizontal than vertical
-      const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      const isHorizontal =
+        Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
       const hasMinimumDistance = Math.abs(gestureState.dx) > 15;
       const isNotVerticalScroll = Math.abs(gestureState.dy) < 30;
       return isHorizontal && hasMinimumDistance && isNotVerticalScroll;
     },
-    onMoveShouldSetPanResponderCapture: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+    onMoveShouldSetPanResponderCapture: (
+      evt: GestureResponderEvent,
+      gestureState: PanResponderGestureState
+    ) => {
       // Capture horizontal swipes early but allow vertical scrolling
-      const isHorizontal = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      const isHorizontal =
+        Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
       const hasMinimumDistance = Math.abs(gestureState.dx) > 15;
       const isNotVerticalScroll = Math.abs(gestureState.dy) < 30;
       return isHorizontal && hasMinimumDistance && isNotVerticalScroll;
     },
-    onPanResponderGrant: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+    onPanResponderGrant: (
+      evt: GestureResponderEvent,
+      gestureState: PanResponderGestureState
+    ) => {
       // Reset animation values when gesture starts
       slideAnim.setValue(0);
     },
-    onPanResponderMove: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+    onPanResponderMove: (
+      evt: GestureResponderEvent,
+      gestureState: PanResponderGestureState
+    ) => {
       // Update slide animation based on gesture
-      const progress = Math.max(-1, Math.min(1, gestureState.dx / (screenWidth * 0.3)));
+      const progress = Math.max(
+        -1,
+        Math.min(1, gestureState.dx / (screenWidth * 0.3))
+      );
       slideAnim.setValue(progress);
-      
+
       // Enhanced fade effect during swipe - more dramatic
       const fadeValue = Math.max(0.4, 1 - Math.abs(progress) * 0.6);
       fadeAnim.setValue(fadeValue);
     },
-    onPanResponderRelease: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+    onPanResponderRelease: (
+      evt: GestureResponderEvent,
+      gestureState: PanResponderGestureState
+    ) => {
       // Swipe threshold (20% of screen width)
       const swipeThreshold = screenWidth * 0.2;
-      
+
       if (gestureState.dx > swipeThreshold) {
         // Swipe right - go to previous day with animation
-        animateTransition(() => goToPreviousDay(), 'right');
+        animateTransition(() => goToPreviousDay(), "right");
       } else if (gestureState.dx < -swipeThreshold) {
         // Swipe left - go to next day with animation
-        animateTransition(() => goToNextDay(), 'left');
+        animateTransition(() => goToNextDay(), "left");
       } else {
         // Reset animation if swipe wasn't far enough
         resetAnimation();
@@ -103,9 +123,12 @@ const Calendar = () => {
   });
 
   // Animation functions
-  const animateTransition = (dateChangeCallback: () => void, direction: 'left' | 'right') => {
-    const slideValue = direction === 'left' ? -1 : 1;
-    
+  const animateTransition = (
+    dateChangeCallback: () => void,
+    direction: "left" | "right"
+  ) => {
+    const slideValue = direction === "left" ? -1 : 1;
+
     // Animate out with more pronounced fade
     Animated.parallel([
       Animated.timing(slideAnim, {
@@ -121,11 +144,11 @@ const Calendar = () => {
     ]).start(() => {
       // Change the date
       dateChangeCallback();
-      
+
       // Reset position and prepare for fade in
       slideAnim.setValue(-slideValue);
       fadeAnim.setValue(0.2); // Start very faded
-      
+
       // Animate in with smooth fade
       Animated.parallel([
         Animated.timing(slideAnim, {
@@ -276,11 +299,11 @@ const Calendar = () => {
 
   // Enhanced navigation with animation
   const goToPreviousDayWithAnimation = () => {
-    animateTransition(() => goToPreviousDay(), 'right');
+    animateTransition(() => goToPreviousDay(), "right");
   };
 
   const goToNextDayWithAnimation = () => {
-    animateTransition(() => goToNextDay(), 'left');
+    animateTransition(() => goToNextDay(), "left");
   };
 
   const goToToday = () => {
@@ -468,7 +491,10 @@ const Calendar = () => {
       {/* Date Selector */}
       <View style={styles.dateSelector}>
         {/* Previous day arrow */}
-        <TouchableOpacity onPress={goToPreviousDayWithAnimation} style={styles.navArrow}>
+        <TouchableOpacity
+          onPress={goToPreviousDayWithAnimation}
+          style={styles.navArrow}
+        >
           <Text style={styles.navArrowText}>‹</Text>
         </TouchableOpacity>
 
@@ -484,7 +510,10 @@ const Calendar = () => {
         </TouchableOpacity>
 
         {/* Next day arrow */}
-        <TouchableOpacity onPress={goToNextDayWithAnimation} style={styles.navArrow}>
+        <TouchableOpacity
+          onPress={goToNextDayWithAnimation}
+          style={styles.navArrow}
+        >
           <Text style={styles.navArrowText}>›</Text>
         </TouchableOpacity>
 
@@ -521,109 +550,115 @@ const Calendar = () => {
             showsVerticalScrollIndicator={false}
             scrollEnabled={true}
           >
-        {/* Debug info */}
-        <View style={styles.debugContainer}>
-          <Text style={styles.debugText}>
-            Debug: {events.length} total events loaded
-          </Text>
-          <Text style={styles.debugText}>
-            Events for {selectedDate.toDateString()}: {todaysEvents.length}
-          </Text>
-          <Text style={styles.debugText}>
-            First event: {events[0]?.title || "None"}
-            {events[0]
-              ? ` (startTime: ${events[0].startTime ? "Yes" : "Missing"})`
-              : ""}
-          </Text>
-        </View>
+            {/* Debug info */}
+            <View style={styles.debugContainer}>
+              <Text style={styles.debugText}>
+                Debug: {events.length} total events loaded
+              </Text>
+              <Text style={styles.debugText}>
+                Events for {selectedDate.toDateString()}: {todaysEvents.length}
+              </Text>
+              <Text style={styles.debugText}>
+                First event: {events[0]?.title || "None"}
+                {events[0]
+                  ? ` (startTime: ${events[0].startTime ? "Yes" : "Missing"})`
+                  : ""}
+              </Text>
+            </View>
 
-        {todaysEvents.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>
-              {events.length > 0
-                ? `${events.length} events found but none for this date`
-                : "No events for this date"}
-            </Text>
-            <Text style={styles.emptyStateSubtext}>
-              {events.length > 0 && events.some((e) => !e.startTime)
-                ? "Some events are missing date information and need to be re-imported"
-                : "Tap + to add an event or import from your calendar"}
-            </Text>
-            <Text style={styles.swipeHint}>
-              Swipe left/right to navigate between days
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.scheduleGrid}>
-            {hourBlocks.map((hour) => {
-              const hourEvents = todaysEvents.filter((event) => {
-                const eventStartTime =
-                  event.startTime instanceof Date
-                    ? event.startTime
-                    : new Date(event.startTime);
-                return eventStartTime.getHours() === hour;
-              });
+            {todaysEvents.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>
+                  {events.length > 0
+                    ? `${events.length} events found but none for this date`
+                    : "No events for this date"}
+                </Text>
+                <Text style={styles.emptyStateSubtext}>
+                  {events.length > 0 && events.some((e) => !e.startTime)
+                    ? "Some events are missing date information and need to be re-imported"
+                    : "Tap + to add an event or import from your calendar"}
+                </Text>
+                <Text style={styles.swipeHint}>
+                  Swipe left/right to navigate between days
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.scheduleGrid}>
+                {hourBlocks.map((hour) => {
+                  const hourEvents = todaysEvents.filter((event) => {
+                    const eventStartTime =
+                      event.startTime instanceof Date
+                        ? event.startTime
+                        : new Date(event.startTime);
+                    return eventStartTime.getHours() === hour;
+                  });
 
-              return (
-                <View key={hour} style={[styles.hourBlock, { height: hourBlockHeight }]}>
-                  <View style={styles.hourLabel}>
-                    <Text style={styles.hourText}>{formatHour(hour)}</Text>
-                  </View>
-                  <View style={styles.hourContent}>
-                    <View style={styles.hourLine} />
-                    {hourEvents.map((event, index) => {
-                      const position = calculateEventPosition(event);
-                      const assignedKid = kids.find(
-                        (k) => k.id === event.assignedKidId
-                      );
+                  return (
+                    <View
+                      key={hour}
+                      style={[styles.hourBlock, { height: hourBlockHeight }]}
+                    >
+                      <View style={styles.hourLabel}>
+                        <Text style={styles.hourText}>{formatHour(hour)}</Text>
+                      </View>
+                      <View style={styles.hourContent}>
+                        <View style={styles.hourLine} />
+                        {hourEvents.map((event, index) => {
+                          const position = calculateEventPosition(event);
+                          const assignedKid = kids.find(
+                            (k) => k.id === event.assignedKidId
+                          );
 
-                      return (
-                        <View
-                          key={`${event.id}-${index}`}
-                          style={[
-                            styles.eventBlock,
-                            {
-                              top: position.pixelTop,
-                              height: position.pixelHeight,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={styles.eventBlockTitle}
-                            numberOfLines={1}
-                          >
-                            {event.title}
-                          </Text>
-                          <Text style={styles.eventBlockTime} numberOfLines={1}>
-                            {formatTime(event.startTime)} -{" "}
-                            {formatTime(event.endTime)}
-                          </Text>
-                          {assignedKid && (
-                            <Text
-                              style={styles.eventBlockKid}
-                              numberOfLines={1}
+                          return (
+                            <View
+                              key={`${event.id}-${index}`}
+                              style={[
+                                styles.eventBlock,
+                                {
+                                  top: position.pixelTop,
+                                  height: position.pixelHeight,
+                                },
+                              ]}
                             >
-                              → {assignedKid.name}
-                            </Text>
-                          )}
-                          {event.alertIntervals.length > 0 && (
-                            <Text
-                              style={styles.eventBlockAlerts}
-                              numberOfLines={1}
-                            >
-                              🔔 {event.alertIntervals.join(", ")}min
-                            </Text>
-                          )}
-                        </View>
-                      );
-                    })}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
+                              <Text
+                                style={styles.eventBlockTitle}
+                                numberOfLines={1}
+                              >
+                                {event.title}
+                              </Text>
+                              <Text
+                                style={styles.eventBlockTime}
+                                numberOfLines={1}
+                              >
+                                {formatTime(event.startTime)} -{" "}
+                                {formatTime(event.endTime)}
+                              </Text>
+                              {assignedKid && (
+                                <Text
+                                  style={styles.eventBlockKid}
+                                  numberOfLines={1}
+                                >
+                                  → {assignedKid.name}
+                                </Text>
+                              )}
+                              {event.alertIntervals.length > 0 && (
+                                <Text
+                                  style={styles.eventBlockAlerts}
+                                  numberOfLines={1}
+                                >
+                                  🔔 {event.alertIntervals.join(", ")}min
+                                </Text>
+                              )}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </ScrollView>
         </Animated.View>
       </View>
 
