@@ -1,23 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import type { User } from "firebase/auth";
+import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firebaseService from "../services/firebaseService";
 
 type AuthContextType = {
-  user: User | null;
+  user: FirebaseAuthTypes.User | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (
     email: string,
     password: string
-  ) => Promise<{ error: any; user: User | null }>;
+  ) => Promise<{ error: any; user: FirebaseAuthTypes.User | null }>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Set up Firebase auth state listener
@@ -26,6 +26,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const setupAuthListener = async () => {
       try {
+        // First, try to restore user from AsyncStorage for faster startup
+        try {
+          const storedUserData = await AsyncStorage.getItem("userData");
+          if (storedUserData) {
+            const userData = JSON.parse(storedUserData);
+            console.log("📱 Restored user from AsyncStorage:", userData.uid);
+            // Note: We don't set the user here, we let Firebase auth handle it
+            // This is just for logging/debugging purposes
+          }
+        } catch (storageError) {
+          console.log("No stored user data found");
+        }
+
         // Ensure Firebase is initialized
         await firebaseService.initializeFirebase();
 

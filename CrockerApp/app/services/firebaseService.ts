@@ -9,15 +9,9 @@ import {
   remove,
   push,
 } from "firebase/database";
-import {
-  initializeAuth,
-  getAuth,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut as authSignOut,
-  onAuthStateChanged,
-  type User,
-} from "firebase/auth";
+// Use React Native Firebase for better persistence
+import auth from "@react-native-firebase/auth";
+import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 
 // Firebase configuration - you'll need to add your actual config values
@@ -33,7 +27,7 @@ const firebaseConfig = {
 // Flag to track initialization status
 let isInitialized = false;
 let firebaseApp: any = null;
-let firebaseAuth: any = null;
+// React Native Firebase auth is available globally, no need to store reference
 
 // Initialize Firebase - get the existing app or create a new one
 export const initializeFirebase = async () => {
@@ -54,14 +48,8 @@ export const initializeFirebase = async () => {
       firebaseApp = getApp();
     }
 
-    // Get or initialize auth
-    try {
-      firebaseAuth = getAuth(firebaseApp);
-      console.log("Firebase auth initialized successfully");
-    } catch (error) {
-      console.error("Error initializing Firebase auth:", error);
-      throw error;
-    }
+    // React Native Firebase Auth is automatically initialized and has built-in persistence
+    console.log("React Native Firebase auth has built-in persistence");
 
     isInitialized = true;
     return firebaseApp;
@@ -73,7 +61,7 @@ export const initializeFirebase = async () => {
 
 // Function to write data to the database
 export const writeData = (userId: string, name: string, email: string) => {
-  const database = getDatabase();
+  const database = getDatabase(getApp());
   const userRef = ref(database, `users/${userId}`);
 
   const userData = {
@@ -88,7 +76,7 @@ export const writeData = (userId: string, name: string, email: string) => {
 
 // Function to read data from the database
 export const readData = (userId: string) => {
-  const database = getDatabase();
+  const database = getDatabase(getApp());
   const userRef = ref(database, `users/${userId}`);
 
   return get(userRef)
@@ -129,13 +117,8 @@ export const signIn = async (email: string, password: string) => {
       };
     }
 
-    // Use Firebase web SDK auth
-    const auth = getAuth();
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+    // Use React Native Firebase auth for better persistence
+    const userCredential = await auth().signInWithEmailAndPassword(email, password);
 
     // Add this line to ensure user exists in database
     await ensureUserProfile(userCredential.user);
@@ -169,12 +152,7 @@ export const signIn = async (email: string, password: string) => {
 
 export const signUp = async (email: string, password: string) => {
   try {
-    const auth = getAuth();
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+    const userCredential = await auth().createUserWithEmailAndPassword(email, password);
 
     // Add this line to create user profile in database
     await ensureUserProfile(userCredential.user);
@@ -186,14 +164,12 @@ export const signUp = async (email: string, password: string) => {
 };
 
 export const signOut = async () => {
-  const auth = getAuth();
-  return authSignOut(auth);
+  return auth().signOut();
 };
 
 export const getCurrentUser = () => {
   try {
-    const auth = getAuth();
-    const user = auth.currentUser;
+    const user = auth().currentUser;
 
     console.log(
       "🔍 getCurrentUser result:",
@@ -206,14 +182,13 @@ export const getCurrentUser = () => {
   }
 };
 
-export const onAuthChange = (callback: (user: User | null) => void) => {
-  const auth = getAuth();
-  return onAuthStateChanged(auth, callback);
+export const onAuthChange = (callback: (user: FirebaseAuthTypes.User | null) => void) => {
+  return auth().onAuthStateChanged(callback);
 };
 
 // Vehicle-specific functions
 export const getVehicles = async (userId: string) => {
-  const db = getDatabase();
+  const db = getDatabase(getApp());
   const vehiclesRef = ref(db, `users/${userId}/vehicles`);
 
   try {
@@ -234,7 +209,7 @@ export const getVehicles = async (userId: string) => {
 };
 
 export const addVehicle = async (userId: string, vehicleData: any) => {
-  const db = getDatabase();
+  const db = getDatabase(getApp());
   const vehiclesRef = ref(db, `users/${userId}/vehicles`);
 
   // Create a new unique key for the vehicle
@@ -254,7 +229,7 @@ export const updateVehicle = async (
   vehicleId: string,
   vehicleData: any
 ) => {
-  const db = getDatabase();
+  const db = getDatabase(getApp());
   const vehicleRef = ref(db, `users/${userId}/vehicles/${vehicleId}`);
 
   try {
@@ -267,7 +242,7 @@ export const updateVehicle = async (
 };
 
 export const deleteVehicle = async (userId: string, vehicleId: string) => {
-  const db = getDatabase();
+  const db = getDatabase(getApp());
   const vehicleRef = ref(db, `users/${userId}/vehicles/${vehicleId}`);
 
   try {
@@ -281,7 +256,7 @@ export const deleteVehicle = async (userId: string, vehicleId: string) => {
 
 // Get diagnostic logs for a specific vehicle
 export const getDiagnosticLogs = async (userId: string, vehicleId: string) => {
-  const db = getDatabase();
+  const db = getDatabase(getApp());
   const logsRef = ref(db, `users/${userId}/diagnostic_logs`);
 
   try {
@@ -304,10 +279,10 @@ export const getDiagnosticLogs = async (userId: string, vehicleId: string) => {
 };
 
 // Creates a user profile in the database if it doesn't already exist
-export const ensureUserProfile = async (user: User) => {
+export const ensureUserProfile = async (user: FirebaseAuthTypes.User) => {
   if (!user) return null;
 
-  const database = getDatabase();
+  const database = getDatabase(getApp());
   const userRef = ref(database, `users/${user.uid}`);
 
   try {
@@ -340,7 +315,7 @@ export const ensureUserProfile = async (user: User) => {
 };
 
 export const getUserProfile = async (userId: string) => {
-  const database = getDatabase();
+  const database = getDatabase(getApp());
   const userRef = ref(database, `users/${userId}/profile`);
 
   try {
@@ -362,7 +337,7 @@ export const getEvents = async () => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase();
+  const database = getDatabase(getApp());
   const eventsRef = ref(database, `users/${user.uid}/events`);
 
   try {
@@ -413,7 +388,7 @@ export const getKids = async () => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase();
+  const database = getDatabase(getApp());
   const kidsRef = ref(database, `users/${user.uid}/kids`);
 
   try {
@@ -440,7 +415,7 @@ export const setEvents = async (events: any[]) => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase();
+  const database = getDatabase(getApp());
   const eventsRef = ref(database, `users/${user.uid}/events`);
 
   try {
@@ -581,7 +556,7 @@ export const addKid = async (kidData: any) => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase();
+  const database = getDatabase(getApp());
 
   try {
     if (Array.isArray(kidData)) {
@@ -631,7 +606,7 @@ export const clearUserData = async () => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase();
+  const database = getDatabase(getApp());
   const userRef = ref(database, `users/${user.uid}`);
 
   try {
@@ -647,7 +622,7 @@ export const clearUserData = async () => {
 // Force refresh Firebase cache (for debugging)
 export const clearFirebaseCache = async () => {
   try {
-    const database = getDatabase();
+    const database = getDatabase(getApp());
     // Force Firebase to refresh its cache by going offline and online
     // Note: This requires @react-native-firebase/database
     console.log("🔄 Attempting to clear Firebase cache...");
