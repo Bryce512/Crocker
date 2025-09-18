@@ -118,7 +118,10 @@ export const signIn = async (email: string, password: string) => {
     }
 
     // Use React Native Firebase auth for better persistence
-    const userCredential = await auth().signInWithEmailAndPassword(email, password);
+    const userCredential = await auth().signInWithEmailAndPassword(
+      email,
+      password
+    );
 
     // Add this line to ensure user exists in database
     await ensureUserProfile(userCredential.user);
@@ -152,7 +155,10 @@ export const signIn = async (email: string, password: string) => {
 
 export const signUp = async (email: string, password: string) => {
   try {
-    const userCredential = await auth().createUserWithEmailAndPassword(email, password);
+    const userCredential = await auth().createUserWithEmailAndPassword(
+      email,
+      password
+    );
 
     // Add this line to create user profile in database
     await ensureUserProfile(userCredential.user);
@@ -182,7 +188,9 @@ export const getCurrentUser = () => {
   }
 };
 
-export const onAuthChange = (callback: (user: FirebaseAuthTypes.User | null) => void) => {
+export const onAuthChange = (
+  callback: (user: FirebaseAuthTypes.User | null) => void
+) => {
   return auth().onAuthStateChanged(callback);
 };
 

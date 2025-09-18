@@ -17,6 +17,7 @@ import {
   PanResponderGestureState,
   Animated,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
 import { RootStackParamList } from "../navigation/AppNavigator";
@@ -47,10 +48,21 @@ const Calendar = () => {
   );
   const [showViewModeDropdown, setShowViewModeDropdown] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Get screen dimensions for responsive calculations
   const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -183,7 +195,33 @@ const Calendar = () => {
   useEffect(() => {
     // Auto-refresh when component mounts
     refreshData();
+    
+    // Scroll to current time if viewing today
+    if (isToday()) {
+      scrollToCurrentTime();
+    }
   }, []);
+
+  useEffect(() => {
+    // Scroll to current time when date changes to today
+    if (isToday()) {
+      setTimeout(() => scrollToCurrentTime(), 100); // Small delay to ensure layout is complete
+    }
+  }, [selectedDate]);
+
+  const scrollToCurrentTime = () => {
+    const timeLinePosition = getCurrentTimeLinePosition();
+    if (timeLinePosition && scrollViewRef.current) {
+      // Calculate scroll position to center the current time line on screen
+      const { height: screenHeight } = Dimensions.get('window');
+      const scrollY = Math.max(0, timeLinePosition.top - (screenHeight * 0.4)); // Position line at 40% from top of screen
+      
+      scrollViewRef.current.scrollTo({
+        y: scrollY,
+        animated: true,
+      });
+    }
+  };
 
   const handleAddEvent = () => {
     navigation.navigate("EventCreation");
@@ -315,8 +353,11 @@ const Calendar = () => {
     setShowViewModeDropdown(false);
   };
 
-  const handleDateSelect = (date: Date) => {
-    setSelectedDate(date);
+  const handleDateSelect = (event: any, date?: Date) => {
+    if (date) {
+      setSelectedDate(date);
+    }
+    // Close the modal after selection or cancellation
     setShowDatePicker(false);
   };
 
@@ -416,6 +457,40 @@ const Calendar = () => {
     if (hour < 12) return `${hour} AM`;
     if (hour === 12) return "12 PM";
     return `${hour - 12} PM`;
+  };
+
+  // Check if selected date is today
+  const isToday = () => {
+    const today = new Date();
+    return (
+      selectedDate.getDate() === today.getDate() &&
+      selectedDate.getMonth() === today.getMonth() &&
+      selectedDate.getFullYear() === today.getFullYear()
+    );
+  };
+
+  // Calculate current time line position based on actual time
+  const getCurrentTimeLinePosition = () => {
+    if (!isToday()) return null;
+
+    const hour = currentTime.getHours();
+    const minute = currentTime.getMinutes();
+    
+    // Only show if current time is within our hour range (6 AM to 11 PM)
+    if (hour < 6 || hour > 23) return null;
+
+    // Calculate exact position within the hour blocks
+    const hourIndex = hour - 6; // 6 AM is index 0
+    const minuteProgress = minute / 60; // Progress within the current hour (0-1)
+    
+    // Position = (hour blocks passed * height) + (progress within current hour * height)
+    const linePosition = (hourIndex * hourBlockHeight) + (minuteProgress * hourBlockHeight);
+    
+    return {
+      top: linePosition,
+      hour: hour,
+      minute: minute,
+    };
   };
 
   const todaysEvents = getEventsForSelectedDate();
@@ -543,6 +618,7 @@ const Calendar = () => {
           }}
         >
           <ScrollView
+            ref={scrollViewRef}
             style={styles.scheduleContainer}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -550,22 +626,6 @@ const Calendar = () => {
             showsVerticalScrollIndicator={false}
             scrollEnabled={true}
           >
-            {/* Debug info */}
-            <View style={styles.debugContainer}>
-              <Text style={styles.debugText}>
-                Debug: {events.length} total events loaded
-              </Text>
-              <Text style={styles.debugText}>
-                Events for {selectedDate.toDateString()}: {todaysEvents.length}
-              </Text>
-              <Text style={styles.debugText}>
-                First event: {events[0]?.title || "None"}
-                {events[0]
-                  ? ` (startTime: ${events[0].startTime ? "Yes" : "Missing"})`
-                  : ""}
-              </Text>
-            </View>
-
             {todaysEvents.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>
@@ -584,6 +644,26 @@ const Calendar = () => {
               </View>
             ) : (
               <View style={styles.scheduleGrid}>
+                {/* Current Time Indicator */}
+                {(() => {
+                  const timeLinePosition = getCurrentTimeLinePosition();
+                  return timeLinePosition ? (
+                    <View
+                      style={[
+                        styles.currentTimeLine,
+                        { top: timeLinePosition.top }
+                      ]}
+                    >
+                      <View style={styles.currentTimeLabel}>
+                        <Text style={styles.currentTimeText}>
+                          {formatTime(currentTime)}
+                        </Text>
+                      </View>
+                      <View style={styles.currentTimeLineBar} />
+                    </View>
+                  ) : null;
+                })()}
+                
                 {hourBlocks.map((hour) => {
                   const hourEvents = todaysEvents.filter((event) => {
                     const eventStartTime =
@@ -703,61 +783,33 @@ const Calendar = () => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Date Picker Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showDatePicker}
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.datePickerContainer}>
-            <View style={styles.datePickerHeader}>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <Text style={styles.datePickerTitle}>Select Date</Text>
-              <TouchableOpacity onPress={() => handleDateSelect(selectedDate)}>
-                <Text style={styles.doneText}>Done</Text>
-              </TouchableOpacity>
+      {/* Native Calendar Modal - Centered */}
+      {showDatePicker && (
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={showDatePicker}
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowDatePicker(false)}
+          >
+            <View style={styles.calendarModalContainer}>
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                onChange={handleDateSelect}
+                maximumDate={new Date(2030, 11, 31)}
+                minimumDate={new Date(2020, 0, 1)}
+                themeVariant="light"
+              />
             </View>
-            {Platform.OS === "ios" ? (
-              <View style={styles.androidDatePicker}>
-                <Text style={styles.androidDateText}>
-                  {selectedDate.toLocaleDateString("en-US", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </Text>
-                <TouchableOpacity
-                  style={styles.androidDateButton}
-                  onPress={() => {
-                    setShowDatePicker(false);
-                  }}
-                >
-                  <Text style={styles.androidDateButtonText}>Select Date</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.androidDatePicker}>
-                <Text style={styles.androidDateText}>
-                  {selectedDate.toLocaleDateString()}
-                </Text>
-                <TouchableOpacity
-                  style={styles.androidDateButton}
-                  onPress={() => {
-                    setShowDatePicker(false);
-                  }}
-                >
-                  <Text style={styles.androidDateButtonText}>Change Date</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </View>
-      </Modal>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </LinearGradient>
   );
 };
@@ -1116,11 +1168,11 @@ const styles = StyleSheet.create({
     color: "#1e293b",
     textAlign: "center",
   },
-  datePickerContainer: {
+  calendarModalContainer: {
     backgroundColor: "white",
     borderRadius: 12,
-    margin: 20,
     padding: 20,
+    margin: 20,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -1129,57 +1181,36 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    alignSelf: "center",
+    justifyContent: "center",
   },
-  datePickerHeader: {
+  currentTimeLine: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    zIndex: 10,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
   },
-  cancelText: {
-    fontSize: 16,
-    color: "#ef4444",
-  },
-  datePickerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1e293b",
-  },
-  doneText: {
-    fontSize: 16,
-    color: "#3b82f6",
-    fontWeight: "600",
-  },
-  androidDatePicker: {
+  currentTimeLabel: {
+    backgroundColor: "#ef4444",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginRight: 8,
+    minWidth: 60,
     alignItems: "center",
-    paddingVertical: 20,
   },
-  androidDateText: {
-    fontSize: 18,
-    color: "#1e293b",
-    marginBottom: 20,
-  },
-  androidDateButton: {
-    backgroundColor: "#3b82f6",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  androidDateButtonText: {
-    color: "white",
-    fontSize: 16,
+  currentTimeText: {
+    fontSize: 10,
     fontWeight: "600",
+    color: "#ffffff",
   },
-  debugContainer: {
-    backgroundColor: "rgba(255, 255, 0, 0.2)",
-    padding: 12,
-    marginBottom: 16,
-    borderRadius: 8,
-  },
-  debugText: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 4,
+  currentTimeLineBar: {
+    flex: 1,
+    height: 2,
+    backgroundColor: "#ef4444",
+    borderRadius: 1,
   },
 });
 
