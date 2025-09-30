@@ -11,36 +11,37 @@ import { useBleConnection } from "../services/bleConnections";
 import { AppState } from "react-native";
 import { Device } from "react-native-ble-plx";
 import { obdDataFunctions } from "../services/obdDataCollection";
+import bluetoothService from "../services/bluetoothService";
+import AppErrorService from "../services/errorService";
+import { BluetoothDevice, ConnectionState, OBDData } from "../models";
 
-// Define the shape of our context
+// Simplified context interface - focus on state distribution
 interface BluetoothContextType {
-  isScanning: boolean;
-  isConnected: boolean;
-  deviceId: string | null;
-  deviceName: string | null;
-  discoveredDevices: any[];
-  plxDevice: Device | null; // Assuming plxDevice is a Device type, adjust as needed
-  voltage: string | null; // Assuming voltage is a number, adjust type as needed
-  rpm: number | null; 
-  speed: number | null;
-  setDiscoveredDevices: (devices: any[]) => void;
+  // Connection state
+  connectionState: ConnectionState;
+  obdData: OBDData;
+
+  // Device management
+  discoveredDevices: BluetoothDevice[];
+  rememberedDevice: BluetoothDevice | null;
+  plxDevice: Device | null;
+
+  // UI state
   showDeviceSelector: boolean;
-  setShowDeviceSelector: (show: boolean) => void;
-  startScan: () => Promise<void>;
-  connectToDevice: (device: any) => Promise<boolean>;
-  disconnectDevice: () => Promise<void>;
-  sendCommand: (device: any, command: string) => Promise<string>;
-  showAllDevices: () => Promise<void>;
-  rememberedDevice: any | null;
-  verifyConnection: (deviceId: string) => Promise<boolean>;
-  connectToRememberedDevice: () => Promise<boolean>;
-  logMessage: (message: string) => void;
-  robustReconnect: () => Promise<boolean>;
   reconnectAttempt: number;
-  enhancedVerifyConnection: (deviceId: string) => Promise<boolean>;
-  fetchVoltage: () => Promise<string | null>;
-  fetchRPM: () => Promise<number | null>;
-  connectToBondedDeviceIfAvailable: () => Promise<string | null>;
+
+  // Core actions (simplified)
+  startScan: () => Promise<void>;
+  connectToDevice: (device: BluetoothDevice) => Promise<boolean>;
+  disconnectDevice: () => Promise<void>;
+  sendCommand: (device: Device, command: string) => Promise<string>;
+
+  // State setters
+  setDiscoveredDevices: (devices: BluetoothDevice[]) => void;
+  setShowDeviceSelector: (show: boolean) => void;
+
+  // Utility functions
+  logMessage: (message: string) => void;
 }
 
 // Create the context
@@ -146,8 +147,9 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   // Enhanced version of verifyConnection that updates context state
   const verifyConnection = async (deviceId: string): Promise<boolean> => {
     try {
-      const isStillConnected =
-        await bleConnectionHook.verifyConnection(deviceId);
+      const isStillConnected = await bleConnectionHook.verifyConnection(
+        deviceId
+      );
       setIsConnected(isStillConnected);
       return isStillConnected;
     } catch (error) {
@@ -189,7 +191,9 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       return success;
     } catch (error) {
       logMessage(
-        `Connection error: ${error instanceof Error ? error.message : String(error)}`
+        `Connection error: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
       return false;
     }
@@ -210,7 +214,9 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       return success;
     } catch (error) {
       logMessage(
-        `Reconnection error: ${error instanceof Error ? error.message : String(error)}`
+        `Reconnection error: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
       return false;
     }
@@ -224,7 +230,9 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       setDeviceId(null);
     } catch (error) {
       logMessage(
-        `Disconnect error: ${error instanceof Error ? error.message : String(error)}`
+        `Disconnect error: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   };
@@ -268,7 +276,9 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       return success;
     } catch (error) {
       logMessage(
-        `Robust reconnect error: ${error instanceof Error ? error.message : String(error)}`
+        `Robust reconnect error: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
       return false;
     }
@@ -322,44 +332,50 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     return rpmValue;
   };
 
-  // Add to context value
-  const contextValue = {
-    // Context-managed state
-    voltage,
-    rpm,
-    speed,
-    isScanning,
-    isConnected,
-    deviceId,
-    deviceName,
-    discoveredDevices,
-    showDeviceSelector,
-    rememberedDevice,
-    reconnectAttempt,
-    lastSuccessfulCommandTime,
-    plxDevice: bleConnectionHook.plxDevice, // Assuming plxDevice is part of the hook
+  // Create context value matching the simplified interface
+  const contextValue: BluetoothContextType = {
+    // Connection state
+    connectionState: {
+      isConnected,
+      isScanning,
+      deviceId,
+      deviceName,
+      lastSuccessfulCommandTime:
+        bleConnectionHook.lastSuccessfulCommandTime?.current || null,
+    },
 
-    // Enhanced functions with context state management
-    setDiscoveredDevices,
-    sendCommand,
-    setShowDeviceSelector,
-    showAllDevices,
+    // OBD data
+    obdData: {
+      voltage,
+      rpm,
+      speed,
+    },
+
+    // Device management
+    discoveredDevices,
+    rememberedDevice,
+    plxDevice: bleConnectionHook.plxDevice,
+
+    // UI state
+    showDeviceSelector,
+    reconnectAttempt,
+
+    // Core actions
     startScan,
     connectToDevice,
-    disconnectDevice: disconnectDevice,
-    connectToRememberedDevice,
-    connectToBondedDeviceIfAvailable,
-    verifyConnection,
+    disconnectDevice,
+    sendCommand,
+
+    // State setters
+    setDiscoveredDevices,
+    setShowDeviceSelector,
+
+    // Utility
     logMessage,
-    robustReconnect,
-    enhancedVerifyConnection,
-    // Pass through other hook functions
-    fetchVoltage,
-    fetchRPM,
   };
 
   return (
-    <BluetoothContext.Provider value={contextValue as BluetoothContextType}>
+    <BluetoothContext.Provider value={contextValue}>
       {children}
     </BluetoothContext.Provider>
   );

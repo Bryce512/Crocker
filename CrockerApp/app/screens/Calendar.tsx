@@ -40,7 +40,8 @@ const Calendar = () => {
     getUpcomingEvents,
     refreshData,
   } = useCalendar();
-  const { isConnected } = useBluetooth();
+  const { connectionState } = useBluetooth();
+  const isConnected = connectionState.isConnected;
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);

@@ -12,6 +12,11 @@ import base64 from "react-native-base64";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Buffer } from "buffer";
 
+// Import new services
+import bluetoothService from "./bluetoothService";
+import AppErrorService, { ErrorCode } from "./errorService";
+import { BluetoothDevice, ConnectionState, OBDData } from "../models";
+
 // Constants
 const { BleManager: BleManagerModule } = NativeModules;
 const bleEmitter = new NativeEventEmitter(NativeModules.BleManager);
@@ -23,40 +28,12 @@ const blePlxManager = new BlePlxManager();
 const TARGET_DEVICE_NAME = "OBDII"; // Change to your device's Bluetooth name
 const TARGET_DEVICE_ID = "53fc0537-e506-0bcf-81ec-e757067e9ed3"; // Change to your device's ID
 
-// Types
-export interface BluetoothDevice {
-  id: string;
-  name: string | null;
-  rssi: number;
-  isConnectable?: boolean;
-}
+// Re-export types for backward compatibility
+export type { BluetoothDevice } from "../models";
 
-// Pure utility functions (not dependent on hook state)
-export const stringToBytes = (str: string): number[] => {
-  const bytes = [];
-  for (let i = 0; i < str.length; i++) {
-    bytes.push(str.charCodeAt(i));
-  }
-  return bytes;
-};
-
-export const base64ToBytes = (b64: string): number[] => {
-  try {
-    const decoded = base64.decode(b64);
-    const bytes = [];
-    for (let i = 0; i < decoded.length; i++) {
-      bytes.push(decoded.charCodeAt(i));
-    }
-    return bytes;
-  } catch (error) {
-    console.log(
-      `Error converting base64 to bytes: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
-    return [];
-  }
-};
+// Re-export utility functions from bluetoothService
+export const stringToBytes = bluetoothService.stringToBytes;
+export const base64ToBytes = bluetoothService.base64ToBytes;
 
 // Main BLE hook
 export const useBleConnection = (options?: {

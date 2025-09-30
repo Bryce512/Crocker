@@ -10,6 +10,7 @@ import AppNavigator from "./app/navigation/AppNavigator";
 import { BluetoothProvider } from "./app/contexts/BluetoothContext";
 import { CalendarProvider } from "./app/contexts/CalendarContext";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ErrorBoundary from "./app/components/ErrorBoundary";
 
 const Stack = createNativeStackNavigator();
 
@@ -58,18 +59,20 @@ export default function App() {
   }
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <BluetoothProvider>
-          <CalendarProvider>
-            <NavigationContainer>
-              <SafeAreaView style={{ flex: 1 }}>
-                <AppNavigator />
-              </SafeAreaView>
-            </NavigationContainer>
-          </CalendarProvider>
-        </BluetoothProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <BluetoothProvider>
+            <CalendarProvider>
+              <NavigationContainer>
+                <SafeAreaView style={{ flex: 1 }}>
+                  <AppNavigator />
+                </SafeAreaView>
+              </NavigationContainer>
+            </CalendarProvider>
+          </BluetoothProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

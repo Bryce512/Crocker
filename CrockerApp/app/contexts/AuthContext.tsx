@@ -2,16 +2,27 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firebaseService from "../services/firebaseService";
+import AppErrorService from "../services/errorService";
+import { User, AppError } from "../models";
 
 type AuthContextType = {
   user: FirebaseAuthTypes.User | null;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  error: AppError | null;
+  signIn: (
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; error?: AppError }>;
   signUp: (
     email: string,
     password: string
-  ) => Promise<{ error: any; user: FirebaseAuthTypes.User | null }>;
+  ) => Promise<{
+    success: boolean;
+    user?: FirebaseAuthTypes.User;
+    error?: AppError;
+  }>;
   signOut: () => Promise<void>;
+  clearError: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,6 +30,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<AppError | null>(null);
+
+  const clearError = () => setError(null);
 
   // Set up Firebase auth state listener
   useEffect(() => {
@@ -87,39 +101,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Validate input first
+      const emailError = AppErrorService.validateEmail(email);
+      if (emailError) {
+        setError(emailError);
+        return { success: false, error: emailError };
+      }
+
+      const passwordError = AppErrorService.validatePassword(password);
+      if (passwordError) {
+        setError(passwordError);
+        return { success: false, error: passwordError };
+      }
+
       console.log("🔄 Signing in user...");
       const response = await firebaseService.signIn(email, password);
 
       if (response.user && !response.error) {
         console.log("✅ Sign in successful");
-        // The auth state listener will handle setting the user
-        return { error: null };
+        setError(null);
+        return { success: true };
       }
 
       console.log("❌ Sign in failed:", response.error);
-      return { error: response.error };
+      const appError = AppErrorService.handleFirebaseAuthError(response.error);
+      setError(appError);
+      return { success: false, error: appError };
     } catch (error) {
       console.error("❌ Sign in error:", error);
-      return { error };
+      const appError = AppErrorService.handleFirebaseAuthError(error);
+      setError(appError);
+      return { success: false, error: appError };
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
+      // Validate input first
+      const emailError = AppErrorService.validateEmail(email);
+      if (emailError) {
+        setError(emailError);
+        return { success: false, error: emailError };
+      }
+
+      const passwordError = AppErrorService.validatePassword(password);
+      if (passwordError) {
+        setError(passwordError);
+        return { success: false, error: passwordError };
+      }
+
       console.log("🔄 Signing up user...");
       const response = await firebaseService.signUp(email, password);
 
       if (response.user && !response.error) {
         console.log("✅ Sign up successful");
-        // The auth state listener will handle setting the user
-        return { user: response.user, error: null };
+        setError(null);
+        return { success: true, user: response.user };
       }
 
       console.log("❌ Sign up failed:", response.error);
-      return { user: null, error: response.error ?? "Unknown error" };
+      const appError = AppErrorService.handleFirebaseAuthError(response.error);
+      setError(appError);
+      return { success: false, error: appError };
     } catch (error) {
       console.error("❌ Sign up error:", error);
-      return { user: null, error };
+      const appError = AppErrorService.handleFirebaseAuthError(error);
+      setError(appError);
+      return { success: false, error: appError };
     }
   };
 
@@ -127,15 +175,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log("🔄 Signing out user...");
       await firebaseService.signOut();
-      // The auth state listener will handle clearing the user
+      setError(null); // Clear any errors on sign out
       console.log("✅ User signed out successfully");
     } catch (error) {
       console.error("❌ Sign out error:", error);
+      const appError = AppErrorService.handleDataError(error, "signout");
+      setError(appError);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, error, signIn, signUp, signOut, clearError }}
+    >
       {children}
     </AuthContext.Provider>
   );

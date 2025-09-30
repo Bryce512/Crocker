@@ -65,7 +65,8 @@ const CalendarContext = createContext<CalendarContextType | undefined>(
 // Provider component following your BluetoothContext pattern
 export const CalendarProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  const { isConnected } = useBluetooth();
+  const { connectionState } = useBluetooth();
+  const isConnected = connectionState.isConnected;
 
   // State variables following BluetoothContext pattern
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -287,13 +288,17 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
 
         // Always save all merged events to Firebase to ensure consistency
         console.log("🔍 DEBUG: Saving merged events to Firebase...");
-        
+
         // Count events without assigned kids
-        const eventsWithoutKids = mergedEvents.filter(event => !event.assignedKidId);
+        const eventsWithoutKids = mergedEvents.filter(
+          (event) => !event.assignedKidId
+        );
         if (eventsWithoutKids.length > 0) {
-          console.warn(`⚠️ ${eventsWithoutKids.length} events have no assigned kid for alerts`);
+          console.warn(
+            `⚠️ ${eventsWithoutKids.length} events have no assigned kid for alerts`
+          );
         }
-        
+
         await firebaseService.setEvents(mergedEvents);
 
         // Update local state
