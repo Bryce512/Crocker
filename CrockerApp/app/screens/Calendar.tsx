@@ -23,8 +23,9 @@ import LinearGradient from "react-native-linear-gradient";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { useCalendar } from "../contexts/CalendarContext";
 import { useBluetooth } from "../contexts/BluetoothContext";
-import { calendarService } from "../services/calendarService";
+import { calendarService, CalendarEvent } from "../services/calendarService";
 import firebaseService from "../services/firebaseService";
+import EventForm from "../components/EventForm";
 
 const Calendar = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -49,6 +50,12 @@ const Calendar = () => {
   const [showViewModeDropdown, setShowViewModeDropdown] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | undefined>(
+    undefined
+  );
 
   // Update current time every minute
   useEffect(() => {
@@ -195,7 +202,7 @@ const Calendar = () => {
   useEffect(() => {
     // Auto-refresh when component mounts
     refreshData();
-    
+
     // Scroll to current time if viewing today
     if (isToday()) {
       scrollToCurrentTime();
@@ -213,9 +220,9 @@ const Calendar = () => {
     const timeLinePosition = getCurrentTimeLinePosition();
     if (timeLinePosition && scrollViewRef.current) {
       // Calculate scroll position to center the current time line on screen
-      const { height: screenHeight } = Dimensions.get('window');
-      const scrollY = Math.max(0, timeLinePosition.top - (screenHeight * 0.4)); // Position line at 40% from top of screen
-      
+      const { height: screenHeight } = Dimensions.get("window");
+      const scrollY = Math.max(0, timeLinePosition.top - screenHeight * 0.4); // Position line at 40% from top of screen
+
       scrollViewRef.current.scrollTo({
         y: scrollY,
         animated: true,
@@ -361,6 +368,24 @@ const Calendar = () => {
     setShowDatePicker(false);
   };
 
+  // Handle event editing
+  const handleEventPress = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setShowEditModal(true);
+  };
+
+  const handleEditModalSave = () => {
+    setShowEditModal(false);
+    setSelectedEvent(undefined);
+    // Refresh data to show updated event
+    refreshData();
+  };
+
+  const handleEditModalCancel = () => {
+    setShowEditModal(false);
+    setSelectedEvent(undefined);
+  };
+
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString("en-US", {
       weekday: "short",
@@ -378,26 +403,43 @@ const Calendar = () => {
   };
 
   const getEventsForSelectedDate = () => {
-    const startOfDay = new Date(selectedDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(selectedDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    console.log("🔍 DEBUG Calendar: Raw events from context:", events);
+    console.log("🔍 DEBUG Calendar: Events length:", events.length);
+    console.log("🔍 DEBUG Calendar: Selected date:", selectedDate);
+
+    // Get date strings for comparison (YYYY-MM-DD format)
+    const selectedDateString = selectedDate.toISOString().split("T")[0];
+    console.log("🔍 DEBUG Calendar: Selected date string:", selectedDateString);
 
     const filteredEvents = events
       .filter((event) => {
+        console.log("🔍 DEBUG Calendar: Checking event:", event.title);
+
         // Convert event.startTime to Date if it's not already
         const eventStartTime =
           event.startTime instanceof Date
             ? event.startTime
             : new Date(event.startTime);
+
+        // Get event date string for comparison
+        const eventDateString = eventStartTime.toISOString().split("T")[0];
+
         console.log(
-          "🔍 DEBUG Calendar: eventStartTime converted:",
-          eventStartTime
+          "🔍 DEBUG Calendar: Event date string:",
+          eventDateString,
+          "Selected:",
+          selectedDateString
         );
 
         const isActive = event.isActive;
-        const isInRange =
-          eventStartTime >= startOfDay && eventStartTime <= endOfDay;
+        const isInRange = eventDateString === selectedDateString;
+
+        console.log(
+          "🔍 DEBUG Calendar: isActive:",
+          isActive,
+          "isInRange:",
+          isInRange
+        );
 
         return isActive && isInRange;
       })
@@ -414,7 +456,7 @@ const Calendar = () => {
   };
 
   // Calculate event positioning within hour blocks
-  const calculateEventPosition = (event: any) => {
+  const calculateEventPosition = (event: any, currentHour?: number) => {
     const startTime =
       event.startTime instanceof Date
         ? event.startTime
@@ -422,25 +464,182 @@ const Calendar = () => {
     const endTime =
       event.endTime instanceof Date ? event.endTime : new Date(event.endTime);
 
-    const hour = startTime.getHours();
-    const minute = startTime.getMinutes();
-    const duration = (endTime.getTime() - startTime.getTime()) / (1000 * 60); // duration in minutes
+    const startHour = startTime.getHours();
+    const startMinute = startTime.getMinutes();
+    const endHour = endTime.getHours();
+    const endMinute = endTime.getMinutes();
 
-    // Position within the hour (0-1)
-    const topOffset = minute / 60;
+    // For rendering: calculate full event dimensions from start hour
+    const hour = currentHour !== undefined ? currentHour : startHour;
 
-    // Height based on duration (minimum 15 minutes = 0.25 of an hour block)
-    const height = Math.max(duration / 60, 0.25);
+    let topOffset = 0;
+    let height = 1;
+
+    if (currentHour !== undefined) {
+      // This is for overlap detection in a specific hour
+      if (currentHour === startHour && currentHour === endHour) {
+        // Event starts and ends in this hour
+        topOffset = startMinute / 60;
+        height = (endMinute - startMinute) / 60;
+      } else if (currentHour === startHour) {
+        // Event starts in this hour but continues
+        topOffset = startMinute / 60;
+        height = (60 - startMinute) / 60;
+      } else if (currentHour === endHour) {
+        // Event ends in this hour but started earlier
+        topOffset = 0;
+        height = endMinute / 60;
+      } else {
+        // Event spans through this hour completely
+        topOffset = 0;
+        height = 1;
+      }
+    } else {
+      // For rendering: show full event from start time
+      topOffset = startMinute / 60;
+
+      if (startHour === endHour) {
+        // Single hour event
+        height = (endMinute - startMinute) / 60;
+      } else {
+        // Multi-hour event: calculate total height across hours
+        const hoursSpanned = endHour - startHour;
+        const minutesInFirstHour = 60 - startMinute;
+        const minutesInLastHour = endMinute;
+        const totalMinutes =
+          minutesInFirstHour + (hoursSpanned - 1) * 60 + minutesInLastHour;
+        height = totalMinutes / 60;
+      }
+    }
+
+    // Ensure minimum height for visibility
+    height = Math.max(height, 0.25);
 
     return {
       hour,
       topOffset,
       height,
-      duration,
+      startTime,
+      endTime,
       // Use dynamic height calculations
       pixelTop: topOffset * hourBlockHeight,
       pixelHeight: Math.max(height * hourBlockHeight, eventBlockMinHeight),
     };
+  };
+
+  // Check if two events' visual blocks overlap (not just time overlap)
+  const eventsOverlap = (event1: any, event2: any, currentHour: number) => {
+    const pos1 = calculateEventPosition(event1, currentHour);
+    const pos2 = calculateEventPosition(event2, currentHour);
+
+    // Calculate the visual boundaries of each event block
+    const event1Top = pos1.pixelTop;
+    const event1Bottom = pos1.pixelTop + pos1.pixelHeight;
+    const event2Top = pos2.pixelTop;
+    const event2Bottom = pos2.pixelTop + pos2.pixelHeight;
+
+    // Check if the visual blocks overlap
+    return event1Top < event2Bottom && event2Top < event1Bottom;
+  };
+
+  // Calculate layout for overlapping events within an hour
+  const calculateEventLayout = (
+    hourEvents: any[],
+    allDayEvents: any[],
+    currentHour: number
+  ) => {
+    const eventsWithLayout = hourEvents.map((event, index) => {
+      const position = calculateEventPosition(event); // Don't pass currentHour for rendering
+      return { event, position, index, column: 0, totalColumns: 1 };
+    });
+
+    // Group overlapping events - check if any events visually overlap across the entire day
+    const groups: any[][] = [];
+
+    eventsWithLayout.forEach((eventItem) => {
+      let addedToGroup = false;
+
+      for (let group of groups) {
+        // Check if this event overlaps with any event already in the group
+        // Use global overlap detection to check across all possible hours
+        const hasOverlap = group.some((groupItem) => {
+          return doEventsVisuallyOverlap(
+            eventItem.event,
+            groupItem.event,
+            allDayEvents
+          );
+        });
+
+        if (hasOverlap) {
+          group.push(eventItem);
+          addedToGroup = true;
+          break;
+        }
+      }
+
+      if (!addedToGroup) {
+        groups.push([eventItem]);
+      }
+    });
+
+    // Assign columns within each group
+    groups.forEach((group) => {
+      const totalColumns = group.length;
+      group.forEach((eventItem, columnIndex) => {
+        eventItem.column = columnIndex;
+        eventItem.totalColumns = totalColumns;
+      });
+    });
+
+    return eventsWithLayout;
+  };
+
+  // Check if two events visually overlap anywhere in their rendered blocks
+  const doEventsVisuallyOverlap = (
+    event1: any,
+    event2: any,
+    allDayEvents: any[]
+  ) => {
+    const start1 =
+      event1.startTime instanceof Date
+        ? event1.startTime
+        : new Date(event1.startTime);
+    const end1 =
+      event1.endTime instanceof Date
+        ? event1.endTime
+        : new Date(event1.endTime);
+    const start2 =
+      event2.startTime instanceof Date
+        ? event2.startTime
+        : new Date(event2.startTime);
+    const end2 =
+      event2.endTime instanceof Date
+        ? event2.endTime
+        : new Date(event2.endTime);
+
+    // First check if they overlap in time at all
+    if (start1 >= end2 || start2 >= end1) {
+      return false;
+    }
+
+    // Get the range of hours both events span
+    const start1Hour = start1.getHours();
+    const end1Hour = end1.getHours() + (end1.getMinutes() > 0 ? 1 : 0);
+    const start2Hour = start2.getHours();
+    const end2Hour = end2.getHours() + (end2.getMinutes() > 0 ? 1 : 0);
+
+    // Find the overlapping hour range
+    const overlapStartHour = Math.max(start1Hour, start2Hour);
+    const overlapEndHour = Math.min(end1Hour, end2Hour);
+
+    // Check each overlapping hour for visual overlap
+    for (let hour = overlapStartHour; hour < overlapEndHour; hour++) {
+      if (eventsOverlap(event1, event2, hour)) {
+        return true;
+      }
+    }
+
+    return false;
   };
 
   // Generate hour blocks (6 AM to 11 PM)
@@ -475,17 +674,18 @@ const Calendar = () => {
 
     const hour = currentTime.getHours();
     const minute = currentTime.getMinutes();
-    
+
     // Only show if current time is within our hour range (6 AM to 11 PM)
     if (hour < 6 || hour > 23) return null;
 
     // Calculate exact position within the hour blocks
     const hourIndex = hour - 6; // 6 AM is index 0
     const minuteProgress = minute / 60; // Progress within the current hour (0-1)
-    
+
     // Position = (hour blocks passed * height) + (progress within current hour * height)
-    const linePosition = (hourIndex * hourBlockHeight) + (minuteProgress * hourBlockHeight);
-    
+    const linePosition =
+      hourIndex * hourBlockHeight + minuteProgress * hourBlockHeight;
+
     return {
       top: linePosition,
       hour: hour,
@@ -651,7 +851,7 @@ const Calendar = () => {
                     <View
                       style={[
                         styles.currentTimeLine,
-                        { top: timeLinePosition.top }
+                        { top: timeLinePosition.top },
                       ]}
                     >
                       <View style={styles.currentTimeLabel}>
@@ -663,14 +863,33 @@ const Calendar = () => {
                     </View>
                   ) : null;
                 })()}
-                
+
                 {hourBlocks.map((hour) => {
+                  // Get events that should be rendered in this hour (only events that START in this hour)
                   const hourEvents = todaysEvents.filter((event) => {
                     const eventStartTime =
                       event.startTime instanceof Date
                         ? event.startTime
                         : new Date(event.startTime);
                     return eventStartTime.getHours() === hour;
+                  });
+
+                  // Get all events that span through this hour (for overlap detection)
+                  const allHourEvents = todaysEvents.filter((event) => {
+                    const eventStartTime =
+                      event.startTime instanceof Date
+                        ? event.startTime
+                        : new Date(event.startTime);
+                    const eventEndTime =
+                      event.endTime instanceof Date
+                        ? event.endTime
+                        : new Date(event.endTime);
+
+                    const startHour = eventStartTime.getHours();
+                    const endHour = eventEndTime.getHours();
+
+                    // Include event if this hour is within the event's time span
+                    return hour >= startHour && hour <= endHour;
                   });
 
                   return (
@@ -683,22 +902,66 @@ const Calendar = () => {
                       </View>
                       <View style={styles.hourContent}>
                         <View style={styles.hourLine} />
-                        {hourEvents.map((event, index) => {
-                          const position = calculateEventPosition(event);
+                        {calculateEventLayout(
+                          hourEvents,
+                          todaysEvents,
+                          hour
+                        ).map((eventItem) => {
+                          const { event, position, column, totalColumns } =
+                            eventItem;
                           const assignedKid = kids.find(
                             (k) => k.id === event.assignedKidId
                           );
 
+                          // Calculate side-by-side positioning
+                          const eventWidthPercent =
+                            totalColumns > 1 ? 95 / totalColumns - 1 : 95; // Subtract 1% for margin
+                          const eventLeftPercent =
+                            totalColumns > 1
+                              ? (column * 95) / totalColumns + 0.5
+                              : 2.5; // Add 0.5% margin
+
+                          // Vary colors for overlapping events
+                          const eventColors = [
+                            "rgba(45, 212, 191, 0.9)", // Teal
+                            "rgba(168, 85, 247, 0.9)", // Purple
+                            "rgba(251, 146, 60, 0.9)", // Orange
+                            "rgba(34, 197, 94, 0.9)", // Green
+                            "rgba(239, 68, 68, 0.9)", // Red
+                          ];
+                          const borderColors = [
+                            "#0d9488", // Teal
+                            "#7c3aed", // Purple
+                            "#ea580c", // Orange
+                            "#16a34a", // Green
+                            "#dc2626", // Red
+                          ];
+                          const backgroundColor =
+                            totalColumns > 1
+                              ? eventColors[column % eventColors.length]
+                              : eventColors[0];
+                          const borderColor =
+                            totalColumns > 1
+                              ? borderColors[column % borderColors.length]
+                              : borderColors[0];
+
                           return (
-                            <View
-                              key={`${event.id}-${index}`}
+                            <TouchableOpacity
+                              key={`${event.id}-${eventItem.index}`}
                               style={[
                                 styles.eventBlock,
                                 {
                                   top: position.pixelTop,
                                   height: position.pixelHeight,
+                                  width: `${eventWidthPercent}%`,
+                                  left: `${eventLeftPercent}%`,
+                                  position: "absolute",
+                                  backgroundColor: backgroundColor,
+                                  borderLeftColor: borderColor,
                                 },
                               ]}
+                              onPress={() => handleEventPress(event)}
+                              activeOpacity={0.7}
                             >
                               <Text
                                 style={styles.eventBlockTitle}
@@ -713,12 +976,22 @@ const Calendar = () => {
                                 {formatTime(event.startTime)} -{" "}
                                 {formatTime(event.endTime)}
                               </Text>
-                              {assignedKid && (
+                              {assignedKid ? (
                                 <Text
                                   style={styles.eventBlockKid}
                                   numberOfLines={1}
                                 >
                                   → {assignedKid.name}
+                                </Text>
+                              ) : (
+                                <Text
+                                  style={[
+                                    styles.eventBlockKid,
+                                    { color: "#888" },
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  ⚠️ No kid assigned
                                 </Text>
                               )}
                               {event.alertIntervals.length > 0 && (
@@ -729,7 +1002,7 @@ const Calendar = () => {
                                   🔔 {event.alertIntervals.join(", ")}min
                                 </Text>
                               )}
-                            </View>
+                            </TouchableOpacity>
                           );
                         })}
                       </View>
@@ -800,7 +1073,7 @@ const Calendar = () => {
               <DateTimePicker
                 value={selectedDate}
                 mode="date"
-                display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                display={Platform.OS === "ios" ? "inline" : "calendar"}
                 onChange={handleDateSelect}
                 maximumDate={new Date(2030, 11, 31)}
                 minimumDate={new Date(2020, 0, 1)}
@@ -810,6 +1083,15 @@ const Calendar = () => {
           </TouchableOpacity>
         </Modal>
       )}
+
+      {/* Event Edit Modal */}
+      <EventForm
+        mode="edit"
+        existingEvent={selectedEvent}
+        visible={showEditModal}
+        onSave={handleEditModalSave}
+        onCancel={handleEditModalCancel}
+      />
     </LinearGradient>
   );
 };
@@ -996,8 +1278,6 @@ const styles = StyleSheet.create({
   },
   eventBlock: {
     position: "absolute",
-    left: 0,
-    right: 8,
     backgroundColor: "rgba(45, 212, 191, 0.9)",
     borderRadius: 6,
     paddingHorizontal: 8,

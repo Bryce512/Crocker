@@ -10,7 +10,7 @@ export interface CalendarEvent {
   endTime: Date;
   alertIntervals: number[]; // minutes before event [15, 10, 5]
   isActive: boolean;
-  assignedKidId?: string;
+  assignedKidId?: string | null;
   source: "native" | "manual" | "imported";
   lastModified: Date;
 }
@@ -153,6 +153,7 @@ class CalendarService {
           endTime: endDate ? new Date(endDate) : new Date(),
           alertIntervals: [15, 10, 5], // Default intervals
           isActive: true,
+          assignedKidId: null, // Imported events have no kid assigned by default
           source: "native" as const,
           lastModified: new Date(),
         };
@@ -441,12 +442,8 @@ class CalendarService {
     const user = firebaseService.getCurrentUser();
     if (!user) throw new Error("User not authenticated");
 
-    // Save to Firebase using proper structure
-    await firebaseService.writeData(
-      user.uid,
-      "events",
-      JSON.stringify(newEvent)
-    );
+    // Save to Firebase using individual object structure
+    await firebaseService.addEvent(newEvent);
 
     // Mark assigned kid for resync
     if (newEvent.assignedKidId) {

@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
-import Button from "../components1/Button";
+import Button from "../components/Button";
 import { useAuth } from "../contexts/AuthContext";
 import { colors } from "../theme/colors";
 import firebaseService from "../services/firebaseService";

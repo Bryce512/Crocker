@@ -130,6 +130,25 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
       );
       const eventsData = await firebaseService.getEvents();
       console.log("🔍 DEBUG: refreshData - getEvents returned:", eventsData);
+      console.log(
+        "🔍 DEBUG: refreshData - eventsData type:",
+        typeof eventsData
+      );
+      console.log(
+        "🔍 DEBUG: refreshData - eventsData isArray:",
+        Array.isArray(eventsData)
+      );
+      if (eventsData && eventsData.length > 0) {
+        console.log("🔍 DEBUG: refreshData - First event:", eventsData[0]);
+        console.log(
+          "🔍 DEBUG: refreshData - First event startTime type:",
+          typeof eventsData[0].startTime
+        );
+        console.log(
+          "🔍 DEBUG: refreshData - First event startTime value:",
+          eventsData[0].startTime
+        );
+      }
 
       console.log("🔍 DEBUG: refreshData - Calling firebaseService.getKids...");
       const kidsData = await firebaseService.getKids();
@@ -164,11 +183,45 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
 
       console.log(
         "🔍 DEBUG: importedEvents from calendarService:",
-        importedEvents
+        importedEvents.length
       );
       console.log("🔍 DEBUG: First imported event:", importedEvents[0]);
 
+      // Check for duplicates in imported events
+      const importedEventIds = importedEvents.map((e) => e.id);
+      const uniqueImportedIds = [...new Set(importedEventIds)];
+      console.log("🔍 DEBUG: Total imported events:", importedEvents.length);
+      console.log(
+        "🔍 DEBUG: Unique imported event IDs:",
+        uniqueImportedIds.length
+      );
+      if (importedEvents.length !== uniqueImportedIds.length) {
+        console.log(
+          "⚠️ WARNING: Duplicate event IDs found in imported events!"
+        );
+        console.log(
+          "🔍 DEBUG: Duplicate IDs:",
+          importedEventIds.filter(
+            (id, index) => importedEventIds.indexOf(id) !== index
+          )
+        );
+      }
+
       if (user && importedEvents.length > 0) {
+        // Remove duplicates from imported events first
+        const uniqueImportedEvents = importedEvents.filter(
+          (event, index, array) =>
+            array.findIndex((e) => e.id === event.id) === index
+        );
+
+        if (uniqueImportedEvents.length !== importedEvents.length) {
+          console.log(
+            `🔧 Removed ${
+              importedEvents.length - uniqueImportedEvents.length
+            } duplicate events from import`
+          );
+        }
+
         // Get existing events
         const existingEvents = await firebaseService.getEvents();
         console.log("🔍 DEBUG: existingEvents from Firebase:", existingEvents);
@@ -182,7 +235,7 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
         const mergedEvents: any[] = [];
         const newEventIds: string[] = [];
 
-        importedEvents.forEach((importedEvent) => {
+        uniqueImportedEvents.forEach((importedEvent) => {
           const existingEvent = existingEventsMap.get(importedEvent.id);
 
           if (!existingEvent) {
@@ -219,7 +272,9 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
         // Add any existing events that weren't in the imported list
         existingEvents.forEach((existingEvent: any) => {
           if (
-            !importedEvents.find((imported) => imported.id === existingEvent.id)
+            !uniqueImportedEvents.find(
+              (imported) => imported.id === existingEvent.id
+            )
           ) {
             mergedEvents.push(existingEvent);
           }
@@ -232,14 +287,24 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
 
         // Always save all merged events to Firebase to ensure consistency
         console.log("🔍 DEBUG: Saving merged events to Firebase...");
+        
+        // Count events without assigned kids
+        const eventsWithoutKids = mergedEvents.filter(event => !event.assignedKidId);
+        if (eventsWithoutKids.length > 0) {
+          console.warn(`⚠️ ${eventsWithoutKids.length} events have no assigned kid for alerts`);
+        }
+        
         await firebaseService.setEvents(mergedEvents);
 
         // Update local state
         setEvents(mergedEvents);
 
         console.log(
-          `Imported ${newEventIds.length} new events (${importedEvents.length} total found), saved ${mergedEvents.length} total events to Firebase`
+          `Imported ${newEventIds.length} new events (${uniqueImportedEvents.length} total found), saved ${mergedEvents.length} total events to Firebase`
         );
+
+        setIsImporting(false);
+        return uniqueImportedEvents;
       }
 
       setIsImporting(false);
@@ -260,6 +325,11 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
 
       try {
         const newEvent = await calendarService.addEvent(eventData);
+
+        // Warn if no kid is assigned
+        if (!newEvent.assignedKidId) {
+          console.warn("⚠️ Event saved without assigned kid:", newEvent.title);
+        }
 
         // Save to Firebase immediately
         await firebaseService.addEvent(newEvent);
@@ -301,8 +371,8 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
           lastModified: new Date(),
         };
 
-        // Update in Firebase with complete event data
-        await firebaseService.addEvent(updatedEvent);
+        // Update in Firebase using the new updateEvent function
+        await firebaseService.updateEvent(eventId, updatedEvent);
 
         // Update local state
         setEvents((prev) =>
@@ -314,7 +384,10 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
           await markKidForResync(updatedEvent.assignedKidId);
         }
 
-        console.log("✅ Event updated and saved to Firebase:", eventId);
+        console.log(
+          "✅ Event updated using individual object approach:",
+          eventId
+        );
       } catch (error) {
         console.error("Error updating event:", error);
         throw error;

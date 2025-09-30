@@ -338,7 +338,48 @@ export const getUserProfile = async (userId: string) => {
   }
 };
 
-// Get events for the current user
+// Migrate legacy array-based events to individual objects
+export const migrateEventsToIndividualObjects = async (eventsArray: any[]) => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error("No authenticated user found");
+  }
+
+  const database = getDatabase(getApp());
+  const eventsRef = ref(database, `users/${user.uid}/events`);
+
+  try {
+    console.log(
+      `🔄 Migrating ${eventsArray.length} events from array to individual objects`
+    );
+
+    // Create object structure from array
+    const eventsObject: { [key: string]: any } = {};
+
+    eventsArray.forEach((event, index) => {
+      // Ensure each event has an ID
+      const eventId = event.id || `event_${Date.now()}_${index}`;
+
+      // Remove the id from the event data since it becomes the key
+      const { id, ...eventData } = event;
+
+      eventsObject[eventId] = eventData;
+    });
+
+    // Replace the array with the object structure
+    await set(eventsRef, eventsObject);
+
+    console.log(
+      `✅ Successfully migrated ${eventsArray.length} events to individual objects`
+    );
+    return eventsObject;
+  } catch (error) {
+    console.error("Error migrating events:", error);
+    throw error;
+  }
+};
+
+// Get events for the current user (now returns individual objects)
 export const getEvents = async () => {
   const user = getCurrentUser();
   if (!user) {
@@ -350,30 +391,74 @@ export const getEvents = async () => {
 
   try {
     const snapshot = await get(eventsRef);
+    console.log("🔍 DEBUG getEvents: snapshot exists:", snapshot.exists());
+
     if (snapshot.exists()) {
       const eventsData = snapshot.val();
+      console.log("🔍 DEBUG getEvents: Raw eventsData:", eventsData);
+      console.log("🔍 DEBUG getEvents: eventsData type:", typeof eventsData);
+      console.log(
+        "🔍 DEBUG getEvents: eventsData isArray:",
+        Array.isArray(eventsData)
+      );
 
       // Handle both array and object formats for backward compatibility
       let eventsArray;
       if (Array.isArray(eventsData)) {
-        eventsArray = eventsData;
+        // Legacy array format - convert to object format and migrate
+        console.log("🔄 Migrating legacy array format to individual objects");
+        await migrateEventsToIndividualObjects(eventsData);
+
+        // Return the migrated events
+        eventsArray = eventsData.map((event, index) => ({
+          ...event,
+          id: event.id || `event_${Date.now()}_${index}`, // Ensure ID exists
+        }));
+        console.log(
+          "🔍 DEBUG getEvents: eventsArray after migration:",
+          eventsArray
+        );
       } else if (eventsData && typeof eventsData === "object") {
-        // Convert object format to array for backward compatibility
+        // New object format - convert to array for app use
+        console.log("🔍 DEBUG getEvents: Converting object format to array");
         eventsArray = Object.keys(eventsData).map((key) => ({
           id: key,
           ...eventsData[key],
         }));
+        console.log(
+          "🔍 DEBUG getEvents: eventsArray after object conversion:",
+          eventsArray
+        );
       } else {
         eventsArray = [];
+        console.log(
+          "🔍 DEBUG getEvents: No valid events data, returning empty array"
+        );
       }
 
       // Restore Date objects from ISO strings
-      return eventsArray.map((event) => {
+      const finalEventsArray = eventsArray.map((event) => {
+        console.log(
+          "🔍 DEBUG getEvents: Processing event for date conversion:",
+          event.id
+        );
+
         if (event.startTime && typeof event.startTime === "string") {
-          console.log("StartTime found:", event.startTime);
+          console.log(
+            "🔍 DEBUG getEvents: Converting startTime from string:",
+            event.startTime
+          );
           event.startTime = new Date(event.startTime);
+          console.log(
+            "🔍 DEBUG getEvents: Converted startTime to Date:",
+            event.startTime
+          );
         }
         if (event.endTime && typeof event.endTime === "string") {
+          console.log(
+            "🔍 DEBUG getEvents: Converting endTime from string:",
+            event.endTime
+          );
           event.endTime = new Date(event.endTime);
         }
         if (event.lastModified && typeof event.lastModified === "string") {
@@ -381,6 +466,9 @@ export const getEvents = async () => {
         }
         return event;
       });
+
+      console.log("🔍 DEBUG getEvents: Final events array:", finalEventsArray);
+      return finalEventsArray;
     }
     return [];
   } catch (error) {
@@ -416,7 +504,7 @@ export const getKids = async () => {
   }
 };
 
-// Set events for the current user (saves as array)
+// Set events for the current user (now saves as individual objects)
 export const setEvents = async (events: any[]) => {
   const user = getCurrentUser();
   if (!user) {
@@ -427,8 +515,15 @@ export const setEvents = async (events: any[]) => {
   const eventsRef = ref(database, `users/${user.uid}/events`);
 
   try {
-    // Convert array events to storage format with serialized dates
-    const eventsArray = events.map((event) => {
+    // Convert array events to object structure with serialized dates
+    const eventsObject: { [key: string]: any } = {};
+
+    events.forEach((event) => {
+      // Ensure event has an ID
+      const eventId =
+        event.id ||
+        `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
       const eventCopy = { ...event };
 
       // Convert Date objects to ISO strings for Firebase storage
@@ -442,13 +537,15 @@ export const setEvents = async (events: any[]) => {
         eventCopy.lastModified = eventCopy.lastModified.toISOString();
       }
 
-      return eventCopy;
+      // Remove ID from event data since it becomes the key
+      const { id, ...eventDataWithoutId } = eventCopy;
+      eventsObject[eventId] = eventDataWithoutId;
     });
 
-    // Save as array directly
-    await set(eventsRef, eventsArray);
+    // Save as object structure (individual events)
+    await set(eventsRef, eventsObject);
     console.log(
-      `Events saved successfully to Firebase as array: ${events.length} events`
+      `Events saved successfully to Firebase as individual objects: ${events.length} events`
     );
     return events;
   } catch (error) {
@@ -457,19 +554,30 @@ export const setEvents = async (events: any[]) => {
   }
 };
 
-// Add or update a single event for the current user
+// Add or update a single event for the current user (now uses individual objects)
 export const addEvent = async (eventData: any) => {
   const user = getCurrentUser();
   if (!user) {
     throw new Error("No authenticated user found");
   }
 
+  const database = getDatabase(getApp());
+
   try {
-    // Get existing events
-    const existingEvents = await getEvents();
+    // Ensure event has an ID
+    if (!eventData.id) {
+      eventData.id = `event_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+    }
 
     // Create a copy of the event and ensure dates are properly serialized
     const eventCopy = { ...eventData };
+
+    // Firebase doesn't allow undefined values, convert to null
+    if (eventCopy.assignedKidId === undefined) {
+      eventCopy.assignedKidId = null;
+    }
 
     // Convert Date objects to ISO strings for Firebase storage
     if (eventCopy.startTime instanceof Date) {
@@ -482,74 +590,86 @@ export const addEvent = async (eventData: any) => {
       eventCopy.lastModified = eventCopy.lastModified.toISOString();
     }
 
-    // Find if event already exists and update it, or add new event
-    const eventIndex = existingEvents.findIndex((e) => e.id === eventData.id);
+    // Remove ID from the data since it becomes the Firebase key
+    const { id, ...eventDataWithoutId } = eventCopy;
 
-    let updatedEvents;
-    if (eventIndex >= 0) {
-      // Update existing event
-      updatedEvents = [...existingEvents];
-      updatedEvents[eventIndex] = {
-        ...existingEvents[eventIndex],
-        ...eventCopy,
-      };
-    } else {
-      // Add new event
-      updatedEvents = [...existingEvents, eventCopy];
-    }
+    // Save individual event object
+    const eventRef = ref(database, `users/${user.uid}/events/${id}`);
+    await set(eventRef, eventDataWithoutId);
 
-    // Save all events back as array
-    await setEvents(
-      updatedEvents.map((event) => {
-        // Convert ISO strings back to Date objects for the return value
-        const returnEvent = { ...event };
-        if (
-          returnEvent.startTime &&
-          typeof returnEvent.startTime === "string"
-        ) {
-          returnEvent.startTime = new Date(returnEvent.startTime);
-        }
-        if (returnEvent.endTime && typeof returnEvent.endTime === "string") {
-          returnEvent.endTime = new Date(returnEvent.endTime);
-        }
-        if (
-          returnEvent.lastModified &&
-          typeof returnEvent.lastModified === "string"
-        ) {
-          returnEvent.lastModified = new Date(returnEvent.lastModified);
-        }
-        return returnEvent;
-      })
-    );
+    console.log(`Event ${id} saved successfully as individual object`);
 
-    console.log("Event saved successfully to Firebase array");
-    return eventData;
+    // Return the original event data with proper Date objects
+    return {
+      ...eventData,
+      id: id,
+    };
   } catch (error) {
     console.error("Error saving event:", error);
     throw error;
   }
 };
 
-// Delete a single event from the array
+// Update a single event (new function for individual objects)
+export const updateEvent = async (eventId: string, updates: any) => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error("No authenticated user found");
+  }
+
+  const database = getDatabase(getApp());
+  const eventRef = ref(database, `users/${user.uid}/events/${eventId}`);
+
+  try {
+    // Create a copy of updates and ensure dates are properly serialized
+    const updatesCopy = { ...updates };
+
+    // Firebase doesn't allow undefined values, convert to null
+    if (updatesCopy.assignedKidId === undefined) {
+      updatesCopy.assignedKidId = null;
+    }
+
+    // Convert Date objects to ISO strings for Firebase storage
+    if (updatesCopy.startTime instanceof Date) {
+      updatesCopy.startTime = updatesCopy.startTime.toISOString();
+    }
+    if (updatesCopy.endTime instanceof Date) {
+      updatesCopy.endTime = updatesCopy.endTime.toISOString();
+    }
+    if (updatesCopy.lastModified instanceof Date) {
+      updatesCopy.lastModified = updatesCopy.lastModified.toISOString();
+    }
+
+    // Remove ID from updates since it's the key
+    const { id, ...updatesWithoutId } = updatesCopy;
+
+    // Update the individual event object
+    await update(eventRef, updatesWithoutId);
+
+    console.log(`Event ${eventId} updated successfully`);
+    return true;
+  } catch (error) {
+    console.error("Error updating event:", error);
+    throw error;
+  }
+};
+
+// Delete a single event (now uses individual objects)
 export const deleteEvent = async (eventId: string) => {
   const user = getCurrentUser();
   if (!user) {
     throw new Error("No authenticated user found");
   }
 
+  const database = getDatabase(getApp());
+  const eventRef = ref(database, `users/${user.uid}/events/${eventId}`);
+
   try {
-    // Get existing events
-    const existingEvents = await getEvents();
-
-    // Filter out the event to delete
-    const updatedEvents = existingEvents.filter(
-      (event) => event.id !== eventId
+    // Remove the individual event object
+    await remove(eventRef);
+    console.log(
+      `Event ${eventId} deleted successfully from individual objects`
     );
-
-    // Save updated array back to Firebase
-    await setEvents(updatedEvents);
-
-    console.log(`Event ${eventId} deleted successfully from Firebase array`);
     return true;
   } catch (error) {
     console.error("Error deleting event:", error);
@@ -664,8 +784,10 @@ export default {
   getKids,
   setEvents,
   addEvent,
+  updateEvent,
   deleteEvent,
   addKid,
+  migrateEventsToIndividualObjects,
   debugAuthState,
   clearUserData,
   clearFirebaseCache,
