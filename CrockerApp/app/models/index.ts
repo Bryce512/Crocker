@@ -49,7 +49,7 @@ export interface RegisteredDevice {
   id: string; // Bluetooth device ID (MAC address)
   name: string | null; // Original Bluetooth name
   nickname: string; // User-assigned name
-  deviceType: 'soristuffy' | 'esp32' | 'other';
+  deviceType: "soristuffy" | "esp32" | "other";
   registeredAt: Date;
   lastConnected: Date | null;
   connectionCount: number;
@@ -63,7 +63,7 @@ export interface RegisteredDevice {
 export interface DeviceProfile {
   deviceId: string;
   alertSettings: {
-    vibrationIntensity: 'low' | 'medium' | 'high';
+    vibrationIntensity: "low" | "medium" | "high";
     alertIntervals: number[]; // minutes before event
     quietHours: {
       enabled: boolean;
@@ -89,7 +89,13 @@ export interface PairingSession {
   deviceId: string;
   deviceName: string | null;
   startedAt: Date;
-  status: 'scanning' | 'connecting' | 'pairing' | 'success' | 'failed' | 'cancelled';
+  status:
+    | "scanning"
+    | "connecting"
+    | "pairing"
+    | "success"
+    | "failed"
+    | "cancelled";
   attempts: number;
   error?: string;
   completedAt?: Date;

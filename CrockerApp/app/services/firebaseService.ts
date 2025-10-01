@@ -1,58 +1,23 @@
 // firebaseService.ts
-import { initializeApp, getApp, getApps } from "firebase/app";
-import {
-  getDatabase,
-  ref,
-  get,
-  set,
-  update,
-  remove,
-  push,
-} from "firebase/database";
-// Use React Native Firebase for better persistence
 import auth from "@react-native-firebase/auth";
+import database from "@react-native-firebase/database";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
-import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
-
-// Firebase configuration - you'll need to add your actual config values
-const firebaseConfig = {
-  apiKey: "AIzaSyDJy4IvjkKkjtJBQmO2F3rPvZs_J3WeNZ8",
-  authDomain: "crocker-78644.firebaseapp.com",
-  databaseURL: "https://crocker-78644-default-rtdb.firebaseio.com/",
-  projectId: "crocker-78644",
-  messagingSenderId: "729289409049",
-  appId: "y1:729289409049:ios:942138008a5ecb1eb7a088",
-};
 
 // Flag to track initialization status
 let isInitialized = false;
-let firebaseApp: any = null;
-// React Native Firebase auth is available globally, no need to store reference
 
-// Initialize Firebase - get the existing app or create a new one
+// Initialize Firebase - React Native Firebase doesn't need manual initialization
 export const initializeFirebase = async () => {
-  // If we've already initialized, return early to prevent duplicate initialization
-  if (isInitialized && firebaseApp) {
+  if (isInitialized) {
     console.log("Firebase already initialized by this service");
-    return firebaseApp;
+    return true;
   }
 
   try {
-    // Check if already initialized
-    if (getApps().length === 0) {
-      // Only initialize if no apps exist
-      firebaseApp = initializeApp(firebaseConfig);
-      console.log("Firebase app initialized successfully");
-    } else {
-      console.log("Firebase app already exists, using existing app");
-      firebaseApp = getApp();
-    }
-
-    // React Native Firebase Auth is automatically initialized and has built-in persistence
-    console.log("React Native Firebase auth has built-in persistence");
-
+    // React Native Firebase is automatically initialized via native configuration
+    console.log("React Native Firebase initialized successfully");
     isInitialized = true;
-    return firebaseApp;
+    return true;
   } catch (error) {
     console.error("Firebase initialization error:", error);
     throw error;
@@ -61,25 +26,25 @@ export const initializeFirebase = async () => {
 
 // Function to write data to the database
 export const writeData = (userId: string, name: string, email: string) => {
-  const database = getDatabase(getApp());
-  const userRef = ref(database, `users/${userId}`);
-
+  const userRef = database().ref(`users/${userId}`);
+  console.log(`Writing to user ${userId}`);
   const userData = {
     name: name,
     email: email,
   };
 
-  return set(userRef, userData)
+  return userRef
+    .set(userData)
     .then(() => console.log("Data written successfully"))
     .catch((error: any) => console.error("Error writing data:", error));
 };
 
 // Function to read data from the database
 export const readData = (userId: string) => {
-  const database = getDatabase(getApp());
-  const userRef = ref(database, `users/${userId}`);
+  const userRef = database().ref(`users/${userId}`);
 
-  return get(userRef)
+  return userRef
+    .once("value")
     .then((snapshot) => {
       if (snapshot.exists()) {
         const userData = snapshot.val();
@@ -99,7 +64,6 @@ export const readData = (userId: string) => {
 // Authentication functions
 export const signIn = async (email: string, password: string) => {
   try {
-    // Basic validation before attempting sign in
     if (!email || !email.trim()) {
       return {
         user: null,
@@ -117,18 +81,16 @@ export const signIn = async (email: string, password: string) => {
       };
     }
 
-    // Use React Native Firebase auth for better persistence
     const userCredential = await auth().signInWithEmailAndPassword(
       email,
       password
     );
 
-    // Add this line to ensure user exists in database
+    console.log("🔷 User signed in with UID:", userCredential.user.uid);
     await ensureUserProfile(userCredential.user);
 
     return { user: userCredential.user, error: null };
   } catch (error: any) {
-    // Provide more specific error messages based on Firebase error codes
     console.error("Firebase authentication error:", error.code, error.message);
 
     let errorMessage = "Failed to sign in";
@@ -155,16 +117,30 @@ export const signIn = async (email: string, password: string) => {
 
 export const signUp = async (email: string, password: string) => {
   try {
+    console.log("🔄 Signing up user...");
     const userCredential = await auth().createUserWithEmailAndPassword(
       email,
       password
     );
+
+    console.log("🔷 New user created with UID:", userCredential.user.uid);
+
+    // Test database connection first
+    console.log("🔍 Testing database permissions...");
+    const dbTestResult = await testDatabaseConnection();
+
+    if (!dbTestResult) {
+      console.error(
+        "🔴 Database connection test failed - proceeding anyway..."
+      );
+    }
 
     // Add this line to create user profile in database
     await ensureUserProfile(userCredential.user);
 
     return { user: userCredential.user, error: null };
   } catch (error) {
+    console.error("🔴 Sign up failed:", error);
     return { user: null, error };
   }
 };
@@ -196,11 +172,10 @@ export const onAuthChange = (
 
 // Vehicle-specific functions
 export const getVehicles = async (userId: string) => {
-  const db = getDatabase(getApp());
-  const vehiclesRef = ref(db, `users/${userId}/vehicles`);
+  const vehiclesRef = database().ref(`users/${userId}/vehicles`);
 
   try {
-    const snapshot = await get(vehiclesRef);
+    const snapshot = await vehiclesRef.once("value");
     if (snapshot.exists()) {
       const vehiclesData = snapshot.val();
       // Convert object to array with id included
@@ -217,14 +192,13 @@ export const getVehicles = async (userId: string) => {
 };
 
 export const addVehicle = async (userId: string, vehicleData: any) => {
-  const db = getDatabase(getApp());
-  const vehiclesRef = ref(db, `users/${userId}/vehicles`);
+  const vehiclesRef = database().ref(`users/${userId}/vehicles`);
 
   // Create a new unique key for the vehicle
-  const newVehicleRef = push(vehiclesRef);
+  const newVehicleRef = vehiclesRef.push();
 
   try {
-    await set(newVehicleRef, vehicleData);
+    await newVehicleRef.set(vehicleData);
     return { id: newVehicleRef.key, ...vehicleData };
   } catch (error) {
     console.error("Error adding vehicle:", error);
@@ -237,11 +211,10 @@ export const updateVehicle = async (
   vehicleId: string,
   vehicleData: any
 ) => {
-  const db = getDatabase(getApp());
-  const vehicleRef = ref(db, `users/${userId}/vehicles/${vehicleId}`);
+  const vehicleRef = database().ref(`users/${userId}/vehicles/${vehicleId}`);
 
   try {
-    await update(vehicleRef, vehicleData);
+    await vehicleRef.update(vehicleData);
     return { id: vehicleId, ...vehicleData };
   } catch (error) {
     console.error("Error updating vehicle:", error);
@@ -250,11 +223,10 @@ export const updateVehicle = async (
 };
 
 export const deleteVehicle = async (userId: string, vehicleId: string) => {
-  const db = getDatabase(getApp());
-  const vehicleRef = ref(db, `users/${userId}/vehicles/${vehicleId}`);
+  const vehicleRef = database().ref(`users/${userId}/vehicles/${vehicleId}`);
 
   try {
-    await remove(vehicleRef);
+    await vehicleRef.remove();
     return true;
   } catch (error) {
     console.error("Error deleting vehicle:", error);
@@ -264,11 +236,10 @@ export const deleteVehicle = async (userId: string, vehicleId: string) => {
 
 // Get diagnostic logs for a specific vehicle
 export const getDiagnosticLogs = async (userId: string, vehicleId: string) => {
-  const db = getDatabase(getApp());
-  const logsRef = ref(db, `users/${userId}/diagnostic_logs`);
+  const logsRef = database().ref(`users/${userId}/diagnostic_logs`);
 
   try {
-    const snapshot = await get(logsRef);
+    const snapshot = await logsRef.once("value");
     if (snapshot.exists()) {
       const logsData = snapshot.val();
       // Filter logs for the specific vehicle and convert to array
@@ -290,44 +261,141 @@ export const getDiagnosticLogs = async (userId: string, vehicleId: string) => {
 export const ensureUserProfile = async (user: FirebaseAuthTypes.User) => {
   if (!user) return null;
 
-  const database = getDatabase(getApp());
-  const userRef = ref(database, `users/${user.uid}`);
+  console.log("🔷 Ensuring user profile for UID:", user.uid);
+
+  // Add a small delay to ensure auth state is fully propagated
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  const userRef = database().ref(`users/${user.uid}`);
 
   try {
     // Check if user profile already exists
-    const snapshot = await get(userRef);
+    const snapshot = await userRef.once("value");
 
     if (!snapshot.exists()) {
-      // Create new user profile
+      console.log(
+        "🔷 Creating new user profile in database for UID:",
+        user.uid
+      );
+
+      // Create new user profile with complete structure
       const userData = {
         profile: {
           name: user.displayName || "",
           email: user.email || "",
           phone: user.phoneNumber || "",
+          createdAt: new Date().toISOString(),
         },
         maintenance_records: {},
         events: {},
         kids: {},
+        devices: {}, // For registered Bluetooth devices
+        deviceProfiles: {}, // For device settings and preferences
       };
 
-      await set(userRef, userData);
-      console.log("Created new user profile in database");
+      await userRef.set(userData);
+      console.log(
+        "✅ Successfully created user profile in database with path: users/" +
+          user.uid
+      );
       return userData;
+    } else {
+      console.log("🔷 User profile already exists for UID:", user.uid);
+
+      // Check if we need to add missing sections for existing users
+      const existingData = snapshot.val();
+      let needsUpdate = false;
+
+      if (!existingData.devices) {
+        existingData.devices = {};
+        needsUpdate = true;
+      }
+
+      if (!existingData.deviceProfiles) {
+        existingData.deviceProfiles = {};
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        console.log(
+          "🔷 Updating existing user profile to include device sections"
+        );
+        await userRef.set(existingData);
+      }
+
+      return existingData;
+    }
+  } catch (error: any) {
+    console.error("🔴 Error ensuring user profile:", error);
+    console.error("🔴 Error code:", error.code);
+    console.error("🔴 Error message:", error.message);
+    console.error("🔴 User UID:", user.uid);
+    console.error("🔴 Database path:", `users/${user.uid}`);
+
+    if (error.message && error.message.includes("Permission denied")) {
+      console.error(
+        "🔴 FIREBASE RULES ERROR: The database security rules are blocking this write operation."
+      );
+      console.error(
+        "🔴 Please check your Firebase Realtime Database rules in the Firebase Console."
+      );
+      console.error("🔴 Expected rules format:");
+      console.error(`🔴 {
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
+      }
+    }
+  }
+}`);
     }
 
-    return snapshot.val();
-  } catch (error) {
-    console.error("Error ensuring user profile:", error);
     throw error;
   }
 };
 
-export const getUserProfile = async (userId: string) => {
-  const database = getDatabase(getApp());
-  const userRef = ref(database, `users/${userId}/profile`);
+// Test function to help diagnose database permission issues
+export const testDatabaseConnection = async () => {
+  const user = getCurrentUser();
+  if (!user) {
+    console.log("🔴 No authenticated user for database test");
+    return false;
+  }
+
+  console.log("🔍 Testing database connection for user:", user.uid);
+  const testRef = database().ref(`users/${user.uid}/test`);
 
   try {
-    const snapshot = await get(userRef);
+    // Try to write a simple test value
+    await testRef.set({ timestamp: Date.now(), test: true });
+    console.log("✅ Database write test successful");
+
+    // Try to read it back
+    const snapshot = await testRef.once("value");
+    if (snapshot.exists()) {
+      console.log("✅ Database read test successful");
+
+      // Clean up test data
+      await testRef.set(null);
+      console.log("✅ Database cleanup successful");
+      return true;
+    } else {
+      console.log("🔴 Database read test failed - no data found");
+      return false;
+    }
+  } catch (error: any) {
+    console.error("🔴 Database test failed:", error.message);
+    return false;
+  }
+};
+
+export const getUserProfile = async (userId: string) => {
+  const userRef = database().ref(`users/${userId}/profile`);
+
+  try {
+    const snapshot = await userRef.once("value");
     if (snapshot.exists()) {
       return snapshot.val();
     }
@@ -345,8 +413,7 @@ export const migrateEventsToIndividualObjects = async (eventsArray: any[]) => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
-  const eventsRef = ref(database, `users/${user.uid}/events`);
+  const eventsRef = database().ref(`users/${user.uid}/events`);
 
   try {
     console.log(
@@ -367,7 +434,7 @@ export const migrateEventsToIndividualObjects = async (eventsArray: any[]) => {
     });
 
     // Replace the array with the object structure
-    await set(eventsRef, eventsObject);
+    await eventsRef.set(eventsObject);
 
     console.log(
       `✅ Successfully migrated ${eventsArray.length} events to individual objects`
@@ -386,11 +453,11 @@ export const getEvents = async () => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
-  const eventsRef = ref(database, `users/${user.uid}/events`);
+  console.log(`Fetching events for user ${user.uid}`);
+  const eventsRef = database().ref(`users/${user.uid}/events`);
 
   try {
-    const snapshot = await get(eventsRef);
+    const snapshot = await eventsRef.once("value");
     console.log("🔍 DEBUG getEvents: snapshot exists:", snapshot.exists());
 
     if (snapshot.exists()) {
@@ -484,11 +551,10 @@ export const getKids = async () => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
-  const kidsRef = ref(database, `users/${user.uid}/kids`);
+  const kidsRef = database().ref(`users/${user.uid}/kids`);
 
   try {
-    const snapshot = await get(kidsRef);
+    const snapshot = await kidsRef.once("value");
     if (snapshot.exists()) {
       const kidsData = snapshot.val();
       // Convert object to array with id included
@@ -511,8 +577,8 @@ export const setEvents = async (events: any[]) => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
-  const eventsRef = ref(database, `users/${user.uid}/events`);
+  console.log(`Writing events for user ${user}`);
+  const eventsRef = database().ref(`users/${user.uid}/events`);
 
   try {
     // Convert array events to object structure with serialized dates
@@ -543,7 +609,7 @@ export const setEvents = async (events: any[]) => {
     });
 
     // Save as object structure (individual events)
-    await set(eventsRef, eventsObject);
+    await eventsRef.set(eventsObject);
     console.log(
       `Events saved successfully to Firebase as individual objects: ${events.length} events`
     );
@@ -561,7 +627,7 @@ export const addEvent = async (eventData: any) => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
+  const eventRef = database().ref(`users/${user.uid}/events/${eventData.id}`);
 
   try {
     // Ensure event has an ID
@@ -594,8 +660,7 @@ export const addEvent = async (eventData: any) => {
     const { id, ...eventDataWithoutId } = eventCopy;
 
     // Save individual event object
-    const eventRef = ref(database, `users/${user.uid}/events/${id}`);
-    await set(eventRef, eventDataWithoutId);
+    await eventRef.set(eventDataWithoutId);
 
     console.log(`Event ${id} saved successfully as individual object`);
 
@@ -617,8 +682,7 @@ export const updateEvent = async (eventId: string, updates: any) => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
-  const eventRef = ref(database, `users/${user.uid}/events/${eventId}`);
+  const eventRef = database().ref(`users/${user.uid}/events/${eventId}`);
 
   try {
     // Create a copy of updates and ensure dates are properly serialized
@@ -644,7 +708,7 @@ export const updateEvent = async (eventId: string, updates: any) => {
     const { id, ...updatesWithoutId } = updatesCopy;
 
     // Update the individual event object
-    await update(eventRef, updatesWithoutId);
+    await eventRef.update(updatesWithoutId);
 
     console.log(`Event ${eventId} updated successfully`);
     return true;
@@ -661,12 +725,11 @@ export const deleteEvent = async (eventId: string) => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
-  const eventRef = ref(database, `users/${user.uid}/events/${eventId}`);
+  const eventRef = database().ref(`users/${user.uid}/events/${eventId}`);
 
   try {
     // Remove the individual event object
-    await remove(eventRef);
+    await eventRef.remove();
     console.log(
       `Event ${eventId} deleted successfully from individual objects`
     );
@@ -684,27 +747,26 @@ export const addKid = async (kidData: any) => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
+  const kidsRef = database().ref(`users/${user.uid}/kids`);
 
   try {
     if (Array.isArray(kidData)) {
       // If it's an array, save all kids
-      const kidsRef = ref(database, `users/${user.uid}/kids`);
       const kidsObject: { [key: string]: any } = {};
       kidData.forEach((kid) => {
         if (kid.id) {
           kidsObject[kid.id] = kid;
         }
       });
-      await set(kidsRef, kidsObject);
+      await kidsRef.set(kidsObject);
       console.log(
         `Kids saved successfully to Firebase: ${kidData.length} kids`
       );
       return kidData;
     } else {
       // If it's a single kid, save it
-      const kidRef = ref(database, `users/${user.uid}/kids/${kidData.id}`);
-      await set(kidRef, kidData);
+      const kidRef = database().ref(`users/${user.uid}/kids/${kidData.id}`);
+      await kidRef.set(kidData);
       console.log("Kid saved successfully to Firebase");
       return kidData;
     }
@@ -721,18 +783,21 @@ export const getDevices = async () => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
-  const devicesRef = ref(database, `users/${user.uid}/devices`);
+  const devicesRef = database().ref(`users/${user.uid}/devices`);
 
   try {
-    const snapshot = await get(devicesRef);
+    const snapshot = await devicesRef.once("value");
     if (snapshot.exists()) {
       const devicesData = snapshot.val();
       return Object.keys(devicesData).map((key) => ({
         id: key,
         ...devicesData[key],
-        registeredAt: devicesData[key].registeredAt ? new Date(devicesData[key].registeredAt) : new Date(),
-        lastConnected: devicesData[key].lastConnected ? new Date(devicesData[key].lastConnected) : null,
+        registeredAt: devicesData[key].registeredAt
+          ? new Date(devicesData[key].registeredAt)
+          : new Date(),
+        lastConnected: devicesData[key].lastConnected
+          ? new Date(devicesData[key].lastConnected)
+          : null,
       }));
     }
     return [];
@@ -748,13 +813,12 @@ export const addDevice = async (deviceData: any) => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
-  const deviceRef = ref(database, `users/${user.uid}/devices/${deviceData.id}`);
+  const deviceRef = database().ref(`users/${user.uid}/devices/${deviceData.id}`);
 
   try {
     // Remove ID from data since it becomes the key
     const { id, ...deviceDataWithoutId } = deviceData;
-    await set(deviceRef, deviceDataWithoutId);
+    await deviceRef.set(deviceDataWithoutId);
     console.log("Device saved successfully to Firebase");
     return deviceData;
   } catch (error) {
@@ -769,8 +833,7 @@ export const updateDevice = async (deviceId: string, updates: any) => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
-  const deviceRef = ref(database, `users/${user.uid}/devices/${deviceId}`);
+  const deviceRef = database().ref(`users/${user.uid}/devices/${deviceId}`);
 
   try {
     // Convert Date objects to ISO strings for Firebase storage
@@ -784,7 +847,7 @@ export const updateDevice = async (deviceId: string, updates: any) => {
 
     // Remove ID from updates since it's the key
     const { id, ...updatesWithoutId } = updatesCopy;
-    await update(deviceRef, updatesWithoutId);
+    await deviceRef.update(updatesWithoutId);
     console.log(`Device ${deviceId} updated successfully`);
     return true;
   } catch (error) {
@@ -799,11 +862,10 @@ export const deleteDevice = async (deviceId: string) => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
-  const deviceRef = ref(database, `users/${user.uid}/devices/${deviceId}`);
+  const deviceRef = database().ref(`users/${user.uid}/devices/${deviceId}`);
 
   try {
-    await remove(deviceRef);
+    await deviceRef.remove();
     console.log(`Device ${deviceId} deleted successfully`);
     return true;
   } catch (error) {
@@ -832,11 +894,10 @@ export const clearUserData = async () => {
     throw new Error("No authenticated user found");
   }
 
-  const database = getDatabase(getApp());
-  const userRef = ref(database, `users/${user.uid}`);
+  const userRef = database().ref(`users/${user.uid}`);
 
   try {
-    await remove(userRef);
+    await userRef.remove();
     console.log("🗑️ All user data cleared from Firebase");
     return true;
   } catch (error) {
@@ -848,7 +909,6 @@ export const clearUserData = async () => {
 // Force refresh Firebase cache (for debugging)
 export const clearFirebaseCache = async () => {
   try {
-    const database = getDatabase(getApp());
     // Force Firebase to refresh its cache by going offline and online
     // Note: This requires @react-native-firebase/database
     console.log("🔄 Attempting to clear Firebase cache...");
@@ -858,6 +918,61 @@ export const clearFirebaseCache = async () => {
     return true;
   } catch (error) {
     console.error("Error clearing Firebase cache:", error);
+    return false;
+  }
+};
+
+// Debug function to verify database structure and permissions
+export const verifyDatabaseAccess = async () => {
+  try {
+    const user = getCurrentUser();
+    if (!user) {
+      console.log("🔴 No authenticated user for database access verification");
+      return false;
+    }
+
+    console.log("🔷 Verifying database access for UID:", user.uid);
+
+    const userRef = database().ref(`users/${user.uid}`);
+
+    // Try to read the user's data
+    const snapshot = await userRef.once("value");
+
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      console.log(
+        "✅ Successfully read user data from path: users/" + user.uid
+      );
+      console.log("🔷 User data structure keys:", Object.keys(data));
+
+      // Check for device-related sections
+      if (data.devices !== undefined) {
+        console.log("✅ Devices section exists");
+      } else {
+        console.log("🔶 Devices section missing");
+      }
+
+      if (data.deviceProfiles !== undefined) {
+        console.log("✅ Device profiles section exists");
+      } else {
+        console.log("🔶 Device profiles section missing");
+      }
+
+      return true;
+    } else {
+      console.log("🔴 No data found at path: users/" + user.uid);
+      return false;
+    }
+  } catch (error: any) {
+    console.error("🔴 Database access verification failed:", error);
+
+    // Check if it's a permission error
+    if (error?.code === "PERMISSION_DENIED") {
+      console.error("🔴 PERMISSION DENIED - Check Firebase security rules");
+      console.error("🔴 Expected path: users/" + getCurrentUser()?.uid);
+      console.error("🔴 Auth UID:", getCurrentUser()?.uid);
+    }
+
     return false;
   }
 };
@@ -894,4 +1009,5 @@ export default {
   debugAuthState,
   clearUserData,
   clearFirebaseCache,
+  verifyDatabaseAccess,
 };

@@ -12,7 +12,6 @@ import { CalendarProvider } from "./app/contexts/CalendarContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ErrorBoundary from "./app/components/ErrorBoundary";
 
-const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [firebaseReady, setFirebaseReady] = useState(false);

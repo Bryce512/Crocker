@@ -35,7 +35,7 @@ interface BluetoothContextType {
   startScan: () => Promise<void>;
   connectToDevice: (device: BluetoothDevice) => Promise<boolean>;
   disconnectDevice: () => Promise<void>;
-  
+
   // Device management actions
   loadRegisteredDevices: () => Promise<void>;
   connectToRegisteredDevice: (device: RegisteredDevice) => Promise<boolean>;
@@ -78,7 +78,9 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     bleConnectionHook.rememberedDevice
   );
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
-  const [registeredDevices, setRegisteredDevices] = useState<RegisteredDevice[]>([]);
+  const [registeredDevices, setRegisteredDevices] = useState<
+    RegisteredDevice[]
+  >([]);
   const logMessage = bleConnectionHook.logMessage;
 
   // Reference to hook's log to track changes
@@ -100,7 +102,9 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
 
   // Load registered devices on initialization
   useEffect(() => {
-    console.log("🔷 BluetoothContext: Initializing and loading registered devices");
+    console.log(
+      "🔷 BluetoothContext: Initializing and loading registered devices"
+    );
     loadRegisteredDevices();
   }, []);
 
@@ -289,10 +293,12 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Connect to a registered device
-  const connectToRegisteredDevice = async (device: RegisteredDevice): Promise<boolean> => {
+  const connectToRegisteredDevice = async (
+    device: RegisteredDevice
+  ): Promise<boolean> => {
     try {
       logMessage(`Connecting to registered device: ${device.nickname}`);
-      
+
       const bluetoothDevice: BluetoothDevice = {
         id: device.id,
         name: device.name,
@@ -301,7 +307,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       };
 
       const success = await connectToDevice(bluetoothDevice);
-      
+
       if (success) {
         // Mark device as connected in device management service
         await deviceManagementService.markDeviceConnected(device.id);
@@ -338,7 +344,6 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-
   // Create context value matching the enhanced interface
   const contextValue: BluetoothContextType = {
     // Connection state
@@ -363,7 +368,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     startScan,
     connectToDevice,
     disconnectDevice,
-    
+
     // Device management actions
     loadRegisteredDevices,
     connectToRegisteredDevice,

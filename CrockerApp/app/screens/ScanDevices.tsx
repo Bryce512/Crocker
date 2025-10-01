@@ -34,14 +34,14 @@ const semanticColors = {
 
 const DeviceConnection = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const { 
-    connectionState, 
-    registeredDevices, 
-    connectToRegisteredDevice, 
+  const {
+    connectionState,
+    registeredDevices,
+    connectToRegisteredDevice,
     disconnectDevice,
-    loadRegisteredDevices 
+    loadRegisteredDevices,
   } = useBluetooth();
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState<string | null>(null);
   const [showScannerModal, setShowScannerModal] = useState(false);
@@ -53,8 +53,8 @@ const DeviceConnection = () => {
       try {
         await loadRegisteredDevices();
       } catch (error) {
-        console.error('Error loading registered devices:', error);
-        Alert.alert('Error', 'Failed to load registered devices');
+        console.error("Error loading registered devices:", error);
+        Alert.alert("Error", "Failed to load registered devices");
       } finally {
         setIsLoading(false);
       }
@@ -69,11 +69,11 @@ const DeviceConnection = () => {
       try {
         await disconnectDevice();
         await deviceManagementService.updateRegisteredDevice(device.id, {
-          lastConnected: new Date()
+          lastConnected: new Date(),
         });
       } catch (error) {
-        console.error('Disconnect error:', error);
-        Alert.alert('Error', 'Failed to disconnect device');
+        console.error("Disconnect error:", error);
+        Alert.alert("Error", "Failed to disconnect device");
       }
     } else {
       // Device is not connected, connect to it
@@ -81,13 +81,16 @@ const DeviceConnection = () => {
       try {
         const success = await connectToRegisteredDevice(device);
         if (success) {
-          Alert.alert('Connected!', `Successfully connected to ${device.nickname}`);
+          Alert.alert(
+            "Connected!",
+            `Successfully connected to ${device.nickname}`
+          );
         } else {
-          Alert.alert('Connection Failed', 'Unable to connect to device');
+          Alert.alert("Connection Failed", "Unable to connect to device");
         }
       } catch (error) {
-        console.error('Connection error:', error);
-        Alert.alert('Error', 'Failed to connect to device');
+        console.error("Connection error:", error);
+        Alert.alert("Error", "Failed to connect to device");
       } finally {
         setIsConnecting(null);
       }
@@ -134,15 +137,24 @@ const DeviceConnection = () => {
 
             {isLoading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator color={semanticColors.primary} size="small" />
+                <ActivityIndicator
+                  color={semanticColors.primary}
+                  size="small"
+                />
                 <Text style={styles.loadingText}>Loading devices...</Text>
               </View>
             ) : (
               <View style={styles.devicesList}>
                 {registeredDevices.length === 0 ? (
                   <View style={styles.emptyDevicesContainer}>
-                    <Feather name="bluetooth" size={48} color={semanticColors.textSecondary} />
-                    <Text style={styles.emptyDevicesTitle}>No Devices Found</Text>
+                    <Feather
+                      name="bluetooth"
+                      size={48}
+                      color={semanticColors.textSecondary}
+                    />
+                    <Text style={styles.emptyDevicesTitle}>
+                      No Devices Found
+                    </Text>
                     <Text style={styles.emptyDevicesText}>
                       Add your first Soristuffy by tapping the + button above
                     </Text>
@@ -153,40 +165,60 @@ const DeviceConnection = () => {
                       key={device.id}
                       style={[
                         styles.deviceCard,
-                        isDeviceConnected(device.id) && styles.deviceCardConnected,
+                        isDeviceConnected(device.id) &&
+                          styles.deviceCardConnected,
                       ]}
                       onPress={() => handleDeviceConnect(device)}
                       disabled={isConnecting === device.id}
                     >
                       <View style={styles.deviceInfo}>
                         <View style={styles.deviceHeader}>
-                          <Text style={[
-                            styles.deviceName,
-                            isDeviceConnected(device.id) && styles.deviceNameConnected,
-                          ]}>
+                          <Text
+                            style={[
+                              styles.deviceName,
+                              isDeviceConnected(device.id) &&
+                                styles.deviceNameConnected,
+                            ]}
+                          >
                             {device.nickname}
                           </Text>
                           {isDeviceConnected(device.id) && (
                             <View style={styles.connectedIndicator}>
-                              <Text style={styles.connectedText}>Connected</Text>
+                              <Text style={styles.connectedText}>
+                                Connected
+                              </Text>
                             </View>
                           )}
                         </View>
-                        <Text style={styles.deviceType}>{device.deviceType.toUpperCase()}</Text>
+                        <Text style={styles.deviceType}>
+                          {device.deviceType.toUpperCase()}
+                        </Text>
                         {device.lastConnected && (
                           <Text style={styles.lastConnected}>
-                            Last connected: {device.lastConnected.toLocaleDateString()}
+                            Last connected:{" "}
+                            {device.lastConnected.toLocaleDateString()}
                           </Text>
                         )}
                       </View>
-                      
+
                       {isConnecting === device.id ? (
-                        <ActivityIndicator color={semanticColors.primary} size="small" />
+                        <ActivityIndicator
+                          color={semanticColors.primary}
+                          size="small"
+                        />
                       ) : (
                         <Feather
-                          name={isDeviceConnected(device.id) ? "check-circle" : "bluetooth"}
+                          name={
+                            isDeviceConnected(device.id)
+                              ? "check-circle"
+                              : "bluetooth"
+                          }
                           size={24}
-                          color={isDeviceConnected(device.id) ? semanticColors.success : semanticColors.primary}
+                          color={
+                            isDeviceConnected(device.id)
+                              ? semanticColors.success
+                              : semanticColors.primary
+                          }
                         />
                       )}
                     </TouchableOpacity>
@@ -199,9 +231,13 @@ const DeviceConnection = () => {
           {/* Connection Status */}
           {connectionState.isConnected && (
             <View style={styles.connectionStatus}>
-              <Feather name="check-circle" size={20} color={semanticColors.success} />
+              <Feather
+                name="check-circle"
+                size={20}
+                color={semanticColors.success}
+              />
               <Text style={styles.connectionStatusText}>
-                Connected to {connectionState.deviceName || 'device'}
+                Connected to {connectionState.deviceName || "device"}
               </Text>
             </View>
           )}
@@ -382,9 +418,9 @@ const styles = StyleSheet.create({
 
   // New styles for enhanced device management
   loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 20,
   },
   loadingText: {
@@ -393,13 +429,13 @@ const styles = StyleSheet.create({
     color: "#6b7280",
   },
   emptyDevicesContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 40,
   },
   emptyDevicesTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: "#374151",
     marginTop: 16,
     marginBottom: 8,
@@ -407,7 +443,7 @@ const styles = StyleSheet.create({
   emptyDevicesText: {
     fontSize: 14,
     color: "#6b7280",
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 20,
     paddingHorizontal: 20,
   },
@@ -415,14 +451,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   deviceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 4,
   },
   deviceType: {
     fontSize: 12,
     color: "#6b7280",
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 2,
   },
   lastConnected: {
@@ -430,10 +466,10 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
   },
   connectionStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginHorizontal: 32,
@@ -444,7 +480,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     color: "#059669",
-    fontWeight: '500',
+    fontWeight: "500",
   },
 });
 

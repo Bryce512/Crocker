@@ -29,22 +29,27 @@ class DeviceManagementService {
   async getRegisteredDevices(): Promise<ServiceResponse<RegisteredDevice[]>> {
     try {
       console.log("🔷 DeviceManagementService: Getting registered devices");
-      
+
       // Try to get from Firebase first
       const user = firebaseService.getCurrentUser();
       if (user) {
         console.log("🔷 User authenticated, fetching from Firebase");
         try {
-          const firebaseDevices = await this.getRegisteredDevicesFromFirebase(user.uid);
+          const firebaseDevices = await this.getRegisteredDevicesFromFirebase(
+            user.uid
+          );
           console.log(`🔷 Found ${firebaseDevices.length} devices in Firebase`);
-          
+
           if (firebaseDevices.length > 0) {
             // Cache locally for offline access
             await this.saveRegisteredDevicesLocal(firebaseDevices);
             return { success: true, data: firebaseDevices };
           }
         } catch (firebaseError) {
-          console.warn("🔶 Firebase fetch failed, using local cache:", firebaseError);
+          console.warn(
+            "🔶 Firebase fetch failed, using local cache:",
+            firebaseError
+          );
         }
       } else {
         console.log("🔶 No authenticated user, using local cache");
@@ -59,7 +64,7 @@ class DeviceManagementService {
       return {
         success: false,
         error: `Failed to get registered devices: ${error}`,
-        data: []
+        data: [],
       };
     }
   }
@@ -88,7 +93,9 @@ class DeviceManagementService {
       await this.addRegisteredDeviceLocal(registeredDevice);
 
       // Create default profile
-      const defaultProfile = this.createDefaultDeviceProfile(registeredDevice.id);
+      const defaultProfile = this.createDefaultDeviceProfile(
+        registeredDevice.id
+      );
       await this.saveDeviceProfile(defaultProfile);
 
       // Sync to Firebase if user is authenticated
@@ -98,17 +105,22 @@ class DeviceManagementService {
           await this.saveRegisteredDeviceToFirebase(user.uid, registeredDevice);
           await this.saveDeviceProfileToFirebase(user.uid, defaultProfile);
         } catch (firebaseError) {
-          console.warn("Firebase sync failed, device saved locally:", firebaseError);
+          console.warn(
+            "Firebase sync failed, device saved locally:",
+            firebaseError
+          );
         }
       }
 
-      console.log(`✅ Device registered: ${registeredDevice.nickname} (${registeredDevice.id})`);
+      console.log(
+        `✅ Device registered: ${registeredDevice.nickname} (${registeredDevice.id})`
+      );
       return { success: true, data: registeredDevice };
     } catch (error) {
       console.error("Error registering device:", error);
       return {
         success: false,
-        error: `Failed to register device: ${error}`
+        error: `Failed to register device: ${error}`,
       };
     }
   }
@@ -119,12 +131,12 @@ class DeviceManagementService {
   ): Promise<ServiceResponse<RegisteredDevice>> {
     try {
       const devices = await this.getRegisteredDevicesLocal();
-      const deviceIndex = devices.findIndex(d => d.id === deviceId);
+      const deviceIndex = devices.findIndex((d) => d.id === deviceId);
 
       if (deviceIndex === -1) {
         return {
           success: false,
-          error: "Device not found"
+          error: "Device not found",
         };
       }
 
@@ -139,7 +151,10 @@ class DeviceManagementService {
         try {
           await this.saveRegisteredDeviceToFirebase(user.uid, updatedDevice);
         } catch (firebaseError) {
-          console.warn("Firebase sync failed for device update:", firebaseError);
+          console.warn(
+            "Firebase sync failed for device update:",
+            firebaseError
+          );
         }
       }
 
@@ -148,7 +163,7 @@ class DeviceManagementService {
       console.error("Error updating device:", error);
       return {
         success: false,
-        error: `Failed to update device: ${error}`
+        error: `Failed to update device: ${error}`,
       };
     }
   }
@@ -156,7 +171,7 @@ class DeviceManagementService {
   async unregisterDevice(deviceId: string): Promise<ServiceResponse<boolean>> {
     try {
       const devices = await this.getRegisteredDevicesLocal();
-      const filteredDevices = devices.filter(d => d.id !== deviceId);
+      const filteredDevices = devices.filter((d) => d.id !== deviceId);
 
       await this.saveRegisteredDevicesLocal(filteredDevices);
 
@@ -180,33 +195,39 @@ class DeviceManagementService {
       console.error("Error unregistering device:", error);
       return {
         success: false,
-        error: `Failed to unregister device: ${error}`
+        error: `Failed to unregister device: ${error}`,
       };
     }
   }
 
   // ==================== DEVICE PROFILES ====================
 
-  async getDeviceProfile(deviceId: string): Promise<ServiceResponse<DeviceProfile | null>> {
+  async getDeviceProfile(
+    deviceId: string
+  ): Promise<ServiceResponse<DeviceProfile | null>> {
     try {
       const profiles = await this.getDeviceProfilesLocal();
-      const profile = profiles.find(p => p.deviceId === deviceId);
-      
+      const profile = profiles.find((p) => p.deviceId === deviceId);
+
       return { success: true, data: profile || null };
     } catch (error) {
       console.error("Error getting device profile:", error);
       return {
         success: false,
         error: `Failed to get device profile: ${error}`,
-        data: null
+        data: null,
       };
     }
   }
 
-  async saveDeviceProfile(profile: DeviceProfile): Promise<ServiceResponse<DeviceProfile>> {
+  async saveDeviceProfile(
+    profile: DeviceProfile
+  ): Promise<ServiceResponse<DeviceProfile>> {
     try {
       const profiles = await this.getDeviceProfilesLocal();
-      const existingIndex = profiles.findIndex(p => p.deviceId === profile.deviceId);
+      const existingIndex = profiles.findIndex(
+        (p) => p.deviceId === profile.deviceId
+      );
 
       if (existingIndex >= 0) {
         profiles[existingIndex] = profile;
@@ -231,20 +252,25 @@ class DeviceManagementService {
       console.error("Error saving device profile:", error);
       return {
         success: false,
-        error: `Failed to save device profile: ${error}`
+        error: `Failed to save device profile: ${error}`,
       };
     }
   }
 
   // ==================== PAIRING SESSION MANAGEMENT ====================
 
-  async startPairingSession(deviceId: string, deviceName: string | null): Promise<PairingSession> {
+  async startPairingSession(
+    deviceId: string,
+    deviceName: string | null
+  ): Promise<PairingSession> {
     const session: PairingSession = {
-      sessionId: `pairing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      sessionId: `pairing_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`,
       deviceId,
       deviceName,
       startedAt: new Date(),
-      status: 'scanning',
+      status: "scanning",
       attempts: 0,
     };
 
@@ -264,8 +290,11 @@ class DeviceManagementService {
       if (session.sessionId !== sessionId) return null;
 
       const updatedSession = { ...session, ...updates };
-      await AsyncStorage.setItem(PAIRING_SESSION_KEY, JSON.stringify(updatedSession));
-      
+      await AsyncStorage.setItem(
+        PAIRING_SESSION_KEY,
+        JSON.stringify(updatedSession)
+      );
+
       return updatedSession;
     } catch (error) {
       console.error("Error updating pairing session:", error);
@@ -273,17 +302,23 @@ class DeviceManagementService {
     }
   }
 
-  async completePairingSession(sessionId: string, success: boolean, error?: string): Promise<void> {
+  async completePairingSession(
+    sessionId: string,
+    success: boolean,
+    error?: string
+  ): Promise<void> {
     try {
       const session = await this.updatePairingSession(sessionId, {
-        status: success ? 'success' : 'failed',
+        status: success ? "success" : "failed",
         completedAt: new Date(),
-        error: error
+        error: error,
       });
 
       if (session) {
-        console.log(`Pairing session completed: ${success ? 'SUCCESS' : 'FAILED'}`);
-        
+        console.log(
+          `Pairing session completed: ${success ? "SUCCESS" : "FAILED"}`
+        );
+
         // Clean up session after completion
         setTimeout(() => {
           AsyncStorage.removeItem(PAIRING_SESSION_KEY);
@@ -312,12 +347,14 @@ class DeviceManagementService {
       if (!devicesJson) return [];
 
       const devices = JSON.parse(devicesJson) as RegisteredDevice[];
-      
+
       // Restore Date objects
-      return devices.map(device => ({
+      return devices.map((device) => ({
         ...device,
         registeredAt: new Date(device.registeredAt),
-        lastConnected: device.lastConnected ? new Date(device.lastConnected) : null,
+        lastConnected: device.lastConnected
+          ? new Date(device.lastConnected)
+          : null,
       }));
     } catch (error) {
       console.error("Error getting local registered devices:", error);
@@ -325,22 +362,29 @@ class DeviceManagementService {
     }
   }
 
-  private async saveRegisteredDevicesLocal(devices: RegisteredDevice[]): Promise<void> {
+  private async saveRegisteredDevicesLocal(
+    devices: RegisteredDevice[]
+  ): Promise<void> {
     try {
-      await AsyncStorage.setItem(REGISTERED_DEVICES_KEY, JSON.stringify(devices));
+      await AsyncStorage.setItem(
+        REGISTERED_DEVICES_KEY,
+        JSON.stringify(devices)
+      );
     } catch (error) {
       console.error("Error saving registered devices locally:", error);
       throw error;
     }
   }
 
-  private async addRegisteredDeviceLocal(device: RegisteredDevice): Promise<void> {
+  private async addRegisteredDeviceLocal(
+    device: RegisteredDevice
+  ): Promise<void> {
     const devices = await this.getRegisteredDevicesLocal();
-    
+
     // Remove existing device with same ID if it exists
-    const filteredDevices = devices.filter(d => d.id !== device.id);
+    const filteredDevices = devices.filter((d) => d.id !== device.id);
     filteredDevices.push(device);
-    
+
     await this.saveRegisteredDevicesLocal(filteredDevices);
   }
 
@@ -350,9 +394,9 @@ class DeviceManagementService {
       if (!profilesJson) return [];
 
       const profiles = JSON.parse(profilesJson) as DeviceProfile[];
-      
+
       // Restore Date objects
-      return profiles.map(profile => ({
+      return profiles.map((profile) => ({
         ...profile,
         lastSyncAt: profile.lastSyncAt ? new Date(profile.lastSyncAt) : null,
       }));
@@ -362,7 +406,9 @@ class DeviceManagementService {
     }
   }
 
-  private async saveDeviceProfilesLocal(profiles: DeviceProfile[]): Promise<void> {
+  private async saveDeviceProfilesLocal(
+    profiles: DeviceProfile[]
+  ): Promise<void> {
     try {
       await AsyncStorage.setItem(DEVICE_PROFILES_KEY, JSON.stringify(profiles));
     } catch (error) {
@@ -373,12 +419,14 @@ class DeviceManagementService {
 
   private async removeDeviceProfileLocal(deviceId: string): Promise<void> {
     const profiles = await this.getDeviceProfilesLocal();
-    const filteredProfiles = profiles.filter(p => p.deviceId !== deviceId);
+    const filteredProfiles = profiles.filter((p) => p.deviceId !== deviceId);
     await this.saveDeviceProfilesLocal(filteredProfiles);
   }
 
   // Firebase methods using the firebaseService
-  private async getRegisteredDevicesFromFirebase(userId: string): Promise<RegisteredDevice[]> {
+  private async getRegisteredDevicesFromFirebase(
+    userId: string
+  ): Promise<RegisteredDevice[]> {
     try {
       return await firebaseService.getDevices();
     } catch (error) {
@@ -387,55 +435,72 @@ class DeviceManagementService {
     }
   }
 
-  private async saveRegisteredDeviceToFirebase(userId: string, device: RegisteredDevice): Promise<void> {
+  private async saveRegisteredDeviceToFirebase(
+    userId: string,
+    device: RegisteredDevice
+  ): Promise<void> {
     await firebaseService.addDevice(device);
   }
 
-  private async removeRegisteredDeviceFromFirebase(userId: string, deviceId: string): Promise<void> {
+  private async removeRegisteredDeviceFromFirebase(
+    userId: string,
+    deviceId: string
+  ): Promise<void> {
     await firebaseService.deleteDevice(deviceId);
   }
 
-  private async saveDeviceProfileToFirebase(userId: string, profile: DeviceProfile): Promise<void> {
+  private async saveDeviceProfileToFirebase(
+    userId: string,
+    profile: DeviceProfile
+  ): Promise<void> {
     // For now, we'll use the direct Firebase approach since device profiles aren't in firebaseService yet
     const database = require("firebase/database");
     const { getDatabase, ref, set } = database;
-    
+
     const { getApp } = require("firebase/app");
     const db = getDatabase(getApp());
-    const profileRef = ref(db, `users/${userId}/deviceProfiles/${profile.deviceId}`);
+    const profileRef = ref(
+      db,
+      `users/${userId}/deviceProfiles/${profile.deviceId}`
+    );
     await set(profileRef, profile);
   }
 
-  private async removeDeviceProfileFromFirebase(userId: string, deviceId: string): Promise<void> {
+  private async removeDeviceProfileFromFirebase(
+    userId: string,
+    deviceId: string
+  ): Promise<void> {
     const database = require("firebase/database");
     const { getDatabase, ref, remove } = database;
-    
+
     const { getApp } = require("firebase/app");
     const db = getDatabase(getApp());
     const profileRef = ref(db, `users/${userId}/deviceProfiles/${deviceId}`);
     await remove(profileRef);
   }
 
-  private detectDeviceType(deviceName: string | null): 'soristuffy' | 'esp32' | 'other' {
-    if (!deviceName) return 'other';
-    
+  private detectDeviceType(
+    deviceName: string | null
+  ): "soristuffy" | "esp32" | "other" {
+    if (!deviceName) return "other";
+
     const name = deviceName.toLowerCase();
-    if (name.includes('sori') || name.includes('stuffy')) return 'soristuffy';
-    if (name.includes('esp32') || name.includes('esp')) return 'esp32';
-    
-    return 'other';
+    if (name.includes("sori") || name.includes("stuffy")) return "soristuffy";
+    if (name.includes("esp32") || name.includes("esp")) return "esp32";
+
+    return "other";
   }
 
   private createDefaultDeviceProfile(deviceId: string): DeviceProfile {
     return {
       deviceId,
       alertSettings: {
-        vibrationIntensity: 'medium',
+        vibrationIntensity: "medium",
         alertIntervals: [15, 10, 5], // Default: 15, 10, 5 minutes before event
         quietHours: {
           enabled: false,
-          start: '22:00',
-          end: '08:00',
+          start: "22:00",
+          end: "08:00",
         },
       },
       syncSettings: {
@@ -457,9 +522,9 @@ class DeviceManagementService {
   async markDeviceConnected(deviceId: string): Promise<void> {
     try {
       const devices = await this.getRegisteredDevicesLocal();
-      const device = devices.find(d => d.id === deviceId);
+      const device = devices.find((d) => d.id === deviceId);
       const currentCount = device?.connectionCount || 0;
-      
+
       await this.updateRegisteredDevice(deviceId, {
         lastConnected: new Date(),
         connectionCount: currentCount + 1,
@@ -480,15 +545,15 @@ class DeviceManagementService {
   async getPreferredDevice(): Promise<RegisteredDevice | null> {
     try {
       const devices = await this.getRegisteredDevicesLocal();
-      const activeDevices = devices.filter(d => d.isActive);
-      
+      const activeDevices = devices.filter((d) => d.isActive);
+
       if (activeDevices.length === 0) return null;
-      
+
       // Return device with most recent connection
       return activeDevices.reduce((latest, current) => {
         if (!latest.lastConnected) return current;
         if (!current.lastConnected) return latest;
-        
+
         return current.lastConnected > latest.lastConnected ? current : latest;
       });
     } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   View,
@@ -9,12 +9,12 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { BluetoothDevice, RegisteredDevice } from '../models';
-import { useBluetooth } from '../contexts/BluetoothContext';
-import deviceManagementService from '../services/deviceManagementService';
-import { colors } from '../theme/colors';
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { BluetoothDevice, RegisteredDevice } from "../models";
+import { useBluetooth } from "../contexts/BluetoothContext";
+import deviceManagementService from "../services/deviceManagementService";
+import { colors } from "../theme/colors";
 
 // Create semantic colors from the design system
 const semanticColors = {
@@ -49,27 +49,32 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
 }) => {
   const { connectionState, discoveredDevices, startScan } = useBluetooth();
   const [isScanning, setIsScanning] = useState(false);
-  const [devicesWithStatus, setDevicesWithStatus] = useState<DeviceWithRegistrationStatus[]>([]);
+  const [devicesWithStatus, setDevicesWithStatus] = useState<
+    DeviceWithRegistrationStatus[]
+  >([]);
   const [showNamingModal, setShowNamingModal] = useState(false);
-  const [selectedDevice, setSelectedDevice] = useState<BluetoothDevice | null>(null);
-  const [deviceNickname, setDeviceNickname] = useState('');
+  const [selectedDevice, setSelectedDevice] = useState<BluetoothDevice | null>(
+    null
+  );
+  const [deviceNickname, setDeviceNickname] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
 
   // Update devices with registration status when discoveredDevices changes
   useEffect(() => {
     const updateDevicesWithStatus = async () => {
-      const registeredDevicesResponse = await deviceManagementService.getRegisteredDevices();
+      const registeredDevicesResponse =
+        await deviceManagementService.getRegisteredDevices();
       const registeredDevices = registeredDevicesResponse.data || [];
-      
-      const devicesWithStatus = discoveredDevices.map(device => {
-        const registered = registeredDevices.find(r => r.id === device.id);
+
+      const devicesWithStatus = discoveredDevices.map((device) => {
+        const registered = registeredDevices.find((r) => r.id === device.id);
         return {
           ...device,
           isRegistered: !!registered,
           registeredNickname: registered?.nickname,
         };
       });
-      
+
       setDevicesWithStatus(devicesWithStatus);
     };
 
@@ -83,8 +88,11 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
     try {
       await startScan();
     } catch (error) {
-      console.error('Scan failed:', error);
-      Alert.alert('Scan Failed', 'Unable to scan for devices. Please check Bluetooth permissions.');
+      console.error("Scan failed:", error);
+      Alert.alert(
+        "Scan Failed",
+        "Unable to scan for devices. Please check Bluetooth permissions."
+      );
     }
     setTimeout(() => setIsScanning(false), 3000);
   };
@@ -92,21 +100,21 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
   const handleDevicePress = (device: DeviceWithRegistrationStatus) => {
     if (device.isRegistered) {
       Alert.alert(
-        'Device Already Registered',
+        "Device Already Registered",
         `This device is already registered as "${device.registeredNickname}".`,
-        [{ text: 'OK' }]
+        [{ text: "OK" }]
       );
       return;
     }
 
     setSelectedDevice(device);
-    setDeviceNickname(device.name || 'My Soristuffy');
+    setDeviceNickname(device.name || "My Soristuffy");
     setShowNamingModal(true);
   };
 
   const handleRegisterDevice = async () => {
     if (!selectedDevice || !deviceNickname.trim()) {
-      Alert.alert('Invalid Input', 'Please enter a name for your device.');
+      Alert.alert("Invalid Input", "Please enter a name for your device.");
       return;
     }
 
@@ -119,25 +127,25 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
       );
 
       if (result.success && result.data) {
-        console.log('Device registered successfully:', result.data);
+        console.log("Device registered successfully:", result.data);
         onDeviceRegistered(result.data);
         setShowNamingModal(false);
         onClose();
-        
+
         Alert.alert(
-          'Device Registered!',
+          "Device Registered!",
           `${result.data.nickname} has been successfully registered and is ready to use.`,
-          [{ text: 'Great!' }]
+          [{ text: "Great!" }]
         );
       } else {
-        throw new Error(result.error || 'Registration failed');
+        throw new Error(result.error || "Registration failed");
       }
     } catch (error) {
-      console.error('Device registration error:', error);
+      console.error("Device registration error:", error);
       Alert.alert(
-        'Registration Failed',
-        'Unable to register device. Please try again.',
-        [{ text: 'OK' }]
+        "Registration Failed",
+        "Unable to register device. Please try again.",
+        [{ text: "OK" }]
       );
     } finally {
       setIsRegistering(false);
@@ -147,10 +155,14 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
   const handleCancelNaming = () => {
     setShowNamingModal(false);
     setSelectedDevice(null);
-    setDeviceNickname('');
+    setDeviceNickname("");
   };
 
-  const renderDeviceItem = ({ item }: { item: DeviceWithRegistrationStatus }) => (
+  const renderDeviceItem = ({
+    item,
+  }: {
+    item: DeviceWithRegistrationStatus;
+  }) => (
     <TouchableOpacity
       style={[
         styles.deviceItem,
@@ -161,11 +173,15 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
     >
       <View style={styles.deviceInfo}>
         <View style={styles.deviceHeader}>
-          <Text style={[
-            styles.deviceName,
-            item.isRegistered && styles.deviceNameRegistered,
-          ]}>
-            {item.isRegistered ? item.registeredNickname : (item.name || 'Unnamed Device')}
+          <Text
+            style={[
+              styles.deviceName,
+              item.isRegistered && styles.deviceNameRegistered,
+            ]}
+          >
+            {item.isRegistered
+              ? item.registeredNickname
+              : item.name || "Unnamed Device"}
           </Text>
           {item.isRegistered && (
             <View style={styles.registeredBadge}>
@@ -181,7 +197,9 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
       <Feather
         name={item.isRegistered ? "check-circle" : "plus-circle"}
         size={24}
-        color={item.isRegistered ? semanticColors.success : semanticColors.primary}
+        color={
+          item.isRegistered ? semanticColors.success : semanticColors.primary
+        }
       />
     </TouchableOpacity>
   );
@@ -208,9 +226,16 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
               style={styles.scanButton}
             >
               {isScanning ? (
-                <ActivityIndicator color={semanticColors.primary} size="small" />
+                <ActivityIndicator
+                  color={semanticColors.primary}
+                  size="small"
+                />
               ) : (
-                <Feather name="refresh-cw" size={24} color={semanticColors.primary} />
+                <Feather
+                  name="refresh-cw"
+                  size={24}
+                  color={semanticColors.primary}
+                />
               )}
             </TouchableOpacity>
           </View>
@@ -231,10 +256,15 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
             contentContainerStyle={styles.devicesList}
             ListEmptyComponent={() => (
               <View style={styles.emptyContainer}>
-                <Feather name="bluetooth" size={48} color={semanticColors.textSecondary} />
+                <Feather
+                  name="bluetooth"
+                  size={48}
+                  color={semanticColors.textSecondary}
+                />
                 <Text style={styles.emptyTitle}>No Devices Found</Text>
                 <Text style={styles.emptyText}>
-                  Make sure your Soristuffy is nearby and in pairing mode, then tap the scan button.
+                  Make sure your Soristuffy is nearby and in pairing mode, then
+                  tap the scan button.
                 </Text>
               </View>
             )}
@@ -268,7 +298,7 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
             <Text style={styles.namingSubtitle}>
               Give your Soristuffy a memorable name
             </Text>
-            
+
             <TextInput
               style={styles.nameInput}
               value={deviceNickname}
@@ -278,7 +308,7 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
               autoFocus
               selectTextOnFocus
             />
-            
+
             <View style={styles.namingButtons}>
               <TouchableOpacity
                 style={[styles.namingButton, styles.cancelButton]}
@@ -287,7 +317,7 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.namingButton, styles.registerButton]}
                 onPress={handleRegisterDevice}
@@ -313,9 +343,9 @@ const styles = StyleSheet.create({
     backgroundColor: semanticColors.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
@@ -326,16 +356,16 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: semanticColors.text,
   },
   scanButton: {
     padding: 4,
   },
   scanningStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 16,
     backgroundColor: semanticColors.backgroundSecondary,
   },
@@ -348,8 +378,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   deviceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     backgroundColor: semanticColors.surface,
     borderRadius: 12,
@@ -365,13 +395,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   deviceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 4,
   },
   deviceName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: semanticColors.text,
     flex: 1,
   },
@@ -386,8 +416,8 @@ const styles = StyleSheet.create({
   },
   registeredText: {
     fontSize: 12,
-    color: 'white',
-    fontWeight: '500',
+    color: "white",
+    fontWeight: "500",
   },
   deviceId: {
     fontSize: 12,
@@ -395,21 +425,21 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   deviceMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   rssiText: {
     fontSize: 12,
     color: semanticColors.textSecondary,
   },
   emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 60,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: semanticColors.text,
     marginTop: 16,
     marginBottom: 8,
@@ -417,7 +447,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: semanticColors.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 20,
     paddingHorizontal: 40,
   },
@@ -434,9 +464,9 @@ const styles = StyleSheet.create({
   // Naming Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   namingModal: {
     backgroundColor: semanticColors.surface,
@@ -447,15 +477,15 @@ const styles = StyleSheet.create({
   },
   namingTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: "600",
     color: semanticColors.text,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 8,
   },
   namingSubtitle: {
     fontSize: 14,
     color: semanticColors.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 24,
   },
   nameInput: {
@@ -468,21 +498,21 @@ const styles = StyleSheet.create({
     backgroundColor: semanticColors.background,
   },
   namingButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   namingButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   cancelButton: {
     backgroundColor: semanticColors.backgroundSecondary,
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
     color: semanticColors.text,
   },
   registerButton: {
@@ -490,8 +520,8 @@ const styles = StyleSheet.create({
   },
   registerButtonText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: 'white',
+    fontWeight: "500",
+    color: "white",
   },
 });
 
