@@ -13,16 +13,17 @@ import { Device } from "react-native-ble-plx";
 import { obdDataFunctions } from "../services/obdDataCollection";
 import bluetoothService from "../services/bluetoothService";
 import AppErrorService from "../services/errorService";
-import { BluetoothDevice, ConnectionState, OBDData } from "../models";
+import deviceManagementService from "../services/deviceManagementService";
+import { BluetoothDevice, ConnectionState, RegisteredDevice } from "../models";
 
-// Simplified context interface - focus on state distribution
+// Enhanced context interface with device management
 interface BluetoothContextType {
   // Connection state
   connectionState: ConnectionState;
-  obdData: OBDData;
 
   // Device management
   discoveredDevices: BluetoothDevice[];
+  registeredDevices: RegisteredDevice[];
   rememberedDevice: BluetoothDevice | null;
   plxDevice: Device | null;
 
@@ -30,11 +31,14 @@ interface BluetoothContextType {
   showDeviceSelector: boolean;
   reconnectAttempt: number;
 
-  // Core actions (simplified)
+  // Core actions (enhanced)
   startScan: () => Promise<void>;
   connectToDevice: (device: BluetoothDevice) => Promise<boolean>;
   disconnectDevice: () => Promise<void>;
-  sendCommand: (device: Device, command: string) => Promise<string>;
+  
+  // Device management actions
+  loadRegisteredDevices: () => Promise<void>;
+  connectToRegisteredDevice: (device: RegisteredDevice) => Promise<boolean>;
 
   // State setters
   setDiscoveredDevices: (devices: BluetoothDevice[]) => void;
@@ -55,16 +59,10 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   const bleConnectionHook = useBleConnection();
 
   // State variables managed at the context level
-  const [voltage, setVoltage] = useState<string | null>(null);
-  const [rpm, setRPM] = useState<number | null>(null);
-  const [speed, setSpeed] = useState<number | null>(null);
 
   // Maintain context-level state that persists across screens
   const [isConnected, setIsConnected] = useState(bleConnectionHook.isConnected);
   const [isScanning, setIsScanning] = useState(bleConnectionHook.isScanning);
-  const [lastSuccessfulCommandTime, setLastSuccessfulCommandTime] = useState(
-    bleConnectionHook.lastSuccessfulCommandTime
-  );
   const [deviceId, setDeviceId] = useState<string | null>(
     bleConnectionHook.deviceId
   );
@@ -76,16 +74,12 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     bleConnectionHook.showDeviceSelector
   );
 
-  const connectToBondedDeviceIfAvailable =
-    bleConnectionHook.connectToBondedDeviceIfAvailable;
-
   const [rememberedDevice, setRememberedDevice] = useState(
     bleConnectionHook.rememberedDevice
   );
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const [registeredDevices, setRegisteredDevices] = useState<RegisteredDevice[]>([]);
   const logMessage = bleConnectionHook.logMessage;
-  const showAllDevices = bleConnectionHook.showAllDevices;
-  const sendCommand = bleConnectionHook.sendCommand;
 
   // Reference to hook's log to track changes
 
@@ -96,26 +90,18 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     setDiscoveredDevices(bleConnectionHook.discoveredDevices);
     setShowDeviceSelector(bleConnectionHook.showDeviceSelector);
     setRememberedDevice(bleConnectionHook.rememberedDevice);
-    setVoltage(bleConnectionHook.voltage); // Add this line
   }, [
     bleConnectionHook.isConnected,
     bleConnectionHook.deviceId,
     bleConnectionHook.discoveredDevices,
     bleConnectionHook.showDeviceSelector,
     bleConnectionHook.rememberedDevice,
-    bleConnectionHook.voltage,
-    bleConnectionHook.lastSuccessfulCommandTime,
   ]);
 
+  // Load registered devices on initialization
   useEffect(() => {
-    // Try to reconnect automatically on app start
-    (async () => {
-      const connectedDevice = await connectToBondedDeviceIfAvailable();
-      if (connectedDevice) {
-        setDeviceId(connectedDevice.id);
-        setIsConnected(true);
-      }
-    })();
+    console.log("🔷 BluetoothContext: Initializing and loading registered devices");
+    loadRegisteredDevices();
   }, []);
 
   // Monitor app state for background/foreground transitions
@@ -123,6 +109,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "active") {
         verifyAndReconnectIfNeeded();
+        loadRegisteredDevices(); // Refresh registered devices when app becomes active
       }
     });
 
@@ -284,6 +271,54 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Load registered devices from device management service
+  const loadRegisteredDevices = async (): Promise<void> => {
+    try {
+      const response = await deviceManagementService.getRegisteredDevices();
+      if (response.success && response.data) {
+        setRegisteredDevices(response.data);
+        logMessage(`Loaded ${response.data.length} registered devices`);
+      }
+    } catch (error) {
+      logMessage(
+        `Error loading registered devices: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  };
+
+  // Connect to a registered device
+  const connectToRegisteredDevice = async (device: RegisteredDevice): Promise<boolean> => {
+    try {
+      logMessage(`Connecting to registered device: ${device.nickname}`);
+      
+      const bluetoothDevice: BluetoothDevice = {
+        id: device.id,
+        name: device.name,
+        rssi: device.rssi || -100,
+        isConnectable: true,
+      };
+
+      const success = await connectToDevice(bluetoothDevice);
+      
+      if (success) {
+        // Mark device as connected in device management service
+        await deviceManagementService.markDeviceConnected(device.id);
+        logMessage(`Successfully connected to ${device.nickname}`);
+      }
+
+      return success;
+    } catch (error) {
+      logMessage(
+        `Error connecting to registered device: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return false;
+    }
+  };
+
   // Enhanced verification with additional checks
   const enhancedVerifyConnection = async (
     deviceId: string
@@ -303,36 +338,8 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Create wrapper functions that update state after calling service functions
-  const fetchVoltage = async (): Promise<string | null> => {
-    const voltageValue = await obdDataFunctions.fetchVoltage(
-      bleConnectionHook.plxDevice,
-      bleConnectionHook.sendCommand,
-      bleConnectionHook.logMessage
-    );
 
-    if (voltageValue) {
-      setVoltage(voltageValue);
-    }
-
-    return voltageValue;
-  };
-
-  const fetchRPM = async (): Promise<number | null> => {
-    const rpmValue = await obdDataFunctions.fetchRPM(
-      bleConnectionHook.plxDevice,
-      bleConnectionHook.sendCommand,
-      bleConnectionHook.logMessage
-    );
-
-    if (rpmValue !== null) {
-      setRPM(rpmValue);
-    }
-
-    return rpmValue;
-  };
-
-  // Create context value matching the simplified interface
+  // Create context value matching the enhanced interface
   const contextValue: BluetoothContextType = {
     // Connection state
     connectionState: {
@@ -340,19 +347,11 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       isScanning,
       deviceId,
       deviceName,
-      lastSuccessfulCommandTime:
-        bleConnectionHook.lastSuccessfulCommandTime?.current || null,
-    },
-
-    // OBD data
-    obdData: {
-      voltage,
-      rpm,
-      speed,
     },
 
     // Device management
     discoveredDevices,
+    registeredDevices,
     rememberedDevice,
     plxDevice: bleConnectionHook.plxDevice,
 
@@ -364,7 +363,10 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     startScan,
     connectToDevice,
     disconnectDevice,
-    sendCommand,
+    
+    // Device management actions
+    loadRegisteredDevices,
+    connectToRegisteredDevice,
 
     // State setters
     setDiscoveredDevices,

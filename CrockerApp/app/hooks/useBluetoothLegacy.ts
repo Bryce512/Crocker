@@ -13,16 +13,12 @@ export const useBluetoothLegacy = () => {
   return {
     // New structured approach (recommended)
     connectionState: context.connectionState,
-    obdData: context.obdData,
 
     // Legacy compatibility (flatten for old components)
     isConnected: context.connectionState.isConnected,
     isScanning: context.connectionState.isScanning,
     deviceId: context.connectionState.deviceId,
     deviceName: context.connectionState.deviceName,
-    voltage: context.obdData.voltage,
-    rpm: context.obdData.rpm,
-    speed: context.obdData.speed,
 
     // Pass through other properties
     discoveredDevices: context.discoveredDevices,
@@ -35,7 +31,6 @@ export const useBluetoothLegacy = () => {
     startScan: context.startScan,
     connectToDevice: context.connectToDevice,
     disconnectDevice: context.disconnectDevice,
-    sendCommand: context.sendCommand,
     setDiscoveredDevices: context.setDiscoveredDevices,
     setShowDeviceSelector: context.setShowDeviceSelector,
     logMessage: context.logMessage,

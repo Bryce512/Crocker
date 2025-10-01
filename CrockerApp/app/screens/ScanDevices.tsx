@@ -11,122 +11,220 @@ import {
 } from "react-native";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
+import { Feather } from "@expo/vector-icons";
 import { RootStackParamList } from "../navigation/AppNavigator";
+import { RegisteredDevice } from "../models";
+import { useBluetooth } from "../contexts/BluetoothContext";
+import deviceManagementService from "../services/deviceManagementService";
+import DeviceScannerModal from "../components/DeviceScannerModal";
+import { colors } from "../theme/colors";
 
-
-interface Device {
-  id: string;
-  name: string;
-  type: string;
-  connected: boolean;
-}
+// Create semantic colors from the design system
+const semanticColors = {
+  primary: colors.primary[500],
+  success: colors.green[500],
+  error: colors.red[500],
+  text: colors.gray[900],
+  textSecondary: colors.gray[500],
+  background: colors.white,
+  backgroundSecondary: colors.gray[50],
+  surface: colors.white,
+  border: colors.gray[200],
+};
 
 const DeviceConnection = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [isScanning, setIsScanning] = useState(false);
+  const { 
+    connectionState, 
+    registeredDevices, 
+    connectToRegisteredDevice, 
+    disconnectDevice,
+    loadRegisteredDevices 
+  } = useBluetooth();
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnecting, setIsConnecting] = useState<string | null>(null);
+  const [showScannerModal, setShowScannerModal] = useState(false);
 
+  // Load registered devices on mount and manage loading state
   useEffect(() => {
-    // Simulate device discovery
-    const mockDevices: Device[] = [
-      { id: "1", name: "Drew's Otter", type: "Soristuffy", connected: false },
-      {
-        id: "2",
-        name: "Sara's Teddy Bear",
-        type: "Soristuffy",
-        connected: false,
-      },
-      { id: "3", name: "Mayci's Owl", type: "Soristuffy", connected: false },
-    ];
-    setDevices(mockDevices);
+    const initializeDevices = async () => {
+      setIsLoading(true);
+      try {
+        await loadRegisteredDevices();
+      } catch (error) {
+        console.error('Error loading registered devices:', error);
+        Alert.alert('Error', 'Failed to load registered devices');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeDevices();
   }, []);
 
-  const handleDeviceConnect = (deviceId: string) => {
-    setDevices((prev) =>
-      prev.map((device) =>
-        device.id === deviceId
-          ? { ...device, connected: !device.connected }
-          : device
-      )
-    );
+  const handleDeviceConnect = async (device: RegisteredDevice) => {
+    if (connectionState.isConnected && connectionState.deviceId === device.id) {
+      // Device is connected, disconnect it
+      try {
+        await disconnectDevice();
+        await deviceManagementService.updateRegisteredDevice(device.id, {
+          lastConnected: new Date()
+        });
+      } catch (error) {
+        console.error('Disconnect error:', error);
+        Alert.alert('Error', 'Failed to disconnect device');
+      }
+    } else {
+      // Device is not connected, connect to it
+      setIsConnecting(device.id);
+      try {
+        const success = await connectToRegisteredDevice(device);
+        if (success) {
+          Alert.alert('Connected!', `Successfully connected to ${device.nickname}`);
+        } else {
+          Alert.alert('Connection Failed', 'Unable to connect to device');
+        }
+      } catch (error) {
+        console.error('Connection error:', error);
+        Alert.alert('Error', 'Failed to connect to device');
+      } finally {
+        setIsConnecting(null);
+      }
+    }
   };
 
-  const handleScanDevices = () => {
-    setIsScanning(true);
-    // Simulate scanning
-    setTimeout(() => {
-      setIsScanning(false);
-      Alert.alert("Scan Complete", "Found nearby Soristuffy devices");
-    }, 2000);
+  const handleAddDevice = () => {
+    setShowScannerModal(true);
+  };
+
+  const handleDeviceRegistered = async (device: RegisteredDevice) => {
+    // Refresh the registered devices list from the context
+    await loadRegisteredDevices();
   };
 
   const handleSkip = () => {
     navigation.navigate("CalendarScreen");
   };
 
+  const isDeviceConnected = (deviceId: string) => {
+    return connectionState.isConnected && connectionState.deviceId === deviceId;
+  };
+
   return (
-    <LinearGradient colors={["#f8fafc", "#eff6ff"]} style={styles.container}>
-      <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+    <>
+      <LinearGradient colors={["#f8fafc", "#eff6ff"]} style={styles.container}>
+        <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Connect to your</Text>
-          <Text style={styles.titleBrand}>Soristuffy</Text>
-        </View>
-
-        {/* Nearby Devices Section */}
-        <View style={styles.devicesSection}>
-          <View style={styles.devicesSectionHeader}>
-            <Text style={styles.devicesTitle}>Nearby Devices</Text>
-            <TouchableOpacity onPress={handleScanDevices} disabled={isScanning}>
-              {isScanning ? (
-                <ActivityIndicator color="#475569" size="small" />
-              ) : (
-                <Text style={styles.scanIcon}>❄</Text>
-              )}
-            </TouchableOpacity>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Connect to your</Text>
+            <Text style={styles.titleBrand}>Soristuffy</Text>
           </View>
 
-          <View style={styles.devicesList}>
-            {devices.map((device) => (
-              <TouchableOpacity
-                key={device.id}
-                style={[
-                  styles.deviceCard,
-                  device.connected && styles.deviceCardConnected,
-                ]}
-                onPress={() => handleDeviceConnect(device.id)}
-              >
-                <Text
-                  style={[
-                    styles.deviceName,
-                    device.connected && styles.deviceNameConnected,
-                  ]}
-                >
-                  {device.name}
-                </Text>
-                {device.connected && (
-                  <View style={styles.connectedIndicator}>
-                    <Text style={styles.connectedText}>Connected</Text>
-                  </View>
-                )}
+          {/* My Devices Section */}
+          <View style={styles.devicesSection}>
+            <View style={styles.devicesSectionHeader}>
+              <Text style={styles.devicesTitle}>My Devices</Text>
+              <TouchableOpacity onPress={handleAddDevice}>
+                <Feather name="plus" size={24} color={semanticColors.primary} />
               </TouchableOpacity>
-            ))}
+            </View>
+
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color={semanticColors.primary} size="small" />
+                <Text style={styles.loadingText}>Loading devices...</Text>
+              </View>
+            ) : (
+              <View style={styles.devicesList}>
+                {registeredDevices.length === 0 ? (
+                  <View style={styles.emptyDevicesContainer}>
+                    <Feather name="bluetooth" size={48} color={semanticColors.textSecondary} />
+                    <Text style={styles.emptyDevicesTitle}>No Devices Found</Text>
+                    <Text style={styles.emptyDevicesText}>
+                      Add your first Soristuffy by tapping the + button above
+                    </Text>
+                  </View>
+                ) : (
+                  registeredDevices.map((device) => (
+                    <TouchableOpacity
+                      key={device.id}
+                      style={[
+                        styles.deviceCard,
+                        isDeviceConnected(device.id) && styles.deviceCardConnected,
+                      ]}
+                      onPress={() => handleDeviceConnect(device)}
+                      disabled={isConnecting === device.id}
+                    >
+                      <View style={styles.deviceInfo}>
+                        <View style={styles.deviceHeader}>
+                          <Text style={[
+                            styles.deviceName,
+                            isDeviceConnected(device.id) && styles.deviceNameConnected,
+                          ]}>
+                            {device.nickname}
+                          </Text>
+                          {isDeviceConnected(device.id) && (
+                            <View style={styles.connectedIndicator}>
+                              <Text style={styles.connectedText}>Connected</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.deviceType}>{device.deviceType.toUpperCase()}</Text>
+                        {device.lastConnected && (
+                          <Text style={styles.lastConnected}>
+                            Last connected: {device.lastConnected.toLocaleDateString()}
+                          </Text>
+                        )}
+                      </View>
+                      
+                      {isConnecting === device.id ? (
+                        <ActivityIndicator color={semanticColors.primary} size="small" />
+                      ) : (
+                        <Feather
+                          name={isDeviceConnected(device.id) ? "check-circle" : "bluetooth"}
+                          size={24}
+                          color={isDeviceConnected(device.id) ? semanticColors.success : semanticColors.primary}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+            )}
           </View>
+
+          {/* Connection Status */}
+          {connectionState.isConnected && (
+            <View style={styles.connectionStatus}>
+              <Feather name="check-circle" size={20} color={semanticColors.success} />
+              <Text style={styles.connectionStatusText}>
+                Connected to {connectionState.deviceName || 'device'}
+              </Text>
+            </View>
+          )}
+
+          {/* Empty Space for Visual Balance */}
+          <View style={styles.spacer} />
+        </ScrollView>
+
+        {/* Skip Button */}
+        <View style={styles.footer}>
+          <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
+            <Text style={styles.skipText}>Continue</Text>
+          </TouchableOpacity>
         </View>
+      </LinearGradient>
 
-        {/* Empty Space for Visual Balance */}
-        <View style={styles.spacer} />
-      </ScrollView>
-
-      {/* Skip Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
-      </View>
-    </LinearGradient>
+      {/* Device Scanner Modal */}
+      <DeviceScannerModal
+        visible={showScannerModal}
+        onClose={() => setShowScannerModal(false)}
+        onDeviceRegistered={handleDeviceRegistered}
+      />
+    </>
   );
 };
 
@@ -280,6 +378,73 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#374151",
     textDecorationLine: "underline",
+  },
+
+  // New styles for enhanced device management
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    marginLeft: 12,
+    fontSize: 16,
+    color: "#6b7280",
+  },
+  emptyDevicesContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyDevicesTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: "#374151",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyDevicesText: {
+    fontSize: 14,
+    color: "#6b7280",
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 20,
+  },
+  deviceInfo: {
+    flex: 1,
+  },
+  deviceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  deviceType: {
+    fontSize: 12,
+    color: "#6b7280",
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  lastConnected: {
+    fontSize: 12,
+    color: "#9ca3af",
+  },
+  connectionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 32,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  connectionStatusText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#059669",
+    fontWeight: '500',
   },
 });
 

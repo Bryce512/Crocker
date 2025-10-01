@@ -15,7 +15,7 @@ import { Buffer } from "buffer";
 // Import new services
 import bluetoothService from "./bluetoothService";
 import AppErrorService, { ErrorCode } from "./errorService";
-import { BluetoothDevice, ConnectionState, OBDData } from "../models";
+import { BluetoothDevice, ConnectionState } from "../models";
 
 // Constants
 const { BleManager: BleManagerModule } = NativeModules;

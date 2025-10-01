@@ -3,7 +3,6 @@ import firebaseService from "./firebaseService";
 import {
   Event,
   Kid,
-  Vehicle,
   User,
   UserProfile,
   ServiceResponse,
@@ -28,21 +27,13 @@ export interface DataRepository {
 
   // Kid operations
   getKids(): Promise<ServiceResponse<Kid[]>>;
-  addKid(kid: Omit<Kid, "id">): Promise<ServiceResponse<Kid>>;
+  addKid(Kid: Omit<Kid, "id">): Promise<ServiceResponse<Kid>>;
   updateKid(
-    kidId: string,
+    KidId: string,
     updates: Partial<Kid>
   ): Promise<ServiceResponse<Kid>>;
-  deleteKid(kidId: string): Promise<ServiceResponse<boolean>>;
+  deleteKid(KidId: string): Promise<ServiceResponse<boolean>>;
 
-  // Vehicle operations
-  getVehicles(): Promise<ServiceResponse<Vehicle[]>>;
-  addVehicle(vehicle: Omit<Vehicle, "id">): Promise<ServiceResponse<Vehicle>>;
-  updateVehicle(
-    vehicleId: string,
-    updates: Partial<Vehicle>
-  ): Promise<ServiceResponse<Vehicle>>;
-  deleteVehicle(vehicleId: string): Promise<ServiceResponse<boolean>>;
 }
 
 class FirebaseDataRepository implements DataRepository {
@@ -167,55 +158,55 @@ class FirebaseDataRepository implements DataRepository {
   // Kid operations
   async getKids(): Promise<ServiceResponse<Kid[]>> {
     try {
-      const kids = await firebaseService.getKids();
+      const Kids = await firebaseService.getKids();
       return {
         success: true,
-        data: kids,
+        data: Kids,
       };
     } catch (error) {
       return {
         success: false,
-        error: `Failed to get kids: ${error}`,
+        error: `Failed to get Kids: ${error}`,
       };
     }
   }
 
-  async addKid(kidData: Omit<Kid, "id">): Promise<ServiceResponse<Kid>> {
+  async addKid(KidData: Omit<Kid, "id">): Promise<ServiceResponse<Kid>> {
     try {
-      const kid = {
-        ...kidData,
-        id: `kid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      const Kid = {
+        ...KidData,
+        id: `Kid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       };
-      await firebaseService.addKid(kid);
+      await firebaseService.addKid(Kid);
       return {
         success: true,
-        data: kid,
+        data: Kid,
       };
     } catch (error) {
       return {
         success: false,
-        error: `Failed to add kid: ${error}`,
+        error: `Failed to add Kid: ${error}`,
       };
     }
   }
 
   async updateKid(
-    kidId: string,
+    KidId: string,
     updates: Partial<Kid>
   ): Promise<ServiceResponse<Kid>> {
     try {
-      // Firebase service doesn't have updateKid, so we need to get all kids and update
-      const kids = await firebaseService.getKids();
-      const kidIndex = kids.findIndex((kid) => kid.id === kidId);
+      // Firebase service doesn't have updateKid, so we need to get all Kids and update
+      const Kids = await firebaseService.getKids();
+      const KidIndex = Kids.findIndex((Kid) => Kid.id === KidId);
 
-      if (kidIndex === -1) {
+      if (KidIndex === -1) {
         throw new Error("Kid not found");
       }
 
-      const updatedKid = { ...kids[kidIndex], ...updates };
-      kids[kidIndex] = updatedKid;
+      const updatedKid = { ...Kids[KidIndex], ...updates };
+      Kids[KidIndex] = updatedKid;
 
-      await firebaseService.addKid(kids); // This saves all kids
+      await firebaseService.addKid(Kids); // This saves all Kids
       return {
         success: true,
         data: updatedKid,
@@ -223,16 +214,16 @@ class FirebaseDataRepository implements DataRepository {
     } catch (error) {
       return {
         success: false,
-        error: `Failed to update kid: ${error}`,
+        error: `Failed to update Kid: ${error}`,
       };
     }
   }
 
-  async deleteKid(kidId: string): Promise<ServiceResponse<boolean>> {
+  async deleteKid(KidId: string): Promise<ServiceResponse<boolean>> {
     try {
-      // Firebase service doesn't have deleteKid, so we need to get all kids and filter
-      const kids = await firebaseService.getKids();
-      const filteredKids = kids.filter((kid) => kid.id !== kidId);
+      // Firebase service doesn't have deleteKid, so we need to get all Kids and filter
+      const Kids = await firebaseService.getKids();
+      const filteredKids = Kids.filter((Kid) => Kid.id !== KidId);
 
       await firebaseService.addKid(filteredKids);
       return {
@@ -242,97 +233,7 @@ class FirebaseDataRepository implements DataRepository {
     } catch (error) {
       return {
         success: false,
-        error: `Failed to delete kid: ${error}`,
-      };
-    }
-  }
-
-  // Vehicle operations
-  async getVehicles(): Promise<ServiceResponse<Vehicle[]>> {
-    try {
-      const user = firebaseService.getCurrentUser();
-      if (!user) {
-        throw new Error("No authenticated user");
-      }
-
-      const vehicles = await firebaseService.getVehicles(user.uid);
-      return {
-        success: true,
-        data: vehicles,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Failed to get vehicles: ${error}`,
-      };
-    }
-  }
-
-  async addVehicle(
-    vehicleData: Omit<Vehicle, "id">
-  ): Promise<ServiceResponse<Vehicle>> {
-    try {
-      const user = firebaseService.getCurrentUser();
-      if (!user) {
-        throw new Error("No authenticated user");
-      }
-
-      const vehicle = await firebaseService.addVehicle(user.uid, vehicleData);
-      return {
-        success: true,
-        data: vehicle,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Failed to add vehicle: ${error}`,
-      };
-    }
-  }
-
-  async updateVehicle(
-    vehicleId: string,
-    updates: Partial<Vehicle>
-  ): Promise<ServiceResponse<Vehicle>> {
-    try {
-      const user = firebaseService.getCurrentUser();
-      if (!user) {
-        throw new Error("No authenticated user");
-      }
-
-      const vehicle = await firebaseService.updateVehicle(
-        user.uid,
-        vehicleId,
-        updates
-      );
-      return {
-        success: true,
-        data: vehicle,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Failed to update vehicle: ${error}`,
-      };
-    }
-  }
-
-  async deleteVehicle(vehicleId: string): Promise<ServiceResponse<boolean>> {
-    try {
-      const user = firebaseService.getCurrentUser();
-      if (!user) {
-        throw new Error("No authenticated user");
-      }
-
-      await firebaseService.deleteVehicle(user.uid, vehicleId);
-      return {
-        success: true,
-        data: true,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Failed to delete vehicle: ${error}`,
+        error: `Failed to delete Kid: ${error}`,
       };
     }
   }

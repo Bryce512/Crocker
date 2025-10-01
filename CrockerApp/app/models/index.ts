@@ -11,13 +11,6 @@ export interface ConnectionState {
   isScanning: boolean;
   deviceId: string | null;
   deviceName: string | null;
-  lastSuccessfulCommandTime: number | null;
-}
-
-export interface OBDData {
-  voltage: string | null;
-  rpm: number | null;
-  speed: number | null;
 }
 
 export interface User {
@@ -48,14 +41,58 @@ export interface Kid {
   name: string;
   age?: number;
   notes?: string;
+  deviceId?: string; // Link to registered device
 }
 
-export interface Vehicle {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  vin?: string;
+// Enhanced Device Management Models
+export interface RegisteredDevice {
+  id: string; // Bluetooth device ID (MAC address)
+  name: string | null; // Original Bluetooth name
+  nickname: string; // User-assigned name
+  deviceType: 'soristuffy' | 'esp32' | 'other';
+  registeredAt: Date;
+  lastConnected: Date | null;
+  connectionCount: number;
+  isActive: boolean; // Can be temporarily disabled
+  rssi?: number; // Last known signal strength
+  batteryLevel?: number; // If supported by device
+  firmwareVersion?: string; // If available
+  assignedKidId?: string | null; // Which kid this device belongs to
+}
+
+export interface DeviceProfile {
+  deviceId: string;
+  alertSettings: {
+    vibrationIntensity: 'low' | 'medium' | 'high';
+    alertIntervals: number[]; // minutes before event
+    quietHours: {
+      enabled: boolean;
+      start: string; // HH:MM format
+      end: string; // HH:MM format
+    };
+  };
+  syncSettings: {
+    autoSync: boolean;
+    syncFrequency: number; // hours
+    maxRetries: number;
+  };
+  lastSyncAt: Date | null;
+  preferences: {
+    autoConnect: boolean;
+    connectionTimeout: number; // seconds
+    reconnectAttempts: number;
+  };
+}
+
+export interface PairingSession {
+  sessionId: string;
+  deviceId: string;
+  deviceName: string | null;
+  startedAt: Date;
+  status: 'scanning' | 'connecting' | 'pairing' | 'success' | 'failed' | 'cancelled';
+  attempts: number;
+  error?: string;
+  completedAt?: Date;
 }
 
 // Service Response Types

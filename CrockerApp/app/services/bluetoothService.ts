@@ -274,38 +274,166 @@ export const getConnectedDevices = async (): Promise<
   }
 };
 
-// OBD initialization
-export const initializeOBD = async (
-  deviceId: string
+export const createJson = (data: any): string => {
+  return JSON.stringify(data);
+};
+
+// Interface for ESP32 event payload
+interface ESP32EventPayload {
+  timestamp: number;
+  valid_until: number;
+  kid_id: string;
+  event_count: number;
+  events: Array<{
+    id: number;
+    title: string;
+    start_time: number;
+    end_time: number;
+    duration_minutes: number;
+    alerts: Array<{
+      alert_time: number;
+      minutes_before: number;
+      type: string;
+    }>;
+  }>;
+  checksum?: string;
+  error?: string;
+}
+
+// Get events for the next 24 hours and create JSON payload for peripheral
+export const createNext24HoursEventsJson = async (
+  kidId?: string
+): Promise<string> => {
+  try {
+    const firebaseService = require("./firebaseService").default;
+
+    // Get all events from Firebase
+    const allEvents: any[] = await firebaseService.getEvents();
+
+    // Calculate time range for next 24 hours
+    const now = new Date();
+    const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    // Filter events for next 24 hours
+    const upcomingEvents = allEvents.filter((event: any) => {
+      const eventStart = new Date(event.startTime);
+      return eventStart >= now && eventStart <= next24Hours;
+    });
+
+    // Further filter by kidId if provided
+    const filteredEvents = kidId
+      ? upcomingEvents.filter((event: any) => event.assignedKidId === kidId)
+      : upcomingEvents;
+
+    // Sort events by start time
+    filteredEvents.sort(
+      (a: any, b: any) =>
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    );
+
+    // Create ESP32-friendly payload
+    const payload: ESP32EventPayload = {
+      timestamp: Math.floor(now.getTime() / 1000), // Unix timestamp
+      valid_until: Math.floor(next24Hours.getTime() / 1000),
+      kid_id: kidId || "default",
+      event_count: filteredEvents.length,
+      events: filteredEvents.map((event: any, index: number) => ({
+        id: index + 1, // Simple sequential ID for ESP32
+        title: (event.title || "Untitled Event").substring(0, 30), // Limit title length
+        start_time: Math.floor(new Date(event.startTime).getTime() / 1000), // Unix timestamp
+        end_time: Math.floor(new Date(event.endTime).getTime() / 1000),
+        duration_minutes: Math.floor(
+          (new Date(event.endTime).getTime() -
+            new Date(event.startTime).getTime()) /
+            (1000 * 60)
+        ),
+        // Default alert intervals: 15, 10, 5 minutes before
+        alerts: [
+          {
+            alert_time: Math.floor(
+              (new Date(event.startTime).getTime() - 15 * 60 * 1000) / 1000
+            ),
+            minutes_before: 15,
+            type: "warning",
+          },
+          {
+            alert_time: Math.floor(
+              (new Date(event.startTime).getTime() - 10 * 60 * 1000) / 1000
+            ),
+            minutes_before: 10,
+            type: "warning",
+          },
+          {
+            alert_time: Math.floor(
+              (new Date(event.startTime).getTime() - 5 * 60 * 1000) / 1000
+            ),
+            minutes_before: 5,
+            type: "final",
+          },
+        ].filter(
+          (alert) => alert.alert_time > Math.floor(now.getTime() / 1000)
+        ), // Only future alerts
+      })),
+    };
+
+    // Add checksum for data integrity
+    const payloadString = JSON.stringify(payload.events);
+    payload.checksum = Buffer.from(payloadString)
+      .toString("base64")
+      .substring(0, 8);
+
+    console.log(
+      `📤 Created JSON payload for ${filteredEvents.length} events (next 24 hours)`
+    );
+    console.log(`📦 Payload size: ${JSON.stringify(payload).length} bytes`);
+
+    return JSON.stringify(payload);
+  } catch (error) {
+    console.error("Error creating events JSON:", error);
+    // Return empty payload on error
+    const now = new Date();
+    const emptyPayload: ESP32EventPayload = {
+      timestamp: Math.floor(now.getTime() / 1000),
+      valid_until: Math.floor((now.getTime() + 24 * 60 * 60 * 1000) / 1000),
+      kid_id: kidId || "default",
+      event_count: 0,
+      events: [],
+      checksum: "empty000",
+      error: "Failed to load events",
+    };
+    return JSON.stringify(emptyPayload);
+  }
+};
+
+// Send events JSON to connected peripheral
+export const sendEventsToPeripheral = async (
+  deviceId: string,
+  kidId?: string
 ): Promise<ServiceResponse<boolean>> => {
   try {
-    await BleManager.retrieveServices(deviceId);
+    // Create the JSON payload
+    const eventsJson = await createNext24HoursEventsJson(kidId);
 
-    // OBD initialization commands
-    const commands = [
-      "ATZ", // Reset
-      "ATL0", // Turn off linefeeds
-      "ATH0", // Turn off headers
-      "ATE0", // Turn off echo
-      "ATS0", // Turn off spaces
-      "ATI", // Get version info
-      "AT SP 0", // Set protocol to auto
-    ];
+    // Convert JSON string to bytes for Bluetooth transmission
+    const jsonBytes = stringToBytes(eventsJson);
 
-    // Send commands sequentially with delays
-    for (const cmd of commands) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      // Note: Actual command sending would be handled by the hook layer
-    }
+    // Here you would integrate with your BLE write function
+    // This is a placeholder - you'll need to implement the actual BLE write
+    console.log(`📡 Sending ${jsonBytes.length} bytes to device ${deviceId}`);
+    console.log("📄 JSON Payload:", eventsJson);
+
+    // For now, just log the payload - you'll implement actual BLE write later
+    await BleManager.write(deviceId, SERVICE_UUID, WRITE_UUID, jsonBytes);
 
     return {
       success: true,
       data: true,
     };
   } catch (error) {
+    console.error("Error sending events to peripheral:", error);
     return {
       success: false,
-      error: `OBD initialization failed: ${error}`,
+      error: `Failed to send events: ${error}`,
     };
   }
 };
@@ -314,6 +442,11 @@ export default {
   // Utility functions
   stringToBytes,
   base64ToBytes,
+  createJson,
+
+  // Event JSON creation
+  createNext24HoursEventsJson,
+  sendEventsToPeripheral,
 
   // Permission management
   requestBluetoothPermissions,
@@ -330,9 +463,6 @@ export default {
   disconnectFromDevice,
   verifyConnection,
   getConnectedDevices,
-
-  // OBD operations
-  initializeOBD,
 
   // Constants
   SERVICE_UUID,

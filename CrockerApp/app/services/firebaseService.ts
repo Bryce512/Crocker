@@ -714,6 +714,104 @@ export const addKid = async (kidData: any) => {
   }
 };
 
+// Device management functions for Firebase integration
+export const getDevices = async () => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error("No authenticated user found");
+  }
+
+  const database = getDatabase(getApp());
+  const devicesRef = ref(database, `users/${user.uid}/devices`);
+
+  try {
+    const snapshot = await get(devicesRef);
+    if (snapshot.exists()) {
+      const devicesData = snapshot.val();
+      return Object.keys(devicesData).map((key) => ({
+        id: key,
+        ...devicesData[key],
+        registeredAt: devicesData[key].registeredAt ? new Date(devicesData[key].registeredAt) : new Date(),
+        lastConnected: devicesData[key].lastConnected ? new Date(devicesData[key].lastConnected) : null,
+      }));
+    }
+    return [];
+  } catch (error) {
+    console.error("Error fetching devices:", error);
+    throw error;
+  }
+};
+
+export const addDevice = async (deviceData: any) => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error("No authenticated user found");
+  }
+
+  const database = getDatabase(getApp());
+  const deviceRef = ref(database, `users/${user.uid}/devices/${deviceData.id}`);
+
+  try {
+    // Remove ID from data since it becomes the key
+    const { id, ...deviceDataWithoutId } = deviceData;
+    await set(deviceRef, deviceDataWithoutId);
+    console.log("Device saved successfully to Firebase");
+    return deviceData;
+  } catch (error) {
+    console.error("Error saving device:", error);
+    throw error;
+  }
+};
+
+export const updateDevice = async (deviceId: string, updates: any) => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error("No authenticated user found");
+  }
+
+  const database = getDatabase(getApp());
+  const deviceRef = ref(database, `users/${user.uid}/devices/${deviceId}`);
+
+  try {
+    // Convert Date objects to ISO strings for Firebase storage
+    const updatesCopy = { ...updates };
+    if (updatesCopy.registeredAt instanceof Date) {
+      updatesCopy.registeredAt = updatesCopy.registeredAt.toISOString();
+    }
+    if (updatesCopy.lastConnected instanceof Date) {
+      updatesCopy.lastConnected = updatesCopy.lastConnected.toISOString();
+    }
+
+    // Remove ID from updates since it's the key
+    const { id, ...updatesWithoutId } = updatesCopy;
+    await update(deviceRef, updatesWithoutId);
+    console.log(`Device ${deviceId} updated successfully`);
+    return true;
+  } catch (error) {
+    console.error("Error updating device:", error);
+    throw error;
+  }
+};
+
+export const deleteDevice = async (deviceId: string) => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error("No authenticated user found");
+  }
+
+  const database = getDatabase(getApp());
+  const deviceRef = ref(database, `users/${user.uid}/devices/${deviceId}`);
+
+  try {
+    await remove(deviceRef);
+    console.log(`Device ${deviceId} deleted successfully`);
+    return true;
+  } catch (error) {
+    console.error("Error deleting device:", error);
+    throw error;
+  }
+};
+
 // Debug function to check current auth state
 export const debugAuthState = () => {
   const user = getCurrentUser();
@@ -787,6 +885,11 @@ export default {
   updateEvent,
   deleteEvent,
   addKid,
+  // Device management
+  getDevices,
+  addDevice,
+  updateDevice,
+  deleteDevice,
   migrateEventsToIndividualObjects,
   debugAuthState,
   clearUserData,
