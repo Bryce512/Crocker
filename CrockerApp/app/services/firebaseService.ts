@@ -813,7 +813,9 @@ export const addDevice = async (deviceData: any) => {
     throw new Error("No authenticated user found");
   }
 
-  const deviceRef = database().ref(`users/${user.uid}/devices/${deviceData.id}`);
+  const deviceRef = database().ref(
+    `users/${user.uid}/devices/${deviceData.id}`
+  );
 
   try {
     // Remove ID from data since it becomes the key
