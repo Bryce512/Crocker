@@ -22,12 +22,6 @@
     <string>1.0.0</string>
     <key>CFBundleSignature</key>
     <string>????</string>
-    <key>NSCameraUsageDescription</key>
-    <string>$(PRODUCT_NAME) needs access to your camera to take photos of vehicles</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>$(PRODUCT_NAME) needs access to your photos to select vehicle images</string>
-    <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>$(PRODUCT_NAME) needs permission to save photos to your library</string>
     <key>CFBundleURLTypes</key>
     <array>
       <dict>
@@ -62,6 +56,12 @@
     <string>This app uses Bluetooth to connect to your OBD-II device.</string>
     <key>NSCalendarsUsageDescription</key>
     <string>This app needs access to your calendar to schedule transition alerts for your child.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>$(PRODUCT_NAME) needs access to your camera to take photos to dispay on your device</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>$(PRODUCT_NAME) needs permission to save photos to your library</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>$(PRODUCT_NAME) needs access to your photos to select event images.</string>
     <key>NSRemindersUsageDescription</key>
     <string>This app needs access to your reminders to help manage your child's schedule.</string>
     <key>UIBackgroundModes</key>
