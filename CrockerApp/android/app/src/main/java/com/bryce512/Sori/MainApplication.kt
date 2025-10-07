@@ -1,4 +1,4 @@
-package com.bryce512.sori
+package com.bryce512.Sori
 
 import android.app.Application
 import android.content.res.Configuration

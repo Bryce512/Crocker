@@ -16,7 +16,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.bryce512.Sori",
       "buildNumber": "1",
-      "jsEngine": "jsc",
+      "jsEngine": "hermes",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
