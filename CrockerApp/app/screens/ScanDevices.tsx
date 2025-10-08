@@ -119,162 +119,153 @@ const DeviceConnection = () => {
   };
 
   return (
-    <>
-      <LinearGradient colors={["#f8fafc", "#eff6ff"]} style={styles.container}>
-        <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+    <View style={styles.container}>
+      <StatusBar
+        backgroundColor={semanticColors.background}
+        barStyle="dark-content"
+      />
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <View
-            style={[
-              styles.header,
-              { marginTop: Math.max(insets.top + 10, 50) },
-            ]}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View
+          style={[styles.header, { marginTop: Math.max(insets.top + 10, 50) }]}
+        >
+          <TouchableOpacity
+            onPress={() => setIsMenuOpen(true)}
+            style={styles.menuButton}
           >
-            <TouchableOpacity
-              onPress={() => setIsMenuOpen(true)}
-              style={styles.menuButton}
-            >
-              <View style={styles.menuLine} />
-              <View style={styles.menuLine} />
-              <View style={styles.menuLine} />
-            </TouchableOpacity>
+            <View style={styles.menuLine} />
+            <View style={styles.menuLine} />
+            <View style={styles.menuLine} />
+          </TouchableOpacity>
 
-            <View style={styles.titleContainer}>
-              <Text style={styles.title}>Connect to your</Text>
-              <Text style={styles.titleBrand}>Soristuffy</Text>
-            </View>
-
-            <View style={styles.headerSpacer} />
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Connect to your</Text>
+            <Text style={styles.titleBrand}>Soristuffy</Text>
           </View>
 
-          {/* My Devices Section */}
-          <View style={styles.devicesSection}>
-            <View style={styles.devicesSectionHeader}>
-              <Text style={styles.devicesTitle}>My Devices</Text>
-              <TouchableOpacity onPress={handleAddDevice}>
-                <Feather name="plus" size={24} color={semanticColors.primary} />
-              </TouchableOpacity>
-            </View>
+          <View style={styles.headerSpacer} />
+        </View>
 
-            {isLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator
-                  color={semanticColors.primary}
-                  size="small"
-                />
-                <Text style={styles.loadingText}>Loading devices...</Text>
-              </View>
-            ) : (
-              <View style={styles.devicesList}>
-                {registeredDevices.length === 0 ? (
-                  <View style={styles.emptyDevicesContainer}>
-                    <Feather
-                      name="bluetooth"
-                      size={48}
-                      color={semanticColors.textSecondary}
-                    />
-                    <Text style={styles.emptyDevicesTitle}>
-                      No Devices Found
-                    </Text>
-                    <Text style={styles.emptyDevicesText}>
-                      Add your first Soristuffy by tapping the + button above
-                    </Text>
-                  </View>
-                ) : (
-                  registeredDevices.map((device) => (
-                    <TouchableOpacity
-                      key={device.id}
-                      style={[
-                        styles.deviceCard,
-                        isDeviceConnected(device.id) &&
-                          styles.deviceCardConnected,
-                      ]}
-                      onPress={() => handleDeviceConnect(device)}
-                      disabled={isConnecting === device.id}
-                    >
-                      <View style={styles.deviceInfo}>
-                        <View style={styles.deviceHeader}>
-                          <Text
-                            style={[
-                              styles.deviceName,
-                              isDeviceConnected(device.id) &&
-                                styles.deviceNameConnected,
-                            ]}
-                          >
-                            {device.nickname}
-                          </Text>
-                          {isDeviceConnected(device.id) && (
-                            <View style={styles.connectedIndicator}>
-                              <Text style={styles.connectedText}>
-                                Connected
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text style={styles.deviceType}>
-                          {device.deviceType.toUpperCase()}
+        {/* My Devices Section */}
+        <View style={styles.devicesSection}>
+          <View style={styles.devicesSectionHeader}>
+            <Text style={styles.devicesTitle}>My Devices</Text>
+            <TouchableOpacity onPress={handleAddDevice}>
+              <Feather name="plus" size={30} color={semanticColors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color={semanticColors.primary} size="small" />
+              <Text style={styles.loadingText}>Loading devices...</Text>
+            </View>
+          ) : (
+            <View style={styles.devicesList}>
+              {registeredDevices.length === 0 ? (
+                <View style={styles.emptyDevicesContainer}>
+                  <Feather
+                    name="bluetooth"
+                    size={48}
+                    color={semanticColors.textSecondary}
+                  />
+                  <Text style={styles.emptyDevicesTitle}>No Devices Found</Text>
+                  <Text style={styles.emptyDevicesText}>
+                    Add your first Soristuffy by tapping the + button above
+                  </Text>
+                </View>
+              ) : (
+                registeredDevices.map((device) => (
+                  <TouchableOpacity
+                    key={device.id}
+                    style={[
+                      styles.deviceCard,
+                      isDeviceConnected(device.id) &&
+                        styles.deviceCardConnected,
+                    ]}
+                    onPress={() => handleDeviceConnect(device)}
+                    disabled={isConnecting === device.id}
+                  >
+                    <View style={styles.deviceInfo}>
+                      <View style={styles.deviceHeader}>
+                        <Text
+                          style={[
+                            styles.deviceName,
+                            isDeviceConnected(device.id) &&
+                              styles.deviceNameConnected,
+                          ]}
+                        >
+                          {device.nickname}
                         </Text>
-                        {device.lastConnected && (
-                          <Text style={styles.lastConnected}>
-                            Last connected:{" "}
-                            {device.lastConnected.toLocaleDateString()}
-                          </Text>
+                        {isDeviceConnected(device.id) && (
+                          <View style={styles.connectedIndicator}>
+                            <Text style={styles.connectedText}>Connected</Text>
+                          </View>
                         )}
                       </View>
-
-                      {isConnecting === device.id ? (
-                        <ActivityIndicator
-                          color={semanticColors.primary}
-                          size="small"
-                        />
-                      ) : (
-                        <Feather
-                          name={
-                            isDeviceConnected(device.id)
-                              ? "check-circle"
-                              : "bluetooth"
-                          }
-                          size={24}
-                          color={
-                            isDeviceConnected(device.id)
-                              ? semanticColors.success
-                              : semanticColors.primary
-                          }
-                        />
+                      <Text style={styles.deviceType}>
+                        {device.deviceType.toUpperCase()}
+                      </Text>
+                      {device.lastConnected && (
+                        <Text style={styles.lastConnected}>
+                          Last connected:{" "}
+                          {device.lastConnected.toLocaleDateString()}
+                        </Text>
                       )}
-                    </TouchableOpacity>
-                  ))
-                )}
-              </View>
-            )}
-          </View>
+                    </View>
 
-          {/* Connection Status */}
-          {connectionState.isConnected && (
-            <View style={styles.connectionStatus}>
-              <Feather
-                name="check-circle"
-                size={20}
-                color={semanticColors.success}
-              />
-              <Text style={styles.connectionStatusText}>
-                Connected to {connectionState.deviceName || "device"}
-              </Text>
+                    {isConnecting === device.id ? (
+                      <ActivityIndicator
+                        color={semanticColors.primary}
+                        size="small"
+                      />
+                    ) : (
+                      <Feather
+                        name={
+                          isDeviceConnected(device.id)
+                            ? "check-circle"
+                            : "bluetooth"
+                        }
+                        size={24}
+                        color={
+                          isDeviceConnected(device.id)
+                            ? semanticColors.success
+                            : semanticColors.primary
+                        }
+                      />
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
           )}
-
-          {/* Empty Space for Visual Balance */}
-          <View style={styles.spacer} />
-        </ScrollView>
-
-        {/* Skip Button */}
-        <View style={styles.footer}>
-          <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-            <Text style={styles.skipText}>Continue</Text>
-          </TouchableOpacity>
         </View>
-      </LinearGradient>
+
+        {/* Connection Status */}
+        {connectionState.isConnected && (
+          <View style={styles.connectionStatus}>
+            <Feather
+              name="check-circle"
+              size={20}
+              color={semanticColors.success}
+            />
+            <Text style={styles.connectionStatusText}>
+              Connected to {connectionState.deviceName || "device"}
+            </Text>
+          </View>
+        )}
+
+        {/* Empty Space for Visual Balance */}
+        <View style={styles.spacer} />
+      </ScrollView>
+
+      {/* Skip Button */}
+      <View style={styles.footer}>
+        <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
+          <Text style={styles.skipText}>Continue</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Device Scanner Modal */}
       <DeviceScannerModal
@@ -285,13 +276,14 @@ const DeviceConnection = () => {
 
       {/* Sliding Menu */}
       <SlidingMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-    </>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#ffffff",
   },
   statusBar: {
     flexDirection: "row",
@@ -397,7 +389,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   devicesTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "600",
     color: "#374151",
   },
@@ -485,7 +477,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptyDevicesText: {
-    fontSize: 14,
+    fontSize: 18,
     color: "#6b7280",
     textAlign: "center",
     lineHeight: 20,

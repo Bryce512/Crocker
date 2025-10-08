@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 18,
     color: semanticColors.textSecondary,
     textAlign: "center",
     lineHeight: 20,
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     backgroundColor: semanticColors.backgroundSecondary,
   },
   instructionsText: {
-    fontSize: 14,
+    fontSize: 16,
     color: semanticColors.textSecondary,
     marginBottom: 4,
   },

@@ -1006,14 +1006,6 @@ const Calendar = () => {
                                   ⚠️ No kid assigned
                                 </Text>
                               )}
-                              {event.alertIntervals.length > 0 && (
-                                <Text
-                                  style={styles.eventBlockAlerts}
-                                  numberOfLines={1}
-                                >
-                                  🔔 {event.alertIntervals.join(", ")}min
-                                </Text>
-                              )}
                             </TouchableOpacity>
                           );
                         })}
@@ -1340,7 +1332,7 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   hourText: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: "500",
     color: "#6b7280",
   },
@@ -1375,24 +1367,20 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   eventBlockTitle: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: "600",
     color: "#ffffff",
     marginBottom: 1,
   },
   eventBlockTime: {
-    fontSize: 10,
+    fontSize: 14,
     color: "rgba(255, 255, 255, 0.9)",
     marginBottom: 1,
   },
   eventBlockKid: {
-    fontSize: 9,
+    fontSize: 12,
     color: "rgba(255, 255, 255, 0.8)",
     marginBottom: 1,
-  },
-  eventBlockAlerts: {
-    fontSize: 8,
-    color: "rgba(255, 255, 255, 0.7)",
   },
   emptyState: {
     flex: 1,
