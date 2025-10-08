@@ -275,10 +275,12 @@ class CalendarService {
   // Send JSON batch via Bluetooth - now delegates to EventSyncService
   async sendAlertBatchToBluetooth(kidId: string): Promise<boolean> {
     try {
-      console.log(`🔄 Delegating alert batch sync to EventSyncService for kid ${kidId}`);
-      
+      console.log(
+        `🔄 Delegating alert batch sync to EventSyncService for kid ${kidId}`
+      );
+
       // Import and use the new EventSyncService
-      const { eventSyncService } = await import('./eventSyncService');
+      const { eventSyncService } = await import("./eventSyncService");
       return await eventSyncService.syncDeviceEvents(kidId);
     } catch (error) {
       console.error("Error sending alert batch:", error);
@@ -353,10 +355,12 @@ class CalendarService {
     jsonPayload: string,
     kidId: string
   ): Promise<boolean> {
-    console.log('⚠️ sendJSONViaBluetooth is deprecated. Use EventSyncService instead.');
-    
+    console.log(
+      "⚠️ sendJSONViaBluetooth is deprecated. Use EventSyncService instead."
+    );
+
     // Import and delegate to EventSyncService
-    const { eventSyncService } = await import('./eventSyncService');
+    const { eventSyncService } = await import("./eventSyncService");
     return await eventSyncService.syncDeviceEvents(kidId);
   }
 
@@ -418,7 +422,9 @@ class CalendarService {
   }
 
   async markKidNeedsResync(kidId: string): Promise<void> {
-    console.log('⚠️ markKidNeedsResync is deprecated. Use EventSyncService instead.');
+    console.log(
+      "⚠️ markKidNeedsResync is deprecated. Use EventSyncService instead."
+    );
     await this.markAllDevicesForResync();
   }
 
@@ -426,10 +432,10 @@ class CalendarService {
   async markAllDevicesForResync(): Promise<void> {
     try {
       // Import and delegate to EventSyncService
-      const { eventSyncService } = await import('./eventSyncService');
+      const { eventSyncService } = await import("./eventSyncService");
       await eventSyncService.markAllDevicesForResync();
     } catch (error) {
-      console.error('Error marking devices for resync:', error);
+      console.error("Error marking devices for resync:", error);
     }
   }
 

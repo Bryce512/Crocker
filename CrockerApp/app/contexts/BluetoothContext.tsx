@@ -70,7 +70,7 @@ const BluetoothContext = createContext<BluetoothContextType | undefined>(
 export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   // Get base BLE functionality from the hook
   const bleConnectionHook = useBleConnection();
-  
+
   // Get event sync functionality
   const eventSync = useEventSync();
 

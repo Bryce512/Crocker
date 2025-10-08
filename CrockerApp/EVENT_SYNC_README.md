@@ -16,12 +16,14 @@ The Sori app now includes a comprehensive event synchronization system that auto
 ### Core Services
 
 1. **EventSyncService** (`app/services/eventSyncService.ts`)
+
    - Main service managing all sync operations
    - Handles device sync status tracking
    - Manages retry logic and background processing
    - Integrates with Firebase and Bluetooth services
 
 2. **CalendarService** (updated)
+
    - Now delegates sync operations to EventSyncService
    - Triggers resync when events are modified
    - Maintains backward compatibility
@@ -34,6 +36,7 @@ The Sori app now includes a comprehensive event synchronization system that auto
 ### React Hooks & Context
 
 1. **useEventSync** (`app/hooks/useEventSync.ts`)
+
    - React hook providing easy access to sync functionality
    - Manages sync status state and loading states
    - Provides methods for triggering syncs and managing devices
@@ -48,7 +51,7 @@ The Sori app now includes a comprehensive event synchronization system that auto
 ### Basic Event Sync
 
 ```typescript
-import { useEventSync } from '../hooks/useEventSync';
+import { useEventSync } from "../hooks/useEventSync";
 
 const MyComponent = () => {
   const { syncDeviceEvents, allSyncStatus, isSyncing } = useEventSync();
@@ -56,17 +59,18 @@ const MyComponent = () => {
   const handleSyncKid = async (kidId: string) => {
     const success = await syncDeviceEvents(kidId);
     if (success) {
-      console.log('Events synced successfully!');
+      console.log("Events synced successfully!");
     } else {
-      console.log('Sync failed');
+      console.log("Sync failed");
     }
   };
 
   return (
     <View>
-      {allSyncStatus.map(status => (
+      {allSyncStatus.map((status) => (
         <Text key={status.deviceId}>
-          Device {status.deviceId}: {status.isDataCurrent ? 'Up to date' : 'Needs sync'}
+          Device {status.deviceId}:{" "}
+          {status.isDataCurrent ? "Up to date" : "Needs sync"}
         </Text>
       ))}
     </View>
@@ -77,21 +81,21 @@ const MyComponent = () => {
 ### Using the Bluetooth Context
 
 ```typescript
-import { useBluetooth } from '../contexts/BluetoothContext';
+import { useBluetooth } from "../contexts/BluetoothContext";
 
 const SyncStatusScreen = () => {
-  const { 
-    syncStatus, 
-    devicesNeedingSync, 
+  const {
+    syncStatus,
+    devicesNeedingSync,
     forceSyncAll,
-    markAllDevicesForResync 
+    markAllDevicesForResync,
   } = useBluetooth();
 
   return (
     <View>
       <Text>Devices needing sync: {devicesNeedingSync.length}</Text>
-      <Button 
-        title="Sync All Devices" 
+      <Button
+        title="Sync All Devices"
         onPress={forceSyncAll}
         disabled={devicesNeedingSync.length === 0}
       />
@@ -103,12 +107,12 @@ const SyncStatusScreen = () => {
 ### Displaying Sync Status
 
 ```typescript
-import DeviceSyncStatusDisplay from '../components/DeviceSyncStatusDisplay';
+import DeviceSyncStatusDisplay from "../components/DeviceSyncStatusDisplay";
 
 const SyncManagementScreen = () => {
   return (
     <View>
-      <DeviceSyncStatusDisplay 
+      <DeviceSyncStatusDisplay
         showDetails={true}
         onSyncDevice={(deviceId, kidId) => {
           console.log(`Sync completed for ${deviceId}`);
@@ -231,14 +235,14 @@ Use the provided `EventSyncDemoScreen` to test and monitor sync functionality:
 
 ```typescript
 // Add to your navigation
-import EventSyncDemoScreen from '../screens/EventSyncDemo';
+import EventSyncDemoScreen from "../screens/EventSyncDemo";
 
 // In your navigator:
-<Stack.Screen 
-  name="EventSyncDemo" 
+<Stack.Screen
+  name="EventSyncDemo"
   component={EventSyncDemoScreen}
-  options={{ title: 'Event Sync Management' }}
-/>
+  options={{ title: "Event Sync Management" }}
+/>;
 ```
 
 ## Integration Notes
