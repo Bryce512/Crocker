@@ -1,48 +1,89 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  ScrollView,
-  Alert,
+  Animated,
+  Dimensions,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { useAuth } from "../contexts/AuthContext"; // Assuming you have a custom hook for authentication
+import { useAuth } from "../contexts/AuthContext";
+import { colors } from "../theme/colors";
 
+const { width: screenWidth } = Dimensions.get("window");
+const MENU_WIDTH = 280;
 
 const Home = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const [username, setUsername] = useState<string>("");
-  const { signOut } = useAuth(); // Assuming you have a custom hook for authentication
+  const { user, signOut } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  const slideAnim = useRef(new Animated.Value(screenWidth)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
 
+  // Get username from user email (first part before @)
+  const username = user?.displayName || user?.email?.split("@")[0] || "User";
+
+  const openMenu = () => {
+    setIsMenuOpen(true);
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: screenWidth - MENU_WIDTH,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 0.5,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  };
+
+  const closeMenu = () => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: screenWidth,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+    ]).start(() => {
+      setIsMenuOpen(false);
+    });
+  };
+
+  const handleMenuItemPress = (screen?: keyof RootStackParamList) => {
+    closeMenu();
+    if (screen) {
+      setTimeout(() => navigation.navigate(screen), 300);
+    }
+  };
+
+  const handleLogout = () => {
+    closeMenu();
+    setTimeout(() => signOut(), 300);
+  };
 
   return (
-    <LinearGradient colors={["#f8fafc", "#eff6ff"]} style={styles.container}>
-      <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+    <View style={styles.container}>
+      <LinearGradient
+        colors={[colors.gray[50], colors.primary[50]]}
+        style={styles.background}
+      >
+        <StatusBar backgroundColor={colors.gray[50]} barStyle="dark-content" />
 
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        {/* Header with hamburger menu */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.welcome}>Welcome back!</Text>
-            {username ? (
-              <Text style={styles.username}>Hello, {username}</Text>
-            ) : null}
-          </View>
-          <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Coming Soon Content */}
-        <View style={styles.mainContent}>
           <View style={styles.logoSection}>
             <Text style={styles.logo}>
               <Text style={styles.logoS}>s</Text>
@@ -50,52 +91,94 @@ const Home = () => {
               <Text style={styles.logoR}>r</Text>
               <Text style={styles.logoI}>i</Text>
             </Text>
+          </View>
+
+          <TouchableOpacity style={styles.hamburgerButton} onPress={openMenu}>
+            <View style={styles.hamburgerLine} />
+            <View style={styles.hamburgerLine} />
+            <View style={styles.hamburgerLine} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Main Content */}
+        <View style={styles.mainContent}>
+          <View style={styles.welcomeSection}>
+            <Text style={styles.welcomeText}>Welcome to Sori</Text>
             <Text style={styles.tagline}>soften the switch</Text>
           </View>
-
-          <View style={styles.comingSoonSection}>
-            <Text style={styles.comingSoonTitle}>Dashboard Coming Soon</Text>
-            <Text style={styles.comingSoonDescription}>
-              Your Sori dashboard will include device management, scheduling,
-              calendar integration, and more features to help you manage your
-              daily routines seamlessly.
-            </Text>
-
-            <View style={styles.featuresGrid}>
-              <TouchableOpacity
-                style={styles.featureCard}
-                onPress={() => navigation.navigate("CalendarScreen")}
-              >
-                <Text style={styles.featureIcon}>📅</Text>
-                <Text style={styles.featureTitle}>Calendar & Scheduling</Text>
-                <Text style={styles.featureDescription}>
-                  Manage your daily routines and events
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.featureCard}
-                onPress={() => navigation.navigate("ScanDevices")}
-              >
-                <Text style={styles.featureIcon}>📱</Text>
-                <Text style={styles.featureTitle}>Device Management</Text>
-                <Text style={styles.featureDescription}>
-                  Connect and control your Soristuffy devices
-                </Text>
-              </TouchableOpacity>
-
-              <View style={styles.featureCard}>
-                <Text style={styles.featureIcon}>🔔</Text>
-                <Text style={styles.featureTitle}>Smart Alerts</Text>
-                <Text style={styles.featureDescription}>
-                  Customizable notifications and reminders
-                </Text>
-              </View>
-            </View>
-          </View>
         </View>
-      </ScrollView>
-    </LinearGradient>
+
+        {/* Overlay */}
+        {isMenuOpen && (
+          <TouchableWithoutFeedback onPress={closeMenu}>
+            <Animated.View
+              style={[styles.overlay, { opacity: overlayOpacity }]}
+            />
+          </TouchableWithoutFeedback>
+        )}
+
+        {/* Slide Menu */}
+        <Animated.View
+          style={[
+            styles.slideMenu,
+            {
+              transform: [{ translateX: slideAnim }],
+              width: MENU_WIDTH,
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={[colors.white, colors.gray[50]]}
+            style={styles.menuGradient}
+          >
+            {/* Menu Header */}
+            <View style={styles.menuHeader}>
+              <Text style={styles.menuGreeting}>Hey {username},</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={closeMenu}>
+                <Text style={styles.closeButtonText}>×</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Menu Items */}
+            <View style={styles.menuItems}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => handleMenuItemPress()}
+              >
+                <Text style={styles.menuIcon}>�</Text>
+                <Text style={styles.menuItemText}>Profile</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => handleMenuItemPress("ScanDevices")}
+              >
+                <Text style={styles.menuItemText}>Devices</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => handleMenuItemPress("CalendarScreen")}
+              >
+                <Text style={styles.menuIcon}>�</Text>
+                <Text style={styles.menuItemText}>Calendar</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Logout Button */}
+            <View style={styles.menuFooter}>
+              <TouchableOpacity
+                style={styles.logoutMenuItem}
+                onPress={handleLogout}
+              >
+                <Text style={styles.logoutIcon}>🚪</Text>
+                <Text style={styles.logoutText}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
+        </Animated.View>
+      </LinearGradient>
+    </View>
   );
 };
 
@@ -103,169 +186,182 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  statusBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  time: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#1e293b",
-  },
-  notch: {
-    backgroundColor: "#1e293b",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-  },
-  notchInner: {
-    width: 32,
-    height: 4,
-    backgroundColor: "#1e293b",
-    borderRadius: 2,
-  },
-  indicators: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  signalDots: {
-    flexDirection: "row",
-    gap: 4,
-  },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-  },
-  dotActive: {
-    backgroundColor: "#1e293b",
-  },
-  dotInactive: {
-    backgroundColor: "#94a3b8",
-  },
-  battery: {
-    width: 24,
-    height: 12,
-    backgroundColor: "#1e293b",
-    borderRadius: 2,
-    marginLeft: 8,
-  },
-  content: {
+  background: {
     flex: 1,
-    paddingHorizontal: 32,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 32,
-    marginTop: 32,
-  },
-  welcome: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1e293b",
-  },
-  username: {
-    fontSize: 16,
-    color: "#475569",
-    marginTop: 4,
-  },
-  logoutButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
-    borderRadius: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
-  },
-  logoutText: {
-    color: "#475569",
-    fontWeight: "500",
-  },
-  mainContent: {
-    alignItems: "center",
-    paddingVertical: 64,
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
   logoSection: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 32,
   },
   logo: {
     fontSize: 32,
     fontWeight: "700",
     letterSpacing: 2,
-    marginBottom: 8,
   },
   logoS: {
-    color: "#60a5fa",
+    color: colors.primary[400],
   },
   logoO: {
-    color: "#2dd4bf",
+    color: colors.green[500],
   },
   logoR: {
-    color: "#60a5fa",
+    color: colors.primary[400],
   },
   logoI: {
-    color: "#60a5fa",
+    color: colors.primary[500],
+  },
+  hamburgerButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
+    backgroundColor: colors.white,
+    shadowColor: colors.black,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  hamburgerLine: {
+    width: 18,
+    height: 2,
+    backgroundColor: colors.gray[700],
+    marginVertical: 2,
+    borderRadius: 1,
+  },
+  mainContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  welcomeSection: {
+    alignItems: "center",
+  },
+  welcomeText: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: colors.gray[800],
+    marginBottom: 8,
   },
   tagline: {
-    color: "#2dd4bf",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "500",
+    color: colors.green[500],
     letterSpacing: 0.5,
-    marginBottom: 32,
   },
-  comingSoonSection: {
-    maxWidth: 320,
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.black,
+  },
+  slideMenu: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    height: "100%",
+    shadowColor: colors.black,
+    shadowOffset: {
+      width: -2,
+      height: 0,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  menuGradient: {
+    flex: 1,
+    paddingTop: 60,
+  },
+  menuHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[200],
   },
-  comingSoonTitle: {
-    fontSize: 20,
+  menuGreeting: {
+    fontSize: 24,
     fontWeight: "600",
-    color: "#334155",
-    marginBottom: 16,
+    color: colors.gray[800],
   },
-  comingSoonDescription: {
-    fontSize: 16,
-    color: "#475569",
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  featuresGrid: {
-    width: "100%",
-    gap: 16,
-  },
-  featureCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+  closeButton: {
+    width: 32,
+    height: 32,
+    justifyContent: "center",
     alignItems: "center",
+    borderRadius: 16,
+    backgroundColor: colors.gray[100],
   },
-  featureIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  featureTitle: {
-    fontSize: 16,
+  closeButtonText: {
+    fontSize: 20,
     fontWeight: "500",
-    color: "#334155",
-    marginBottom: 8,
+    color: colors.gray[600],
+  },
+  menuItems: {
+    flex: 1,
+    paddingTop: 32,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[100],
+  },
+  menuIcon: {
+    fontSize: 20,
+    marginRight: 16,
+    width: 24,
     textAlign: "center",
   },
-  featureDescription: {
-    fontSize: 14,
-    color: "#475569",
+  menuItemText: {
+    fontSize: 18,
+    fontWeight: "500",
+    color: colors.gray[700],
+  },
+  menuFooter: {
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray[200],
+  },
+  logoutMenuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: colors.red[500],
+    borderRadius: 12,
+  },
+  logoutIcon: {
+    fontSize: 18,
+    marginRight: 12,
+    width: 20,
     textAlign: "center",
-    lineHeight: 20,
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.white,
   },
 });
 

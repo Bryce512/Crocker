@@ -26,9 +26,12 @@ import { useBluetooth } from "../contexts/BluetoothContext";
 import { calendarService, CalendarEvent } from "../services/calendarService";
 import firebaseService from "../services/firebaseService";
 import EventForm from "../components/EventForm";
+import SlidingMenu from "../components/SlidingMenu";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const Calendar = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const {
     events,
     kids,
@@ -51,6 +54,7 @@ const Calendar = () => {
   const [showViewModeDropdown, setShowViewModeDropdown] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -236,7 +240,7 @@ const Calendar = () => {
   };
 
   const handleMenuPress = () => {
-    navigation.navigate("Home");
+    setIsMenuOpen(true);
   };
 
   const handleImportCalendar = async () => {
@@ -706,7 +710,7 @@ const Calendar = () => {
       <StatusBar backgroundColor="#dbeafe" barStyle="dark-content" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 60) }]}>
         <TouchableOpacity onPress={handleMenuPress} style={styles.menuButton}>
           <View style={styles.menuLine} />
           <View style={styles.menuLine} />
@@ -1092,6 +1096,12 @@ const Calendar = () => {
         visible={showEditModal}
         onSave={handleEditModalSave}
         onCancel={handleEditModalCancel}
+      />
+
+      {/* Sliding Menu */}
+      <SlidingMenu
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
       />
     </LinearGradient>
   );

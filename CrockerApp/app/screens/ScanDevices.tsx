@@ -17,7 +17,9 @@ import { RegisteredDevice } from "../models";
 import { useBluetooth } from "../contexts/BluetoothContext";
 import deviceManagementService from "../services/deviceManagementService";
 import DeviceScannerModal from "../components/DeviceScannerModal";
+import SlidingMenu from "../components/SlidingMenu";
 import { colors } from "../theme/colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Create semantic colors from the design system
 const semanticColors = {
@@ -34,6 +36,7 @@ const semanticColors = {
 
 const DeviceConnection = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const {
     connectionState,
     registeredDevices,
@@ -45,6 +48,7 @@ const DeviceConnection = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState<string | null>(null);
   const [showScannerModal, setShowScannerModal] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Load registered devices on mount and manage loading state
   useEffect(() => {
@@ -121,9 +125,22 @@ const DeviceConnection = () => {
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Connect to your</Text>
-            <Text style={styles.titleBrand}>Soristuffy</Text>
+          <View style={[styles.header, { marginTop: Math.max(insets.top + 10, 50) }]}>
+            <TouchableOpacity 
+              onPress={() => setIsMenuOpen(true)} 
+              style={styles.menuButton}
+            >
+              <View style={styles.menuLine} />
+              <View style={styles.menuLine} />
+              <View style={styles.menuLine} />
+            </TouchableOpacity>
+            
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>Connect to your</Text>
+              <Text style={styles.titleBrand}>Soristuffy</Text>
+            </View>
+            
+            <View style={styles.headerSpacer} />
           </View>
 
           {/* My Devices Section */}
@@ -260,6 +277,12 @@ const DeviceConnection = () => {
         onClose={() => setShowScannerModal(false)}
         onDeviceRegistered={handleDeviceRegistered}
       />
+
+      {/* Sliding Menu */}
+      <SlidingMenu
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+      />
     </>
   );
 };
@@ -325,9 +348,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
     marginTop: 60,
     marginBottom: 60,
+  },
+  menuButton: {
+    width: 24,
+    height: 24,
+    justifyContent: "space-between",
+  },
+  menuLine: {
+    width: 20,
+    height: 3,
+    backgroundColor: "#1e293b",
+    borderRadius: 2,
+  },
+  titleContainer: {
+    alignItems: "center",
+  },
+  headerSpacer: {
+    width: 40, // Same width as menu button to center the title
   },
   title: {
     fontSize: 36,

@@ -7,17 +7,14 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import LoginScreen from "../screens/Login";
 import SignupScreen from "../screens/Signup";
 import DeviceConnection from "../screens/ScanDevices";
-import Home from "../screens/Home";
 import CalendarScreen from "../screens/Calendar";
 import EventCreation from "../screens/NewEvent";
 
 
 export type RootStackParamList = {
-  FindMechanics: { diagnosticCode: string };
   Login: undefined;
   Signup: undefined;
   ScanDevices: undefined;
-  Home: undefined;
   CalendarScreen: undefined;
   EventCreation: undefined;
 };
@@ -38,7 +35,6 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="CalendarScreen" component={CalendarScreen} />
             <Stack.Screen name="ScanDevices" component={DeviceConnection} />
-            <Stack.Screen name="Home" component={Home} />
             <Stack.Screen name="EventCreation" component={EventCreation} />
           </>
         ) : (
