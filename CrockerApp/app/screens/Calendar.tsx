@@ -19,7 +19,6 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
-import LinearGradient from "react-native-linear-gradient";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { useCalendar } from "../contexts/CalendarContext";
 import { useBluetooth } from "../contexts/BluetoothContext";
@@ -28,6 +27,7 @@ import firebaseService from "../services/firebaseService";
 import EventForm from "../components/EventForm";
 import SlidingMenu from "../components/SlidingMenu";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import FontAwesome from "react-native-vector-icons/FontAwesome";
 
 const Calendar = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -705,57 +705,64 @@ const Calendar = () => {
   const hourBlockHeight = Math.max(screenHeight * 0.08, 60); // 8% of screen height, minimum 60px
   const eventBlockMinHeight = Math.max(hourBlockHeight * 0.25, 15); // 25% of hour block, minimum 15px
 
+  const currentMonthName = selectedDate.toLocaleDateString("en-US", {
+    month: "long",
+  });
+
+  // Generate week days for the week view
+  const generateWeekDays = () => {
+    const startOfWeek = new Date(selectedDate);
+    const day = startOfWeek.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    startOfWeek.setDate(startOfWeek.getDate() - day); // Go to Sunday
+
+    const weekDays = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(startOfWeek);
+      day.setDate(startOfWeek.getDate() + i);
+      weekDays.push(day);
+    }
+    return weekDays;
+  };
+
+  const weekDays = generateWeekDays();
+  const dayAbbreviations = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+  const isSameDay = (date1: Date, date2: Date) => {
+    return date1.toDateString() === date2.toDateString();
+  };
+
+  const handleDatePress = (date: Date) => {
+    setSelectedDate(date);
+  };
+
+  const handleMonthPress = () => {
+    setShowDatePicker(true);
+  };
+
   return (
-    <LinearGradient colors={["#dbeafe", "#f8fafc"]} style={styles.container}>
-      <StatusBar backgroundColor="#dbeafe" barStyle="dark-content" />
+    <View style={styles.container}>
+      <StatusBar backgroundColor="#ffffff" barStyle="dark-content" />
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 60) }]}>
+      <View
+        style={[styles.header, { paddingTop: Math.max(insets.top + 10, 60) }]}
+      >
         <TouchableOpacity onPress={handleMenuPress} style={styles.menuButton}>
-          <View style={styles.menuLine} />
-          <View style={styles.menuLine} />
-          <View style={styles.menuLine} />
+          <View style={styles.menuLines}>
+            <View style={styles.menuLine} />
+            <View style={styles.menuLine} />
+            <View style={styles.menuLine} />
+          </View>
         </TouchableOpacity>
 
-        <Text style={styles.monthTitle}>Calendar</Text>
+        <TouchableOpacity onPress={handleMonthPress}>
+          <Text style={styles.monthTitle}>{currentMonthName}</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity onPress={handleAddEvent} style={styles.addButton}>
           <View style={styles.addButtonInner}>
-            <Text style={styles.addButtonText}>+</Text>
+            <FontAwesome name="plus" size={18} color="#000" />
           </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.importButton]}
-          onPress={handleImportCalendar}
-          disabled={isImporting}
-        >
-          {isImporting ? (
-            <ActivityIndicator color="#2563eb" size="small" />
-          ) : (
-            <Text style={styles.importButtonText}>Import Calendar</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.actionButton,
-            styles.syncButton,
-            !isConnected && styles.disabledButton,
-          ]}
-          onPress={handleSyncAlerts}
-          disabled={isSyncing || !isConnected}
-        >
-          {isSyncing ? (
-            <ActivityIndicator color="#ffffff" size="small" />
-          ) : (
-            <Text style={styles.syncButtonText}>
-              {isConnected ? "Sync Alerts" : "Not Connected"}
-            </Text>
-          )}
         </TouchableOpacity>
       </View>
 
@@ -770,40 +777,40 @@ const Calendar = () => {
 
       {/* Date Selector */}
       <View style={styles.dateSelector}>
-        {/* Previous day arrow */}
-        <TouchableOpacity
-          onPress={goToPreviousDayWithAnimation}
-          style={styles.navArrow}
-        >
-          <Text style={styles.navArrowText}>‹</Text>
-        </TouchableOpacity>
+        {/* Week days */}
+        <View style={styles.weekContainer}>
+          {weekDays.map((day, index) => {
+            const isSelected = isSameDay(day, selectedDate);
+            const isToday = isSameDay(day, new Date());
 
-        {/* Date display - tappable for date picker */}
-        <TouchableOpacity
-          onPress={() => setShowDatePicker(true)}
-          style={styles.dateDisplayButton}
-        >
-          <Text style={styles.selectedDateText}>
-            {formatDate(selectedDate)}
-          </Text>
-          <Text style={styles.viewModeText}>{viewMode.toUpperCase()} VIEW</Text>
-        </TouchableOpacity>
-
-        {/* Next day arrow */}
-        <TouchableOpacity
-          onPress={goToNextDayWithAnimation}
-          style={styles.navArrow}
-        >
-          <Text style={styles.navArrowText}>›</Text>
-        </TouchableOpacity>
-
-        {/* Today button with dropdown */}
-        <TouchableOpacity
-          onPress={() => setShowViewModeDropdown(true)}
-          style={styles.todayButton}
-        >
-          <Text style={styles.todayButtonText}>Today ▼</Text>
-        </TouchableOpacity>
+            return (
+              <TouchableOpacity
+                key={index}
+                onPress={() => handleDatePress(day)}
+                style={styles.dayContainer}
+              >
+                <Text style={styles.dayAbbreviation}>
+                  {dayAbbreviations[index]}
+                </Text>
+                <View
+                  style={[
+                    styles.dateCircle,
+                    isSelected && styles.selectedDateCircle,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dateNumber,
+                      isSelected && styles.selectedDateNumber,
+                    ]}
+                  >
+                    {day.getDate()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {/* Schedule View */}
@@ -1099,26 +1106,31 @@ const Calendar = () => {
       />
 
       {/* Sliding Menu */}
-      <SlidingMenu
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-      />
-    </LinearGradient>
+      <SlidingMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#ffffff",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingTop: 20,
+    backgroundColor: "#ffffff",
   },
   menuButton: {
+    width: 48,
+    height: 48,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  menuLines: {
     width: 24,
     height: 24,
     justifyContent: "space-between",
@@ -1133,26 +1145,31 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "600",
     color: "#1e293b",
+    justifyContent: "center",
   },
   addButton: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     justifyContent: "center",
     alignItems: "center",
   },
   addButtonInner: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#2dd4bf",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
+    borderWidth: 3,
     alignItems: "center",
-  },
-  addButtonText: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#1e293b",
+    borderColor: "#2dd4bf",
+    color: "1e293b",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   actionButtons: {
     flexDirection: "row",
@@ -1195,13 +1212,66 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   dateSelector: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
+    backgroundColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 5,
+    zIndex: 10,
+  },
+  monthDisplayButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  monthText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1e293b",
+    marginRight: 8,
+  },
+  weekContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  dayContainer: {
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(148, 163, 184, 0.3)",
+    flex: 1,
+  },
+  dayAbbreviation: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#6b7280",
+    marginBottom: 8,
+  },
+  dateCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  selectedDateCircle: {
+    backgroundColor: "#61C9A8",
+  },
+  dateNumber: {
+    fontSize: 20,
+    fontWeight: "500",
+    color: "#1e293b",
+  },
+  selectedDateNumber: {
+    color: "#ffffff",
+    fontWeight: "600",
   },
   dateDisplayButton: {
     flex: 1,

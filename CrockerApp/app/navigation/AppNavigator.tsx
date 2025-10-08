@@ -10,7 +10,6 @@ import DeviceConnection from "../screens/ScanDevices";
 import CalendarScreen from "../screens/Calendar";
 import EventCreation from "../screens/NewEvent";
 
-
 export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;

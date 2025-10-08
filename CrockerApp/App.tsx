@@ -12,7 +12,6 @@ import { CalendarProvider } from "./app/contexts/CalendarContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import ErrorBoundary from "./app/components/ErrorBoundary";
 
-
 export default function App() {
   const [firebaseReady, setFirebaseReady] = useState(false);
   const [error, setError] = useState<string | null>(null);

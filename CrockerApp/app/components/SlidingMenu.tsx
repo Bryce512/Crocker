@@ -7,13 +7,16 @@ import {
   Animated,
   Dimensions,
   TouchableWithoutFeedback,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
-import LinearGradient from "react-native-linear-gradient";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { useAuth } from "../contexts/AuthContext";
+import { useCalendar } from "../contexts/CalendarContext";
+import { calendarService } from "../services/calendarService";
 import { colors } from "../theme/colors";
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -27,8 +30,9 @@ interface SlidingMenuProps {
 const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { user, signOut } = useAuth();
+  const { importCalendarEvents, isImporting } = useCalendar();
   const insets = useSafeAreaInsets();
-  
+
   const slideAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const [isVisible, setIsVisible] = React.useState(false);
@@ -88,6 +92,63 @@ const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
     setTimeout(() => signOut(), 300);
   };
 
+  const handleImportCalendar = async () => {
+    try {
+      // First check permissions
+      const permissionStatus = await calendarService.checkPermissions();
+      console.log("Current permission status:", permissionStatus);
+
+      if (permissionStatus === "denied") {
+        Alert.alert(
+          "Calendar Access Denied",
+          "Calendar access has been denied. Please go to Settings > Privacy & Security > Calendars and enable access for this app, then restart the app.",
+          [{ text: "OK", style: "default" }]
+        );
+        return;
+      }
+
+      Alert.alert(
+        "Import Calendar",
+        "Import events from your device calendar? This will add them to your event list.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Import",
+            onPress: async () => {
+              try {
+                const importedEvents = await importCalendarEvents();
+                Alert.alert(
+                  "Success",
+                  `Imported ${importedEvents.length} events from your calendar`
+                );
+              } catch (error) {
+                console.error("Import error:", error);
+                let errorMessage = "Failed to import calendar events.";
+
+                if (error instanceof Error) {
+                  if (
+                    error.message.includes("permission") ||
+                    error.message.includes("denied")
+                  ) {
+                    errorMessage =
+                      "Calendar access denied. Please enable calendar permissions in your device settings and restart the app.";
+                  } else if (error.message.includes("not found")) {
+                    errorMessage = "No calendar events found to import.";
+                  }
+                }
+
+                Alert.alert("Import Failed", errorMessage);
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error checking permissions:", error);
+      Alert.alert("Error", "Failed to check calendar permissions.");
+    }
+  };
+
   if (!isVisible) {
     return null;
   }
@@ -96,9 +157,7 @@ const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
     <>
       {/* Overlay */}
       <TouchableWithoutFeedback onPress={onClose}>
-        <Animated.View
-          style={[styles.overlay, { opacity: overlayOpacity }]}
-        />
+        <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]} />
       </TouchableWithoutFeedback>
 
       {/* Slide Menu */}
@@ -111,48 +170,87 @@ const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
             height: "100%",
           },
         ]}
-        >
-          <LinearGradient
-            colors={[colors.white, colors.gray[50]]}
-            style={[styles.menuGradient, { paddingTop: safeAreaTop }]}
-          >
-            {/* Menu Header */}
-            <View style={[styles.menuHeader, { marginTop: 20 }]}>
-              <Text style={styles.menuGreeting}>Hey {username},</Text>
-              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                <Text style={styles.closeButtonText}>×</Text>
-              </TouchableOpacity>
-            </View>
+      >
+        <View style={[styles.menuContainer, { paddingTop: safeAreaTop }]}>
+          {/* Menu Header */}
+          <View style={[styles.menuHeader, { marginTop: 20 }]}>
+            <Text style={styles.menuGreeting}>Hey {username},</Text>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Text style={styles.closeButtonText}>×</Text>
+            </TouchableOpacity>
+          </View>
 
-            {/* Menu Items */}
-            <View style={styles.menuItems}>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => handleMenuItemPress()}
-              >
-                <FontAwesome name="user" size={20} color={colors.gray[600]} style={styles.menuIcon} />
-                <Text style={styles.menuItemText}>Profile</Text>
-              </TouchableOpacity>
+          {/* Menu Items */}
+          <View style={styles.menuItems}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuItemPress()}
+            >
+              <FontAwesome
+                name="user"
+                size={20}
+                color={colors.gray[600]}
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuItemText}>Profile</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => handleMenuItemPress("ScanDevices")}
-              >
-                <FontAwesome name="mobile" size={20} color={colors.gray[600]} style={styles.menuIcon} />
-                <Text style={styles.menuItemText}>Devices</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuItemPress("ScanDevices")}
+            >
+              <FontAwesome
+                name="mobile"
+                size={20}
+                color={colors.gray[600]}
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuItemText}>Devices</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => handleMenuItemPress("CalendarScreen")}
-              >
-                <FontAwesome name="calendar" size={20} color={colors.gray[600]} style={styles.menuIcon} />
-                <Text style={styles.menuItemText}>Calendar</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuItemPress("CalendarScreen")}
+            >
+              <FontAwesome
+                name="calendar"
+                size={20}
+                color={colors.gray[600]}
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuItemText}>Calendar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleImportCalendar}
+              disabled={isImporting}
+            >
+              <FontAwesome
+                name="download"
+                size={20}
+                color={isImporting ? colors.gray[400] : colors.gray[600]}
+                style={styles.menuIcon}
+              />
+              {isImporting ? (
+                <View style={styles.importingContainer}>
+                  <ActivityIndicator color={colors.gray[600]} size="small" />
+                  <Text
+                    style={[styles.menuItemText, { color: colors.gray[400] }]}
+                  >
+                    Importing...
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.menuItemText}>Import Calendar</Text>
+              )}
+            </TouchableOpacity>
+          </View>
 
           {/* Logout at bottom */}
-          <View style={[styles.menuFooter, { marginBottom: safeAreaBottom + 40 }]}>
+          <View
+            style={[styles.menuFooter, { marginBottom: safeAreaBottom + 40 }]}
+          >
             <TouchableOpacity
               style={styles.logoutMenuItem}
               onPress={handleLogout}
@@ -160,7 +258,7 @@ const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
               <Text style={styles.logoutText}>Log Out</Text>
             </TouchableOpacity>
           </View>
-        </LinearGradient>
+        </View>
       </Animated.View>
     </>
   );
@@ -191,8 +289,13 @@ const styles = StyleSheet.create({
     elevation: 10,
     zIndex: 1000,
   },
-  menuGradient: {
+  menuContainer: {
     flex: 1,
+    backgroundColor: colors.white,
+  },
+  importingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   menuHeader: {
     flexDirection: "row",

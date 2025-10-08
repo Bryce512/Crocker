@@ -125,21 +125,26 @@ const DeviceConnection = () => {
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Header */}
-          <View style={[styles.header, { marginTop: Math.max(insets.top + 10, 50) }]}>
-            <TouchableOpacity 
-              onPress={() => setIsMenuOpen(true)} 
+          <View
+            style={[
+              styles.header,
+              { marginTop: Math.max(insets.top + 10, 50) },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={() => setIsMenuOpen(true)}
               style={styles.menuButton}
             >
               <View style={styles.menuLine} />
               <View style={styles.menuLine} />
               <View style={styles.menuLine} />
             </TouchableOpacity>
-            
+
             <View style={styles.titleContainer}>
               <Text style={styles.title}>Connect to your</Text>
               <Text style={styles.titleBrand}>Soristuffy</Text>
             </View>
-            
+
             <View style={styles.headerSpacer} />
           </View>
 
@@ -279,10 +284,7 @@ const DeviceConnection = () => {
       />
 
       {/* Sliding Menu */}
-      <SlidingMenu
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-      />
+      <SlidingMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
     </>
   );
 };
