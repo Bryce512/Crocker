@@ -272,40 +272,14 @@ class CalendarService {
     return JSON.stringify(esp32Payload);
   }
 
-  // Send JSON batch via Bluetooth following your existing patterns
+  // Send JSON batch via Bluetooth - now delegates to EventSyncService
   async sendAlertBatchToBluetooth(kidId: string): Promise<boolean> {
     try {
-      const batch = await this.generateAlertBatch(kidId);
-      const jsonPayload = this.alertBatchToJSON(batch);
-
-      console.log(`Sending ${batch.alerts.length} alerts to kid ${kidId}`);
-      console.log("JSON payload size:", jsonPayload.length, "bytes");
-
-      // Use your existing Bluetooth connection patterns
-      // This will integrate with your bleConnections.ts
-      const success = await this.sendJSONViaBluetooth(jsonPayload, kidId);
-
-      if (success) {
-        // Mark kid as synced
-        await this.markKidSynced(kidId);
-
-        // Log successful batch delivery
-        const user = firebaseService.getCurrentUser();
-        if (user) {
-          await firebaseService.writeData(
-            user.uid,
-            "alertHistory",
-            JSON.stringify({
-              kidId,
-              batchSize: batch.alerts.length,
-              sentAt: new Date().toISOString(),
-              checksum: batch.checksum,
-            })
-          );
-        }
-      }
-
-      return success;
+      console.log(`🔄 Delegating alert batch sync to EventSyncService for kid ${kidId}`);
+      
+      // Import and use the new EventSyncService
+      const { eventSyncService } = await import('./eventSyncService');
+      return await eventSyncService.syncDeviceEvents(kidId);
     } catch (error) {
       console.error("Error sending alert batch:", error);
       return false;
@@ -374,28 +348,16 @@ class CalendarService {
     // Set needsResync = false in Firebase
   }
 
+  // Legacy method - now handled by EventSyncService
   private async sendJSONViaBluetooth(
     jsonPayload: string,
     kidId: string
   ): Promise<boolean> {
-    // Import the BLE connection functions here to avoid circular dependencies
-    const { useBleConnection } = require("./bleConnections");
-    const bleConnection = useBleConnection();
-
-    // Find kid's device ID for targeting
-    const user = firebaseService.getCurrentUser();
-    if (!user) return false;
-
-    const kids = await this.getKids(user.uid);
-    const kid = kids.find((k) => k.id === kidId);
-
-    if (!kid || !kid.deviceId) {
-      console.error(`Kid ${kidId} or device ID not found`);
-      return false;
-    }
-
-    // Use the new JSON alert function from bleConnections
-    return await bleConnection.sendJSONAlert(jsonPayload, kid.deviceId);
+    console.log('⚠️ sendJSONViaBluetooth is deprecated. Use EventSyncService instead.');
+    
+    // Import and delegate to EventSyncService
+    const { eventSyncService } = await import('./eventSyncService');
+    return await eventSyncService.syncDeviceEvents(kidId);
   }
 
   private async cacheBatch(batch: AlertBatch): Promise<void> {
@@ -445,10 +407,8 @@ class CalendarService {
     // Save to Firebase using individual object structure
     await firebaseService.addEvent(newEvent);
 
-    // Mark assigned kid for resync
-    if (newEvent.assignedKidId) {
-      await this.markKidNeedsResync(newEvent.assignedKidId);
-    }
+    // Mark all devices for resync using the new EventSyncService
+    await this.markAllDevicesForResync();
 
     return newEvent;
   }
@@ -458,14 +418,19 @@ class CalendarService {
   }
 
   async markKidNeedsResync(kidId: string): Promise<void> {
-    const user = firebaseService.getCurrentUser();
-    if (!user) return;
+    console.log('⚠️ markKidNeedsResync is deprecated. Use EventSyncService instead.');
+    await this.markAllDevicesForResync();
+  }
 
-    await firebaseService.writeData(
-      user.uid,
-      "kidsSyncStatus",
-      JSON.stringify({ [kidId]: { needsResync: true } })
-    );
+  // Mark all devices for resync - delegates to EventSyncService
+  async markAllDevicesForResync(): Promise<void> {
+    try {
+      // Import and delegate to EventSyncService
+      const { eventSyncService } = await import('./eventSyncService');
+      await eventSyncService.markAllDevicesForResync();
+    } catch (error) {
+      console.error('Error marking devices for resync:', error);
+    }
   }
 
   // Cleanup on app close

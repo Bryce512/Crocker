@@ -14,9 +14,11 @@ import { obdDataFunctions } from "../services/obdDataCollection";
 import bluetoothService from "../services/bluetoothService";
 import AppErrorService from "../services/errorService";
 import deviceManagementService from "../services/deviceManagementService";
+import { useEventSync } from "../hooks/useEventSync";
 import { BluetoothDevice, ConnectionState, RegisteredDevice } from "../models";
+import { DeviceSyncStatus } from "../services/eventSyncService";
 
-// Enhanced context interface with device management
+// Enhanced context interface with device management and sync
 interface BluetoothContextType {
   // Connection state
   connectionState: ConnectionState;
@@ -26,6 +28,11 @@ interface BluetoothContextType {
   registeredDevices: RegisteredDevice[];
   rememberedDevice: BluetoothDevice | null;
   plxDevice: Device | null;
+
+  // Sync management
+  syncStatus: DeviceSyncStatus[];
+  devicesNeedingSync: DeviceSyncStatus[];
+  isSyncing: boolean;
 
   // UI state
   showDeviceSelector: boolean;
@@ -39,6 +46,12 @@ interface BluetoothContextType {
   // Device management actions
   loadRegisteredDevices: () => Promise<void>;
   connectToRegisteredDevice: (device: RegisteredDevice) => Promise<boolean>;
+
+  // Event sync actions
+  syncDeviceEvents: (kidId: string, deviceId?: string) => Promise<boolean>;
+  markAllDevicesForResync: () => Promise<void>;
+  forceSyncAll: () => Promise<void>;
+  refreshSyncStatus: () => Promise<void>;
 
   // State setters
   setDiscoveredDevices: (devices: BluetoothDevice[]) => void;
@@ -57,6 +70,9 @@ const BluetoothContext = createContext<BluetoothContextType | undefined>(
 export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   // Get base BLE functionality from the hook
   const bleConnectionHook = useBleConnection();
+  
+  // Get event sync functionality
+  const eventSync = useEventSync();
 
   // State variables managed at the context level
 
@@ -360,6 +376,11 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     rememberedDevice,
     plxDevice: bleConnectionHook.plxDevice,
 
+    // Sync management
+    syncStatus: eventSync.allSyncStatus,
+    devicesNeedingSync: eventSync.devicesNeedingSync,
+    isSyncing: eventSync.isSyncing,
+
     // UI state
     showDeviceSelector,
     reconnectAttempt,
@@ -372,6 +393,12 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     // Device management actions
     loadRegisteredDevices,
     connectToRegisteredDevice,
+
+    // Event sync actions
+    syncDeviceEvents: eventSync.syncDeviceEvents,
+    markAllDevicesForResync: eventSync.markAllDevicesForResync,
+    forceSyncAll: eventSync.forceSyncAll,
+    refreshSyncStatus: eventSync.refreshSyncStatus,
 
     // State setters
     setDiscoveredDevices,

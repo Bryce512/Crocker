@@ -42,6 +42,12 @@ export interface Kid {
   age?: number;
   notes?: string;
   deviceId?: string; // Link to registered device
+  alertPreferences?: {
+    defaultIntervals: number[]; // minutes before event [15, 10, 5]
+    quietHours: { start: string; end: string }; // HH:MM format
+    alertStyle: "gentle" | "persistent";
+  };
+  needsResync?: boolean; // Legacy - now handled by EventSyncService
 }
 
 // Enhanced Device Management Models
@@ -117,4 +123,31 @@ export interface AppError {
   code: string;
   message: string;
   originalError?: any;
+}
+
+// Event Sync Types
+export interface EventBatch {
+  kidId: string;
+  generatedAt: Date;
+  validUntil: Date;
+  alerts: EventAlert[];
+  checksum: string;
+}
+
+export interface EventAlert {
+  eventId: string;
+  eventTitle: string;
+  alertTime: Date;
+  minutesUntilEvent: number;
+  alertType: "transition_warning" | "final_warning";
+  vibrationPattern?: number[];
+}
+
+// Sync Status Types
+export interface SyncMetrics {
+  totalDevices: number;
+  devicesNeedingSync: number;
+  lastSyncCheck: Date | null;
+  successfulSyncsLast24h: number;
+  failedSyncsLast24h: number;
 }
