@@ -18,6 +18,7 @@
       "buildNumber": "1",
       "jsEngine": "hermes",
       "googleServicesFile": "./GoogleService-Info.plist",
+      "teamId": "93Z7U9MQAB",
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
         "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",

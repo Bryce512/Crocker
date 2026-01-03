@@ -36,6 +36,14 @@ export interface Event {
   lastModified: Date;
 }
 
+// BLE Event format for CrockerDisplay
+export interface BLEEvent {
+  start: number; // minutes from midnight
+  duration: number; // seconds
+  label: string; // event title/label
+  path: string; // image path on device (e.g., "/sdcard/breakfast.png")
+}
+
 export interface Kid {
   id: string;
   name: string;

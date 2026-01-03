@@ -20,9 +20,21 @@ import { BluetoothDevice, ConnectionState } from "../models";
 // Constants
 const { BleManager: BleManagerModule } = NativeModules;
 const bleEmitter = new NativeEventEmitter(NativeModules.BleManager);
-const SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb";
-const WRITE_UUID = "0000fff2-0000-1000-8000-00805f9b34fb";
-const READ_UUID = "0000fff1-0000-1000-8000-00805f9b34fb";
+
+// BLE UUIDs - Custom service for CrockerDisplay
+const SERVICE_UUID = "550e8400-e29b-41d4-a716-446655440000";
+const CONFIG_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440001";
+const FILE_TRANSFER_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440002";
+const STATUS_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440003";
+const TIME_SYNC_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440004";
+
+// BLE MTU size (typically 512 bytes, minus overhead leaves ~480 for payload)
+const BLE_FILE_CHUNK_SIZE = 480;
+
+// Legacy aliases for backward compatibility
+const WRITE_UUID = FILE_TRANSFER_CHAR_UUID;
+const READ_UUID = CONFIG_CHAR_UUID;
+
 const REMEMBERED_DEVICE_KEY = "@soriApp:rememberedDevice";
 const blePlxManager = new BlePlxManager();
 const TARGET_DEVICE_NAME = "OBDII"; // Change to your device's Bluetooth name
@@ -62,10 +74,10 @@ export const useBleConnection = (options?: {
   const [writeServiceUUID, setWriteServiceUUID] =
     useState<string>(SERVICE_UUID);
   const [writeCharUUID, setWriteCharUUID] = useState<string>(
-    "0000fff2-0000-1000-8000-00805f9b34fb"
+    FILE_TRANSFER_CHAR_UUID
   );
   const [readCharUUID, setReadCharUUID] = useState<string>(
-    "0000fff1-0000-1000-8000-00805f9b34fb"
+    CONFIG_CHAR_UUID
   );
   const activeOperations = useRef(0);
   const connectionLockTime = useRef<number | null>(null);
@@ -928,20 +940,24 @@ export const useBleConnection = (options?: {
             // Try to use this service with common OBD characteristic patterns
             setWriteServiceUUID(service.uuid);
 
+            // For CrockerDisplay service (550e8400-...440000):
+            // - File Transfer: 550e8400-...440002
+            // - Config: 550e8400-...440001
+            // - Status: 550e8400-...440003
+            if (serviceUUID.includes("550e8400")) {
+              logMessage(`Using CrockerDisplay service pattern`);
+              setWriteCharUUID(FILE_TRANSFER_CHAR_UUID);
+              setReadCharUUID(CONFIG_CHAR_UUID);
+              foundOBDService = true;
+              break;
+            }
             // For most OBD adapters, if service is fff0:
             // - Write characteristic is typically fff2
             // - Read/notify characteristic is typically fff1
-            if (serviceUUID.includes("fff0")) {
-              const shortServiceId = "0000fff0-0000-1000-8000-00805f9b34fb";
-              const writeCharId = "0000fff2-0000-1000-8000-00805f9b34fb";
-              const readCharId = "0000fff1-0000-1000-8000-00805f9b34fb"; // Read characteristic
-
+            else if (serviceUUID.includes("fff0")) {
               logMessage(`Using standard OBD characteristic pattern`);
-              // logMessage(`- Write: ${writeCharId}`);
-              // logMessage(`- Read/Notify: ${readCharId}`);
-
-              // setWriteCharUUID(writeCharId);
-              // setReadCharUUID(readCharId); // Set the read characteristic
+              setWriteCharUUID("fff2");
+              setReadCharUUID("fff1");
               foundOBDService = true;
               break;
             }
@@ -963,12 +979,13 @@ export const useBleConnection = (options?: {
           logMessage(`🎯 Will use write characteristic: ${writeCharUUID}`);
           return true;
         } else {
-          // Fallback to default values if no proper service found
+          // Fallback to CrockerDisplay default values if no proper service found
           logMessage(
-            `⚠️ Could not identify suitable OBD service, using defaults`
+            `⚠️ Could not identify suitable service, using CrockerDisplay defaults`
           );
-          setWriteServiceUUID("0000fff0-0000-1000-8000-00805f9b34fb"); // Use standard OBD service
-          setWriteCharUUID("0000fff2-0000-1000-8000-00805f9b34fb"); // Use standard OBD write characteristic
+          setWriteServiceUUID(SERVICE_UUID);
+          setWriteCharUUID(FILE_TRANSFER_CHAR_UUID);
+          setReadCharUUID(CONFIG_CHAR_UUID);
           return false;
         }
       } else {

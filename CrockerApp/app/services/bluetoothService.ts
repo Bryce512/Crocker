@@ -9,10 +9,19 @@ import {
   ServiceResponse,
 } from "../models";
 
-// Constants
-const SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb";
-const WRITE_UUID = "0000fff2-0000-1000-8000-00805f9b34fb";
-const READ_UUID = "0000fff1-0000-1000-8000-00805f9b34fb";
+// BLE UUIDs - Custom service for CrockerDisplay
+const SERVICE_UUID = "550e8400-e29b-41d4-a716-446655440000";
+const CONFIG_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440001";
+const FILE_TRANSFER_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440002";
+const STATUS_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440003";
+const TIME_SYNC_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440004";
+
+// BLE MTU size (typically 512 bytes, minus overhead leaves ~480 for payload)
+const BLE_FILE_CHUNK_SIZE = 480;
+
+// Legacy aliases for backward compatibility
+const WRITE_UUID = FILE_TRANSFER_CHAR_UUID;
+const READ_UUID = CONFIG_CHAR_UUID;
 const REMEMBERED_DEVICE_KEY = "@soriApp:rememberedDevice";
 const blePlxManager = new BlePlxManager();
 
@@ -278,29 +287,19 @@ export const createJson = (data: any): string => {
   return JSON.stringify(data);
 };
 
-// Interface for ESP32 event payload
-interface ESP32EventPayload {
-  timestamp: number;
-  valid_until: number;
-  kid_id: string;
-  event_count: number;
+// Interface for CrockerDisplay event payload
+interface CrockerEventPayload {
   events: Array<{
-    id: number;
-    title: string;
-    start_time: number;
-    end_time: number;
-    duration_minutes: number;
-    alerts: Array<{
-      alert_time: number;
-      minutes_before: number;
-      type: string;
-    }>;
+    start: number; // minutes from midnight
+    duration: number; // seconds
+    label: string; // event title
+    path: string; // image path on device
   }>;
   checksum?: string;
   error?: string;
 }
 
-// Get events for the next 24 hours and create JSON payload for peripheral
+// Get events for the next 24 hours and create JSON payload for CrockerDisplay
 export const createNext24HoursEventsJson = async (
   kidId?: string
 ): Promise<string> => {
@@ -331,49 +330,31 @@ export const createNext24HoursEventsJson = async (
         new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
     );
 
-    // Create ESP32-friendly payload
-    const payload: ESP32EventPayload = {
-      timestamp: Math.floor(now.getTime() / 1000), // Unix timestamp
-      valid_until: Math.floor(next24Hours.getTime() / 1000),
-      kid_id: kidId || "default",
-      event_count: filteredEvents.length,
-      events: filteredEvents.map((event: any, index: number) => ({
-        id: index + 1, // Simple sequential ID for ESP32
-        title: (event.title || "Untitled Event").substring(0, 30), // Limit title length
-        start_time: Math.floor(new Date(event.startTime).getTime() / 1000), // Unix timestamp
-        end_time: Math.floor(new Date(event.endTime).getTime() / 1000),
-        duration_minutes: Math.floor(
-          (new Date(event.endTime).getTime() -
-            new Date(event.startTime).getTime()) /
-            (1000 * 60)
-        ),
-        // Default alert intervals: 15, 10, 5 minutes before
-        alerts: [
-          {
-            alert_time: Math.floor(
-              (new Date(event.startTime).getTime() - 15 * 60 * 1000) / 1000
-            ),
-            minutes_before: 15,
-            type: "warning",
-          },
-          {
-            alert_time: Math.floor(
-              (new Date(event.startTime).getTime() - 10 * 60 * 1000) / 1000
-            ),
-            minutes_before: 10,
-            type: "warning",
-          },
-          {
-            alert_time: Math.floor(
-              (new Date(event.startTime).getTime() - 5 * 60 * 1000) / 1000
-            ),
-            minutes_before: 5,
-            type: "final",
-          },
-        ].filter(
-          (alert) => alert.alert_time > Math.floor(now.getTime() / 1000)
-        ), // Only future alerts
-      })),
+    // Create CrockerDisplay-friendly payload
+    const payload: CrockerEventPayload = {
+      events: filteredEvents.map((event: any) => {
+        const startTime = new Date(event.startTime);
+        const endTime = new Date(event.endTime);
+        
+        // Calculate minutes from midnight
+        const startOfDay = new Date(startTime);
+        startOfDay.setHours(0, 0, 0, 0);
+        const minutesFromMidnight = Math.floor(
+          (startTime.getTime() - startOfDay.getTime()) / (1000 * 60)
+        );
+        
+        // Calculate duration in seconds
+        const durationSeconds = Math.floor(
+          (endTime.getTime() - startTime.getTime()) / 1000
+        );
+        
+        return {
+          start: minutesFromMidnight,
+          duration: durationSeconds,
+          label: (event.title || "Untitled Event").substring(0, 30),
+          path: event.path || `/sdcard/${event.title?.toLowerCase().replace(/\s+/g, "-")}.png` || "/sdcard/event.png",
+        };
+      }),
     };
 
     // Add checksum for data integrity
@@ -386,17 +367,13 @@ export const createNext24HoursEventsJson = async (
       `📤 Created JSON payload for ${filteredEvents.length} events (next 24 hours)`
     );
     console.log(`📦 Payload size: ${JSON.stringify(payload).length} bytes`);
+    console.log("📋 Payload:", payload);
 
     return JSON.stringify(payload);
   } catch (error) {
     console.error("Error creating events JSON:", error);
     // Return empty payload on error
-    const now = new Date();
-    const emptyPayload: ESP32EventPayload = {
-      timestamp: Math.floor(now.getTime() / 1000),
-      valid_until: Math.floor((now.getTime() + 24 * 60 * 60 * 1000) / 1000),
-      kid_id: kidId || "default",
-      event_count: 0,
+    const emptyPayload: CrockerEventPayload = {
       events: [],
       checksum: "empty000",
       error: "Failed to load events",
@@ -466,6 +443,11 @@ export default {
 
   // Constants
   SERVICE_UUID,
+  CONFIG_CHAR_UUID,
+  FILE_TRANSFER_CHAR_UUID,
+  STATUS_CHAR_UUID,
+  TIME_SYNC_CHAR_UUID,
+  BLE_FILE_CHUNK_SIZE,
   WRITE_UUID,
   READ_UUID,
 };
