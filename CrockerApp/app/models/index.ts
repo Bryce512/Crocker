@@ -33,6 +33,7 @@ export interface Event {
   endTime: Date;
   description?: string;
   assignedKidId?: string | null;
+  assignedDeviceIds?: string[]; // Track which devices this event is assigned to
   lastModified: Date;
 }
 
@@ -72,6 +73,8 @@ export interface RegisteredDevice {
   batteryLevel?: number; // If supported by device
   firmwareVersion?: string; // If available
   assignedKidId?: string | null; // Which kid this device belongs to
+  eventsUpdatedFlag?: boolean; // Indicates event schedule has been updated - needs sync
+  lastEventsSyncTime?: Date | null; // Track when events were last synced
 }
 
 export interface DeviceProfile {

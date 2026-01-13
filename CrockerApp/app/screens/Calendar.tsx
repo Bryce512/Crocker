@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   StatusBar,
   ScrollView,
   Alert,
-  ActivityIndicator,
   RefreshControl,
   Modal,
   Platform,
@@ -28,6 +27,22 @@ import EventForm from "../components/EventForm";
 import SlidingMenu from "../components/SlidingMenu";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
+
+// Helper function to get local date string (YYYY-MM-DD) for consistent date comparisons
+const getLocalDateString = (date: Date | string | null | undefined): string => {
+  if (!date) return "";
+  
+  // Convert string to Date if needed
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  
+  // Validate it's actually a Date object
+  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+    console.warn("Invalid date passed to getLocalDateString:", date);
+    return "";
+  }
+  
+  return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+};
 
 const Calendar = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -267,11 +282,7 @@ const Calendar = () => {
             text: "Import",
             onPress: async () => {
               try {
-                const importedEvents = await importCalendarEvents();
-                Alert.alert(
-                  "Success",
-                  `Imported ${importedEvents.length} events from your calendar`
-                );
+                await importCalendarEvents();
               } catch (error) {
                 console.error("Import error:", error);
                 let errorMessage = "Failed to import calendar events.";
@@ -391,60 +402,61 @@ const Calendar = () => {
     setSelectedEvent(undefined);
   };
 
-  const formatDate = (date: Date): string => {
-    return date.toLocaleDateString("en-US", {
+  const formatDate = (date: Date | string | null | undefined): string => {
+    if (!date) return "--";
+    
+    // Convert string to Date if needed
+    const dateObj = typeof date === "string" ? new Date(date) : date;
+    
+    // Validate it's actually a Date object
+    if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+      console.warn("Invalid date passed to formatDate:", date);
+      return "--";
+    }
+    
+    return dateObj.toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
     });
   };
 
-  const formatTime = (date: Date): string => {
-    return date.toLocaleTimeString("en-US", {
+  const formatTime = (date: Date | string | null | undefined): string => {
+    if (!date) return "--:--";
+    
+    // Convert string to Date if needed
+    const dateObj = typeof date === "string" ? new Date(date) : date;
+    
+    // Validate it's actually a Date object
+    if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+      console.warn("Invalid date passed to formatTime:", date);
+      return "--:--";
+    }
+    
+    return dateObj.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
     });
   };
 
-  const getEventsForSelectedDate = () => {
-    console.log("🔍 DEBUG Calendar: Raw events from context:", events);
-    console.log("🔍 DEBUG Calendar: Events length:", events.length);
-    console.log("🔍 DEBUG Calendar: Selected date:", selectedDate);
-
-    // Get date strings for comparison (YYYY-MM-DD format)
-    const selectedDateString = selectedDate.toISOString().split("T")[0];
-    console.log("🔍 DEBUG Calendar: Selected date string:", selectedDateString);
+  const getEventsForSelectedDate = useCallback(() => {
+    // Get date strings for comparison using local date (YYYY-MM-DD format)
+    const selectedDateString = getLocalDateString(selectedDate);
 
     const filteredEvents = events
       .filter((event) => {
-        console.log("🔍 DEBUG Calendar: Checking event:", event.title);
-
         // Convert event.startTime to Date if it's not already
         const eventStartTime =
           event.startTime instanceof Date
             ? event.startTime
             : new Date(event.startTime);
 
-        // Get event date string for comparison
-        const eventDateString = eventStartTime.toISOString().split("T")[0];
-
-        console.log(
-          "🔍 DEBUG Calendar: Event date string:",
-          eventDateString,
-          "Selected:",
-          selectedDateString
-        );
+        // Get event date string for comparison using local date
+        const eventDateString = getLocalDateString(eventStartTime);
 
         const isActive = event.isActive;
         const isInRange = eventDateString === selectedDateString;
-
-        console.log(
-          "🔍 DEBUG Calendar: isActive:",
-          isActive,
-          "isInRange:",
-          isInRange
-        );
 
         return isActive && isInRange;
       })
@@ -456,9 +468,8 @@ const Calendar = () => {
         return aTime.getTime() - bTime.getTime();
       });
 
-    console.log("🔍 DEBUG Calendar: filtered events:", filteredEvents);
     return filteredEvents;
-  };
+  }, [events, selectedDate]);
 
   // Calculate event positioning within hour blocks
   const calculateEventPosition = (event: any, currentHour?: number) => {
@@ -648,13 +659,13 @@ const Calendar = () => {
   };
 
   // Generate hour blocks (6 AM to 11 PM)
-  const generateHourBlocks = () => {
+  const generateHourBlocks = useCallback(() => {
     const hours = [];
     for (let i = 6; i <= 23; i++) {
       hours.push(i);
     }
     return hours;
-  };
+  }, []);
 
   const formatHour = (hour: number): string => {
     if (hour === 0) return "12 AM";
@@ -698,12 +709,12 @@ const Calendar = () => {
     };
   };
 
-  const todaysEvents = getEventsForSelectedDate();
-  const hourBlocks = generateHourBlocks();
+  const todaysEvents = useMemo(() => getEventsForSelectedDate(), [getEventsForSelectedDate]);
+  const hourBlocks = useMemo(() => generateHourBlocks(), [generateHourBlocks]);
 
   // Calculate responsive dimensions
   const hourBlockHeight = Math.max(screenHeight * 0.08, 60); // 8% of screen height, minimum 60px
-  const eventBlockMinHeight = Math.max(hourBlockHeight * 0.25, 15); // 25% of hour block, minimum 15px
+  const eventBlockMinHeight = Math.max(hourBlockHeight * 0.25, 30); // 25% of hour block (15 min), minimum 30px
 
   const currentMonthName = selectedDate.toLocaleDateString("en-US", {
     month: "long",
@@ -770,7 +781,11 @@ const Calendar = () => {
       {lastSyncTime && (
         <View style={styles.syncStatus}>
           <Text style={styles.syncStatusText}>
-            Last sync: {lastSyncTime.toLocaleTimeString()}
+            Last sync: {
+              typeof lastSyncTime === "string" 
+                ? new Date(lastSyncTime).toLocaleTimeString()
+                : lastSyncTime.toLocaleTimeString()
+            }
           </Text>
         </View>
       )}
@@ -838,23 +853,6 @@ const Calendar = () => {
             showsVerticalScrollIndicator={false}
             scrollEnabled={true}
           >
-            {todaysEvents.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>
-                  {events.length > 0
-                    ? `${events.length} events found but none for this date`
-                    : "No events for this date"}
-                </Text>
-                <Text style={styles.emptyStateSubtext}>
-                  {events.length > 0 && events.some((e) => !e.startTime)
-                    ? "Some events are missing date information and need to be re-imported"
-                    : "Tap + to add an event or import from your calendar"}
-                </Text>
-                <Text style={styles.swipeHint}>
-                  Swipe left/right to navigate between days
-                </Text>
-              </View>
-            ) : (
               <View style={styles.scheduleGrid}>
                 {/* Current Time Indicator */}
                 {(() => {
@@ -976,36 +974,17 @@ const Calendar = () => {
                               activeOpacity={0.7}
                             >
                               <Text
-                                style={styles.eventBlockTitle}
-                                numberOfLines={1}
+                                style={[
+                                  styles.eventBlockTitle,
+                                  {
+                                    fontSize: position.pixelHeight < 50 ? 12 : 14,
+                                  },
+                                ]}
+                                numberOfLines={Math.floor(position.pixelHeight / 20)}
+                                ellipsizeMode="tail"
                               >
                                 {event.title}
                               </Text>
-                              <Text
-                                style={styles.eventBlockTime}
-                                numberOfLines={1}
-                              >
-                                {formatTime(event.startTime)} -{" "}
-                                {formatTime(event.endTime)}
-                              </Text>
-                              {assignedKid ? (
-                                <Text
-                                  style={styles.eventBlockKid}
-                                  numberOfLines={1}
-                                >
-                                  → {assignedKid.name}
-                                </Text>
-                              ) : (
-                                <Text
-                                  style={[
-                                    styles.eventBlockKid,
-                                    { color: "#888" },
-                                  ]}
-                                  numberOfLines={1}
-                                >
-                                  ⚠️ No kid assigned
-                                </Text>
-                              )}
                             </TouchableOpacity>
                           );
                         })}
@@ -1014,7 +993,6 @@ const Calendar = () => {
                   );
                 })}
               </View>
-            )}
           </ScrollView>
         </Animated.View>
       </View>
@@ -1354,7 +1332,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(45, 212, 191, 0.9)",
     borderRadius: 6,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderLeftWidth: 3,
     borderLeftColor: "#0d9488",
     shadowColor: "#000",
@@ -1365,12 +1343,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    justifyContent: "center",
   },
   eventBlockTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: "#ffffff",
-    marginBottom: 1,
+    lineHeight: 18,
   },
   eventBlockTime: {
     fontSize: 14,

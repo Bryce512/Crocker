@@ -170,81 +170,114 @@ class EventSyncService {
         return true;
       }
 
+      // Check if we've exceeded max retry attempts
+      if (syncStatus.pendingRetries >= this.config.maxRetryAttempts) {
+        console.log(
+          `❌ Device ${targetDeviceId} has exceeded max retry attempts (${syncStatus.pendingRetries}/${this.config.maxRetryAttempts})`
+        );
+        return false;
+      }
+
       // Generate 24-hour event batch
       const eventBatch = await this.generate24HourEventBatch(kidId);
 
-      // Convert to JSON format for transmission
-      const jsonPayload = this.formatEventBatchForTransmission(eventBatch);
+      // Send batch with retry logic - only retry Bluetooth transmission
+      const success = await this.sendEventBatchWithRetry(
+        eventBatch,
+        targetDeviceId,
+        kidId
+      );
 
-      // Record sync attempt
-      const syncAttempt: SyncAttempt = {
-        timestamp: new Date(),
-        success: false,
-        batchSize: eventBatch.alerts.length,
-        checksum: eventBatch.checksum,
-      };
-
-      const startTime = Date.now();
-
-      try {
-        // Send via Bluetooth
-        const bleConnection = useBleConnection();
-        const success = await bleConnection.sendJSONAlert(
-          jsonPayload,
-          targetDeviceId
-        );
-
-        syncAttempt.responseTime = Date.now() - startTime;
-        syncAttempt.success = success;
-
-        if (success) {
-          // Verify delivery if possible
-          const verified = await bleConnection.verifyAlertBatchDelivery(
-            eventBatch.checksum,
-            targetDeviceId
-          );
-
-          if (verified) {
-            console.log(
-              `✅ Event batch successfully synced to device ${targetDeviceId}`
-            );
-            await this.markSyncSuccessful(
-              targetDeviceId,
-              kidId,
-              eventBatch,
-              syncAttempt
-            );
-            return true;
-          } else {
-            console.log(
-              `⚠️ Event batch sent but verification failed for device ${targetDeviceId}`
-            );
-            syncAttempt.error = "Verification failed";
-          }
-        } else {
-          syncAttempt.error = "Bluetooth transmission failed";
-        }
-      } catch (transmissionError) {
-        syncAttempt.error =
-          transmissionError instanceof Error
-            ? transmissionError.message
-            : String(transmissionError);
-        syncAttempt.responseTime = Date.now() - startTime;
-      }
-
-      // Record failed attempt
-      await this.markSyncFailed(targetDeviceId, kidId, syncAttempt);
-
-      // Schedule retry if within limits
-      if (syncStatus.pendingRetries < this.config.maxRetryAttempts) {
-        await this.scheduleRetry(targetDeviceId, kidId);
-      }
-
-      return false;
+      return success;
     } catch (error) {
       console.error(`❌ Event sync failed for kid ${kidId}:`, error);
       return false;
     }
+  }
+
+  /**
+   * Send event batch via Bluetooth with retry logic for transmission failures only
+   */
+  private async sendEventBatchWithRetry(
+    eventBatch: AlertBatch,
+    targetDeviceId: string,
+    kidId: string
+  ): Promise<boolean> {
+    const bleConnection = useBleConnection();
+    const jsonPayload = this.formatEventBatchForTransmission(eventBatch);
+
+    // Record sync attempt
+    const syncAttempt: SyncAttempt = {
+      timestamp: new Date(),
+      success: false,
+      batchSize: eventBatch.alerts.length,
+      checksum: eventBatch.checksum,
+    };
+
+    const startTime = Date.now();
+
+    try {
+      // Send via Bluetooth
+      const success = await bleConnection.sendJSONAlert(
+        jsonPayload,
+        targetDeviceId
+      );
+
+      syncAttempt.responseTime = Date.now() - startTime;
+      syncAttempt.success = success;
+
+      if (success) {
+        // Verify delivery if possible
+        const verified = await bleConnection.verifyAlertBatchDelivery(
+          eventBatch.checksum,
+          targetDeviceId
+        );
+
+        if (verified) {
+          console.log(
+            `✅ Event batch successfully synced to device ${targetDeviceId}`
+          );
+          await this.markSyncSuccessful(
+            targetDeviceId,
+            kidId,
+            eventBatch,
+            syncAttempt
+          );
+          return true;
+        } else {
+          console.log(
+            `⚠️ Event batch sent but verification failed for device ${targetDeviceId}`
+          );
+          syncAttempt.error = "Verification failed";
+        }
+      } else {
+        syncAttempt.error = "Bluetooth transmission failed";
+      }
+    } catch (transmissionError) {
+      syncAttempt.error =
+        transmissionError instanceof Error
+          ? transmissionError.message
+          : String(transmissionError);
+      syncAttempt.responseTime = Date.now() - startTime;
+    }
+
+    // Record failed attempt
+    const syncStatus = await this.getSyncStatus(targetDeviceId, kidId);
+    await this.markSyncFailed(targetDeviceId, kidId, syncAttempt);
+
+    // Schedule retry only if we haven't exceeded max attempts
+    if (syncStatus.pendingRetries < this.config.maxRetryAttempts) {
+      await this.scheduleRetry(targetDeviceId, kidId);
+      console.log(
+        `⏰ Retry scheduled for device ${targetDeviceId} (attempt ${syncStatus.pendingRetries}/${this.config.maxRetryAttempts})`
+      );
+    } else {
+      console.log(
+        `❌ Max retries exceeded for device ${targetDeviceId}. No more retries will be scheduled.`
+      );
+    }
+
+    return false;
   }
 
   /**
@@ -346,6 +379,14 @@ class EventSyncService {
    */
   private isSyncNeeded(syncStatus: DeviceSyncStatus): boolean {
     const now = new Date();
+
+    // If max retries exceeded, no sync needed (we've given up)
+    if (syncStatus.pendingRetries >= this.config.maxRetryAttempts) {
+      console.log(
+        `ℹ️ Sync not needed: Max retries exceeded (${syncStatus.pendingRetries}/${this.config.maxRetryAttempts})`
+      );
+      return false;
+    }
 
     // If never synced, sync is needed
     if (!syncStatus.lastSuccessfulSync) {

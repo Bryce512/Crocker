@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Modal,
   View,
@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { BluetoothDevice, RegisteredDevice } from "../models";
@@ -47,7 +49,7 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
   onDeviceRegistered,
   assignedKidId,
 }) => {
-  const { connectionState, discoveredDevices, startScan } = useBluetooth();
+  const { connectionState, discoveredDevices, startScan, connectToDevice } = useBluetooth();
   const [isScanning, setIsScanning] = useState(false);
   const [devicesWithStatus, setDevicesWithStatus] = useState<
     DeviceWithRegistrationStatus[]
@@ -98,7 +100,11 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
   };
 
   const handleDevicePress = (device: DeviceWithRegistrationStatus) => {
+    console.log("🔷 DeviceScannerModal: Device pressed -", device.name, device.id);
+    console.log("🔷 DeviceScannerModal: Device isRegistered?", device.isRegistered);
+    
     if (device.isRegistered) {
+      console.log("🔷 DeviceScannerModal: Device already registered, showing alert");
       Alert.alert(
         "Device Already Registered",
         `This device is already registered as "${device.registeredNickname}".`,
@@ -107,6 +113,7 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
       return;
     }
 
+    console.log("🔷 DeviceScannerModal: Setting selected device and showing naming modal");
     setSelectedDevice(device);
     setDeviceNickname(device.name || "My Soristuffy");
     setShowNamingModal(true);
@@ -129,14 +136,13 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
       if (result.success && result.data) {
         console.log("Device registered successfully:", result.data);
         onDeviceRegistered(result.data);
+        
+        // Attempt to connect to the device immediately after registration
+        const connectionSuccess = await connectToDevice(selectedDevice);
+        
         setShowNamingModal(false);
         onClose();
 
-        Alert.alert(
-          "Device Registered!",
-          `${result.data.nickname} has been successfully registered and is ready to use.`,
-          [{ text: "Great!" }]
-        );
       } else {
         throw new Error(result.error || "Registration failed");
       }
@@ -158,50 +164,53 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
     setDeviceNickname("");
   };
 
-  const renderDeviceItem = ({
-    item,
-  }: {
-    item: DeviceWithRegistrationStatus;
-  }) => (
-    <TouchableOpacity
-      style={[
-        styles.deviceItem,
-        item.isRegistered && styles.deviceItemRegistered,
-      ]}
-      onPress={() => handleDevicePress(item)}
-      disabled={item.isRegistered}
-    >
-      <View style={styles.deviceInfo}>
-        <View style={styles.deviceHeader}>
-          <Text
-            style={[
-              styles.deviceName,
-              item.isRegistered && styles.deviceNameRegistered,
-            ]}
-          >
-            {item.isRegistered
-              ? item.registeredNickname
-              : item.name || "Unnamed Device"}
-          </Text>
-          {item.isRegistered && (
-            <View style={styles.registeredBadge}>
-              <Text style={styles.registeredText}>Registered</Text>
-            </View>
-          )}
+  const renderDeviceItem = useCallback(
+    ({
+      item,
+    }: {
+      item: DeviceWithRegistrationStatus;
+    }) => (
+      <TouchableOpacity
+        style={[
+          styles.deviceItem,
+          item.isRegistered && styles.deviceItemRegistered,
+        ]}
+        onPress={() => handleDevicePress(item)}
+        disabled={item.isRegistered}
+      >
+        <View style={styles.deviceInfo}>
+          <View style={styles.deviceHeader}>
+            <Text
+              style={[
+                styles.deviceName,
+                item.isRegistered && styles.deviceNameRegistered,
+              ]}
+            >
+              {item.isRegistered
+                ? item.registeredNickname
+                : item.name || "Unnamed Device"}
+            </Text>
+            {item.isRegistered && (
+              <View style={styles.registeredBadge}>
+                <Text style={styles.registeredText}>Registered</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.deviceId}>ID: {item.id}</Text>
+          <View style={styles.deviceMeta}>
+            <Text style={styles.rssiText}>Signal: {item.rssi} dBm</Text>
+          </View>
         </View>
-        <Text style={styles.deviceId}>ID: {item.id}</Text>
-        <View style={styles.deviceMeta}>
-          <Text style={styles.rssiText}>Signal: {item.rssi} dBm</Text>
-        </View>
-      </View>
-      <Feather
-        name={item.isRegistered ? "check-circle" : "plus-circle"}
-        size={24}
-        color={
-          item.isRegistered ? semanticColors.success : semanticColors.primary
-        }
-      />
-    </TouchableOpacity>
+        <Feather
+          name={item.isRegistered ? "check-circle" : "plus-circle"}
+          size={24}
+          color={
+            item.isRegistered ? semanticColors.success : semanticColors.primary
+          }
+        />
+      </TouchableOpacity>
+    ),
+    []
   );
 
   return (
@@ -282,55 +291,55 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
               • Tap scan to refresh the list
             </Text>
           </View>
-        </View>
-      </Modal>
 
-      {/* Device Naming Modal */}
-      <Modal
-        visible={showNamingModal}
-        animationType="fade"
-        transparent
-        onRequestClose={handleCancelNaming}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.namingModal}>
-            <Text style={styles.namingTitle}>Name Your Device</Text>
-            <Text style={styles.namingSubtitle}>
-              Give your Soristuffy a memorable name
-            </Text>
-
-            <TextInput
-              style={styles.nameInput}
-              value={deviceNickname}
-              onChangeText={setDeviceNickname}
-              placeholder="Enter device name"
-              maxLength={30}
-              autoFocus
-              selectTextOnFocus
-            />
-
-            <View style={styles.namingButtons}>
-              <TouchableOpacity
-                style={[styles.namingButton, styles.cancelButton]}
-                onPress={handleCancelNaming}
-                disabled={isRegistering}
+          {/* Device Naming Modal - Inside Main Modal to avoid z-index issues */}
+          {showNamingModal && (
+            <View style={styles.modalOverlay}>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={styles.keyboardAvoidingView}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
+                <View style={styles.namingModal}>
+                  <Text style={styles.namingTitle}>Name Your Device</Text>
+                  <Text style={styles.namingSubtitle}>
+                    Give your Soristuffy a memorable name
+                  </Text>
 
-              <TouchableOpacity
-                style={[styles.namingButton, styles.registerButton]}
-                onPress={handleRegisterDevice}
-                disabled={isRegistering || !deviceNickname.trim()}
-              >
-                {isRegistering ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <Text style={styles.registerButtonText}>Register</Text>
-                )}
-              </TouchableOpacity>
+                  <TextInput
+                    style={styles.nameInput}
+                    value={deviceNickname}
+                    onChangeText={setDeviceNickname}
+                    placeholder="Enter device name"
+                    maxLength={30}
+                    autoFocus
+                    selectTextOnFocus
+                  />
+
+                  <View style={styles.namingButtons}>
+                    <TouchableOpacity
+                      style={[styles.namingButton, styles.cancelButton]}
+                      onPress={handleCancelNaming}
+                      disabled={isRegistering}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.namingButton, styles.registerButton]}
+                      onPress={handleRegisterDevice}
+                      disabled={isRegistering || !deviceNickname.trim()}
+                    >
+                      {isRegistering ? (
+                        <ActivityIndicator color="white" size="small" />
+                      ) : (
+                        <Text style={styles.registerButtonText}>Register</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </KeyboardAvoidingView>
             </View>
-          </View>
+          )}
         </View>
       </Modal>
     </>
@@ -463,8 +472,18 @@ const styles = StyleSheet.create({
 
   // Naming Modal Styles
   modalOverlay: {
-    flex: 1,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  keyboardAvoidingView: {
+    width: "100%",
     justifyContent: "center",
     alignItems: "center",
   },

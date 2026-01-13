@@ -12,10 +12,11 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useCalendar } from "../contexts/CalendarContext";
+import { useBluetooth } from "../contexts/BluetoothContext";
 import { CalendarEvent } from "../services/calendarService";
 
 interface EventFormProps {
-  mode: 'create' | 'edit';
+  mode: "create" | "edit";
   existingEvent?: CalendarEvent;
   onSave: () => void;
   onCancel: () => void;
@@ -29,7 +30,15 @@ const EventForm: React.FC<EventFormProps> = ({
   onCancel,
   visible,
 }) => {
-  const { addEvent, updateEvent, kids } = useCalendar();
+  const {
+    addEvent,
+    updateEvent,
+    deleteEvent,
+    kids,
+    assignEventToDevices,
+    unassignEventFromDevices,
+  } = useCalendar();
+  const { registeredDevices } = useBluetooth();
 
   // Basic event details
   const [title, setTitle] = useState("");
@@ -41,9 +50,11 @@ const EventForm: React.FC<EventFormProps> = ({
   const [selectedKidId, setSelectedKidId] = useState<string | undefined>(
     undefined
   );
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>([]);
 
   // Modal states
   const [showKidSelector, setShowKidSelector] = useState(false);
+  const [showDeviceSelector, setShowDeviceSelector] = useState(false);
   const [showAlertSelector, setShowAlertSelector] = useState(false);
   const [showDateTimePicker, setShowDateTimePicker] = useState<
     "start" | "end" | null
@@ -60,12 +71,21 @@ const EventForm: React.FC<EventFormProps> = ({
 
   // Auto-populate form when editing an existing event
   useEffect(() => {
-    if (mode === 'edit' && existingEvent) {
+    if (mode === "edit" && existingEvent) {
       setTitle(existingEvent.title);
-      setStartDate(existingEvent.startTime instanceof Date ? existingEvent.startTime : new Date(existingEvent.startTime));
-      setEndDate(existingEvent.endTime instanceof Date ? existingEvent.endTime : new Date(existingEvent.endTime));
+      setStartDate(
+        existingEvent.startTime instanceof Date
+          ? existingEvent.startTime
+          : new Date(existingEvent.startTime)
+      );
+      setEndDate(
+        existingEvent.endTime instanceof Date
+          ? existingEvent.endTime
+          : new Date(existingEvent.endTime)
+      );
       setAlertIntervals(existingEvent.alertIntervals || []);
       setSelectedKidId(existingEvent.assignedKidId || undefined);
+      setSelectedDeviceIds(existingEvent.assignedDeviceIds || []);
     } else {
       // Reset form for create mode
       setTitle("");
@@ -74,6 +94,7 @@ const EventForm: React.FC<EventFormProps> = ({
       setEndDate(new Date(now.getTime() + 60 * 60 * 1000));
       setAlertIntervals([15, 10, 5]);
       setSelectedKidId(undefined);
+      setSelectedDeviceIds([]);
     }
   }, [mode, existingEvent, visible]);
 
@@ -96,39 +117,66 @@ const EventForm: React.FC<EventFormProps> = ({
         alertIntervals,
         isActive: true,
         assignedKidId: selectedKidId,
+        assignedDeviceIds:
+          selectedDeviceIds.length > 0 ? selectedDeviceIds : undefined,
         source: "manual",
       };
 
       // Warn if no kid is assigned but still allow saving
       if (!selectedKidId) {
-        console.warn(`⚠️ Event ${mode === 'edit' ? 'updated' : 'created'} without assigned kid:`, title);
+        console.warn(
+          `⚠️ Event ${
+            mode === "edit" ? "updated" : "created"
+          } without assigned kid:`,
+          title
+        );
       }
 
-      if (mode === 'edit' && existingEvent) {
+      if (mode === "edit" && existingEvent) {
         await updateEvent(existingEvent.id, eventData);
+
+        // Handle device assignment changes
+        const previousDeviceIds = existingEvent.assignedDeviceIds || [];
+        const removedDevices = previousDeviceIds.filter(
+          (id) => !selectedDeviceIds.includes(id)
+        );
+        const addedDevices = selectedDeviceIds.filter(
+          (id) => !previousDeviceIds.includes(id)
+        );
+
+        if (removedDevices.length > 0) {
+          await unassignEventFromDevices(existingEvent.id, removedDevices);
+        }
+        if (addedDevices.length > 0) {
+          await assignEventToDevices(existingEvent.id, addedDevices);
+        }
       } else {
-        await addEvent(eventData);
+        const newEvent = await addEvent(eventData);
+
+        // Assign to selected devices if any
+        if (selectedDeviceIds.length > 0) {
+          await assignEventToDevices(newEvent.id, selectedDeviceIds);
+        }
       }
 
-      // Show different success message based on kid assignment and mode
-      const actionText = mode === 'edit' ? 'updated' : 'created';
-      const successMessage = selectedKidId 
-        ? `"${title}" has been ${actionText} and will send alerts to the assigned child`
-        : `"${title}" has been ${actionText}. Note: No child was assigned for alerts.`;
-
-      Alert.alert(
-        `Event ${mode === 'edit' ? 'Updated' : 'Created'}`,
-        successMessage,
-        [{ text: "OK", onPress: onSave }]
-      );
+      // Close modal on successful save
+      onSave();
     } catch (error) {
-      Alert.alert("Error", `Failed to ${mode === 'edit' ? 'update' : 'create'} event. Please try again.`);
-      console.error(`Error ${mode === 'edit' ? 'updating' : 'creating'} event:`, error);
+      Alert.alert(
+        "Error",
+        `Failed to ${
+          mode === "edit" ? "update" : "create"
+        } event. Please try again.`
+      );
+      console.error(
+        `Error ${mode === "edit" ? "updating" : "creating"} event:`,
+        error
+      );
     }
   };
 
   const handleDelete = async () => {
-    if (mode !== 'edit' || !existingEvent) return;
+    if (mode !== "edit" || !existingEvent) return;
 
     Alert.alert(
       "Delete Event",
@@ -140,17 +188,16 @@ const EventForm: React.FC<EventFormProps> = ({
           style: "destructive",
           onPress: async () => {
             try {
-              // For now, we'll update the event to inactive instead of true deletion
-              await updateEvent(existingEvent.id, { ...existingEvent, isActive: false });
-              Alert.alert("Event Deleted", "The event has been removed from your calendar.", [
-                { text: "OK", onPress: onSave }
-              ]);
+              // Delete the event from Firebase and update devices
+              await deleteEvent(existingEvent.id);
+              // Close modal on successful delete
+              onSave();
             } catch (error) {
               Alert.alert("Error", "Failed to delete event. Please try again.");
               console.error("Error deleting event:", error);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -184,6 +231,20 @@ const EventForm: React.FC<EventFormProps> = ({
 
   const selectedKid = kids.find((k) => k.id === selectedKidId);
 
+  // Get available devices from registeredDevices
+  const availableDevices = registeredDevices.map((device) => ({
+    id: device.id,
+    name: device.nickname || "Unknown Device",
+  }));
+
+  const toggleDeviceSelection = (deviceId: string) => {
+    setSelectedDeviceIds((prev) =>
+      prev.includes(deviceId)
+        ? prev.filter((id) => id !== deviceId)
+        : [...prev, deviceId]
+    );
+  };
+
   const alertOptions = [1, 2, 5, 10, 15, 30, 60]; // minutes
 
   const toggleAlertInterval = (interval: number) => {
@@ -198,10 +259,13 @@ const EventForm: React.FC<EventFormProps> = ({
   const handleDateTimeChange = (event: any, selectedDate?: Date) => {
     // Always update the temporary picker value when user scrolls
     if (selectedDate && pickerSessionRef.current) {
-      console.log('Picker value changing to:', selectedDate.toLocaleTimeString());
+      console.log(
+        "Picker value changing to:",
+        selectedDate.toLocaleTimeString()
+      );
       setTempPickerValue(selectedDate);
     } else if (!pickerSessionRef.current) {
-      console.log('Picker session not active, ignoring change');
+      console.log("Picker session not active, ignoring change");
     }
   };
 
@@ -217,7 +281,7 @@ const EventForm: React.FC<EventFormProps> = ({
     } else if (showDateTimePicker === "end") {
       setEndDate(tempPickerValue);
     }
-    
+
     pickerSessionRef.current = false;
     setShowDateTimePicker(null);
   };
@@ -225,7 +289,11 @@ const EventForm: React.FC<EventFormProps> = ({
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -233,7 +301,7 @@ const EventForm: React.FC<EventFormProps> = ({
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
-            {mode === 'edit' ? 'Edit Event' : 'New Event'}
+            {mode === "edit" ? "Edit Event" : "New Event"}
           </Text>
           <TouchableOpacity onPress={handleSave}>
             <Text style={styles.saveText}>Save</Text>
@@ -269,7 +337,10 @@ const EventForm: React.FC<EventFormProps> = ({
                 style={styles.dateTimeButton}
                 onPress={() => {
                   const initialValue = startDate || new Date();
-                  console.log('Opening start time picker with value:', initialValue.toLocaleTimeString());
+                  console.log(
+                    "Opening start time picker with value:",
+                    initialValue.toLocaleTimeString()
+                  );
                   setTempPickerValue(initialValue);
                   pickerSessionRef.current = true;
                   setShowDateTimePicker("start");
@@ -288,13 +359,18 @@ const EventForm: React.FC<EventFormProps> = ({
                 style={styles.dateTimeButton}
                 onPress={() => {
                   const initialValue = endDate || new Date();
-                  console.log('Opening end time picker with value:', initialValue.toLocaleTimeString());
+                  console.log(
+                    "Opening end time picker with value:",
+                    initialValue.toLocaleTimeString()
+                  );
                   setTempPickerValue(initialValue);
                   pickerSessionRef.current = true;
                   setShowDateTimePicker("end");
                 }}
               >
-                <Text style={styles.dateTimeText}>{formatDateTime(endDate)}</Text>
+                <Text style={styles.dateTimeText}>
+                  {formatDateTime(endDate)}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -303,7 +379,7 @@ const EventForm: React.FC<EventFormProps> = ({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Assignment</Text>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.assignmentButton}
               onPress={() => setShowKidSelector(true)}
             >
@@ -320,6 +396,34 @@ const EventForm: React.FC<EventFormProps> = ({
               <Text style={styles.assignmentHint}>
                 Alerts will be sent to {selectedKid.name}'s device
               </Text>
+            )} */}
+
+            {/* Device Assignment */}
+            {availableDevices.length > 0 && (
+              <View style={styles.deviceAssignmentContainer}>
+                <TouchableOpacity
+                  style={styles.assignmentButton}
+                  onPress={() => setShowDeviceSelector(true)}
+                >
+                  <Text style={styles.label}>Send schedule to</Text>
+                  <View style={styles.assignmentValue}>
+                    <Text style={styles.assignmentText}>
+                      {selectedDeviceIds.length > 0
+                        ? `${selectedDeviceIds.length} device${
+                            selectedDeviceIds.length > 1 ? "s" : ""
+                          }`
+                        : "No devices selected"}
+                    </Text>
+                    <Text style={styles.dropdownArrow}>›</Text>
+                  </View>
+                </TouchableOpacity>
+                {selectedDeviceIds.length > 0 && (
+                  <Text style={styles.assignmentHint}>
+                    Schedule will sync to {selectedDeviceIds.length} device
+                    {selectedDeviceIds.length > 1 ? "s" : ""}
+                  </Text>
+                )}
+              </View>
             )}
           </View>
 
@@ -352,9 +456,12 @@ const EventForm: React.FC<EventFormProps> = ({
           </View>
 
           {/* Delete Button (only in edit mode) */}
-          {mode === 'edit' && (
+          {mode === "edit" && (
             <View style={styles.section}>
-              <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={handleDelete}
+              >
                 <Text style={styles.deleteButtonText}>Delete Event</Text>
               </TouchableOpacity>
             </View>
@@ -396,34 +503,43 @@ const EventForm: React.FC<EventFormProps> = ({
                 </TouchableOpacity>
               </View>
 
-              <FlatList
-                data={[{ id: undefined, name: "No assignment" }, ...kids]}
-                keyExtractor={(item) => item.id || "none"}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.modalItem,
-                      selectedKidId === item.id && styles.selectedModalItem,
-                    ]}
-                    onPress={() => {
-                      setSelectedKidId(item.id);
-                      setShowKidSelector(false);
-                    }}
-                  >
-                    <Text
+              {kids && kids.length > 0 ? (
+                <FlatList
+                  data={[{ id: undefined, name: "No assignment" }, ...kids]}
+                  keyExtractor={(item) => item.id || "none"}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
                       style={[
-                        styles.modalItemText,
-                        selectedKidId === item.id && styles.selectedModalItemText,
+                        styles.modalItem,
+                        selectedKidId === item.id && styles.selectedModalItem,
                       ]}
+                      onPress={() => {
+                        setSelectedKidId(item.id);
+                        setShowKidSelector(false);
+                      }}
                     >
-                      {item.name}
-                    </Text>
-                    {selectedKidId === item.id && (
-                      <Text style={styles.checkmark}>✓</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-              />
+                      <Text
+                        style={[
+                          styles.modalItemText,
+                          selectedKidId === item.id &&
+                            styles.selectedModalItemText,
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                      {selectedKidId === item.id && (
+                        <Text style={styles.checkmark}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                />
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>
+                    No children added yet. Add a child in your profile settings.
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         </Modal>
@@ -473,6 +589,52 @@ const EventForm: React.FC<EventFormProps> = ({
           </View>
         </Modal>
 
+        {/* Device Selector Modal */}
+        <Modal visible={showDeviceSelector} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Devices</Text>
+                <TouchableOpacity onPress={() => setShowDeviceSelector(false)}>
+                  <Text style={styles.modalClose}>Done</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.modalSubtitle}>
+                Select which devices to send the event schedule to:
+              </Text>
+
+              <FlatList
+                data={availableDevices}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalItem,
+                      selectedDeviceIds.includes(item.id) &&
+                        styles.selectedModalItem,
+                    ]}
+                    onPress={() => toggleDeviceSelection(item.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.modalItemText,
+                        selectedDeviceIds.includes(item.id) &&
+                          styles.selectedModalItemText,
+                      ]}
+                    >
+                      {item.name}
+                    </Text>
+                    {selectedDeviceIds.includes(item.id) && (
+                      <Text style={styles.checkmark}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          </View>
+        </Modal>
+
         {/* Date/Time Picker Modal */}
         <Modal
           visible={showDateTimePicker !== null}
@@ -491,16 +653,21 @@ const EventForm: React.FC<EventFormProps> = ({
               >
                 <View style={styles.dateTimePickerHeader}>
                   <Text style={styles.dateTimePickerTitle}>
-                    Select {showDateTimePicker === "start" ? "Start" : "End"} Time
+                    Select {showDateTimePicker === "start" ? "Start" : "End"}{" "}
+                    Time
                   </Text>
                   <TouchableOpacity onPress={closeDateTimePicker}>
                     <Text style={styles.dateTimePickerDone}>Done</Text>
                   </TouchableOpacity>
                 </View>
-                
+
                 {showDateTimePicker && (
                   <DateTimePicker
-                    value={tempPickerValue || (showDateTimePicker === "start" ? startDate : endDate) || new Date()}
+                    value={
+                      tempPickerValue ||
+                      (showDateTimePicker === "start" ? startDate : endDate) ||
+                      new Date()
+                    }
                     mode="datetime"
                     display="spinner"
                     onChange={handleDateTimeChange}
@@ -627,6 +794,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6b7280",
     fontStyle: "italic",
+  },
+  deviceAssignmentContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f3f4f6",
   },
   alertButton: {
     flexDirection: "row",
@@ -766,6 +939,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#3b82f6",
     fontWeight: "600",
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: "#6b7280",
+    textAlign: "center",
+    lineHeight: 24,
   },
   dateTimeModalOverlay: {
     flex: 1,

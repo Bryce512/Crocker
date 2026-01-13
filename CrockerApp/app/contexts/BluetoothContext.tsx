@@ -10,6 +10,7 @@ import React, {
 import { useBleConnection } from "../services/bleConnections";
 import { AppState } from "react-native";
 import { Device } from "react-native-ble-plx";
+import BleManager from "react-native-ble-manager";
 import { obdDataFunctions } from "../services/obdDataCollection";
 import bluetoothService from "../services/bluetoothService";
 import AppErrorService from "../services/errorService";
@@ -151,6 +152,128 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isConnected, deviceId, rememberedDevice]);
 
+  // Auto-connect effect: Continuously scan for registered devices and auto-connect
+  useEffect(() => {
+    let scanInterval: NodeJS.Timeout | null = null;
+    let isAutoConnecting = false;
+
+    const startAutoConnect = async () => {
+      if (isConnected || isAutoConnecting || registeredDevices.length === 0) {
+        return; // Skip if already connected or already attempting
+      }
+
+      isAutoConnecting = true;
+
+      try {
+        logMessage("🔍 Auto-scanning for registered devices...");
+
+        // Start active BLE scan
+        try {
+          await BleManager.scan([], 3, false); // Scan for 3 seconds
+        } catch (scanError) {
+          console.error("Scan initiation error:", scanError);
+          // Continue anyway, we can still check already discovered
+        }
+
+        // Wait a moment for scan to complete
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Get both connected and discovered devices
+        const connectedPeripherals = await BleManager.getConnectedPeripherals(
+          []
+        );
+        const discoveredPeripherals = await BleManager.getDiscoveredPeripherals(
+          []
+        );
+
+        // Combine all found devices
+        const allFoundDevices = [
+          ...connectedPeripherals,
+          ...discoveredPeripherals,
+        ];
+
+        logMessage(
+          `📱 Found ${allFoundDevices.length} devices (${connectedPeripherals.length} connected, ${discoveredPeripherals.length} discovered)`
+        );
+
+        // Log discovered device IDs for debugging
+        allFoundDevices.forEach((device) => {
+          logMessage(`  📍 Device: ${device.name || "Unnamed"} (${device.id})`);
+        });
+
+        // Check if any registered device is in range
+        for (const registeredDevice of registeredDevices) {
+          // First try to match by ID
+          let foundDevice = allFoundDevices.find(
+            (d) => d.id === registeredDevice.id
+          );
+
+          // If not found by ID, try to match by name
+          if (!foundDevice && registeredDevice.name) {
+            foundDevice = allFoundDevices.find(
+              (d) =>
+                d.name === registeredDevice.name ||
+                d.name === registeredDevice.nickname
+            );
+            if (foundDevice) {
+              logMessage(
+                `⚠️ Matched by name instead of ID. Device ID in database may be outdated: ${registeredDevice.id} → ${foundDevice.id}`
+              );
+            }
+          }
+
+          if (foundDevice) {
+            logMessage(
+              `✨ Registered device found in range: ${
+                registeredDevice.nickname || registeredDevice.id
+              }`
+            );
+
+            // Check if not already connected
+            if (!isConnected && registeredDevice.id !== deviceId) {
+              logMessage(
+                `🔗 Auto-connecting to ${registeredDevice.nickname}...`
+              );
+              try {
+                await connectToRegisteredDevice(registeredDevice);
+                logMessage(`✅ Auto-connected to ${registeredDevice.nickname}`);
+                return; // Exit after successful connection
+              } catch (error) {
+                console.error("Auto-connect failed:", error);
+                logMessage(
+                  `⚠️ Failed to auto-connect: ${
+                    error instanceof Error ? error.message : String(error)
+                  }`
+                );
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Auto-connect scan error:", error);
+        logMessage(
+          `⚠️ Auto-scan error: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      } finally {
+        isAutoConnecting = false;
+      }
+    };
+
+    // Start auto-scan interval (check every 10 seconds)
+    scanInterval = setInterval(startAutoConnect, 10000);
+
+    // Initial attempt
+    startAutoConnect();
+
+    return () => {
+      if (scanInterval) {
+        clearInterval(scanInterval);
+      }
+    };
+  }, [isConnected, deviceId, registeredDevices]);
+
   // Enhanced version of verifyConnection that updates context state
   const verifyConnection = async (deviceId: string): Promise<boolean> => {
     try {
@@ -193,6 +316,16 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
         setDeviceId(device.id);
         setDeviceName(device.name);
         setRememberedDevice(device);
+
+        // Send current unix timestamp to device after successful connection
+        try {
+          logMessage("📡 Syncing time with device...");
+          await bluetoothService.sendTimestampToPeripheral(device.id);
+          logMessage("✅ Device time synced");
+        } catch (error) {
+          console.error("⚠️ Failed to send timestamp:", error);
+          // Don't fail the connection if timestamp send fails
+        }
       }
 
       return success;
@@ -235,6 +368,10 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       await bleConnectionHook.disconnectDevice();
       setIsConnected(false);
       setDeviceId(null);
+      setDeviceName(null);
+      setRememberedDevice(null);
+      setReconnectAttempt(0);
+      logMessage("✅ Device disconnected and state cleared");
     } catch (error) {
       logMessage(
         `Disconnect error: ${

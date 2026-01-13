@@ -139,9 +139,8 @@ export const EventSyncDemoScreen: React.FC = () => {
           onPress: async () => {
             try {
               await clearSyncHistory();
-              Alert.alert("Success", "Sync history cleared");
             } catch (error) {
-              Alert.alert("Error", "Failed to clear sync history");
+              console.error("Failed to clear sync history", error);
             }
           },
         },

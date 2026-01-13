@@ -15,7 +15,9 @@ import {
 } from "../services/calendarService";
 import { useBluetooth } from "./BluetoothContext";
 import { useAuth } from "./AuthContext";
-import firebaseService from "../services/firebaseService";
+import firebaseService, { getEventById } from "../services/firebaseService";
+import bluetoothService from "../services/bluetoothService";
+import deviceManagementService from "../services/deviceManagementService";
 
 // Define the shape of our calendar context
 interface CalendarContextType {
@@ -50,6 +52,17 @@ interface CalendarContextType {
     minutesUntil: number
   ) => Promise<boolean>;
   markKidForResync: (kidId: string) => Promise<void>;
+
+  // Device-based event management
+  assignEventToDevices: (eventId: string, deviceIds: string[]) => Promise<void>;
+  unassignEventFromDevices: (
+    eventId: string,
+    deviceIds: string[]
+  ) => Promise<void>;
+  markDeviceForResync: (deviceId: string) => Promise<void>;
+  sendEventScheduleToDevice: (deviceId: string) => Promise<boolean>;
+  syncAllDeviceEvents: () => Promise<void>;
+  checkForDeviceResyncNeeds: () => Promise<void>;
 
   // Utility
   getEventsForKid: (kidId: string) => CalendarEvent[];
@@ -130,7 +143,6 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
         "🔍 DEBUG: refreshData - Calling firebaseService.getEvents..."
       );
       const eventsData = await firebaseService.getEvents();
-      console.log("🔍 DEBUG: refreshData - getEvents returned:", eventsData);
       console.log(
         "🔍 DEBUG: refreshData - eventsData type:",
         typeof eventsData
@@ -413,11 +425,33 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
         await firebaseService.deleteEvent(eventId);
 
         // Remove from local state
-        setEvents((prev) => prev.filter((e) => e.id !== eventId));
+        const updatedEvents = events.filter((e) => e.id !== eventId);
+        setEvents(updatedEvents);
 
         // Mark affected kid for resync
         if (event?.assignedKidId) {
           await markKidForResync(event.assignedKidId);
+        }
+
+        // Sync to devices that had this event assigned
+        if (event?.assignedDeviceIds && event.assignedDeviceIds.length > 0) {
+          console.log(
+            `📱 Syncing event deletion to ${event.assignedDeviceIds.length} device(s)...`
+          );
+          for (const deviceId of event.assignedDeviceIds) {
+            try {
+              // Use the updated events (without the deleted event)
+              console.log(
+                `📡 Sending updated schedule to device ${deviceId} (event removed)`
+              );
+              await sendEventScheduleToDevice(deviceId);
+            } catch (deviceError) {
+              console.error(
+                `Error syncing device ${deviceId} on event deletion:`,
+                deviceError
+              );
+            }
+          }
         }
 
         console.log("✅ Event deleted from Firebase and local state:", eventId);
@@ -426,7 +460,7 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
     },
-    [user, events]
+    [user, events, sendEventScheduleToDevice, markKidForResync]
   );
 
   // Add new kid
@@ -595,6 +629,165 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
     [events]
   );
 
+  // Device sync functions
+  const sendEventScheduleToDevice = useCallback(
+    async (deviceId: string): Promise<boolean> => {
+      try {
+        console.log(`📡 Sending event schedule to device ${deviceId}...`);
+        await bluetoothService.sendEventScheduleToDevice(deviceId);
+        console.log(`✅ Event schedule sent to device ${deviceId}`);
+        return true;
+      } catch (error) {
+        console.error(`Error sending events to device ${deviceId}:`, error);
+        console.log(
+          `⚠️ Failed to send events to device: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+        return false;
+      }
+    },
+    []
+  );
+
+  const markDeviceForResync = useCallback(
+    async (deviceId: string): Promise<void> => {
+      try {
+        // Update device flag in Bluetooth context via deviceManagementService
+        await deviceManagementService.updateRegisteredDevice(deviceId, {
+          eventsUpdatedFlag: true,
+          lastEventsSyncTime: new Date(),
+        });
+        console.log(`🔄 Device ${deviceId} marked for resync`);
+      } catch (error) {
+        console.error(`Error marking device for resync:`, error);
+      }
+    },
+    []
+  );
+
+  const assignEventToDevices = useCallback(
+    async (eventId: string, deviceIds: string[]): Promise<void> => {
+      if (!user) return;
+
+      try {
+        // Try to find in local state first
+        let event = events.find((e) => e.id === eventId);
+
+        // If not found locally, fetch from Firebase
+        if (!event) {
+          console.log(
+            `⚠️ Event not in local state, fetching from Firebase: ${eventId}`
+          );
+          const firebaseEvent = await getEventById(eventId);
+          if (!firebaseEvent) {
+            throw new Error(`Event with id ${eventId} not found in Firebase`);
+          }
+          event = firebaseEvent;
+        }
+
+        // Update event with device assignment
+        const updatedEvent = {
+          ...event,
+          assignedDeviceIds: deviceIds,
+        };
+
+        // Update in Firebase
+        await firebaseService.updateEvent(eventId, updatedEvent);
+
+        // Update local state
+        setEvents((prev) =>
+          prev.map((e) => (e.id === eventId ? updatedEvent : e))
+        );
+
+        console.log(
+          `✅ Event assigned to ${deviceIds.length} device(s): ${eventId}`
+        );
+
+        // Auto-sync all assigned devices
+        for (const deviceId of deviceIds) {
+          try {
+            await markDeviceForResync(deviceId);
+            await sendEventScheduleToDevice(deviceId);
+            console.log(`✅ Synced event to device: ${deviceId}`);
+          } catch (error) {
+            console.error(`Error syncing to device ${deviceId}:`, error);
+            console.log(
+              `⚠️ Failed to sync device ${deviceId}: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error assigning event to devices:", error);
+        throw error;
+      }
+    },
+    [user, events]
+  );
+
+  const unassignEventFromDevices = useCallback(
+    async (eventId: string, deviceIds: string[]): Promise<void> => {
+      if (!user) return;
+
+      try {
+        let event = events.find((e) => e.id === eventId);
+        if (!event) {
+          const firebaseEvent = await getEventById(eventId);
+          if (!firebaseEvent) {
+            throw new Error(`Event with id ${eventId} not found`);
+          }
+          event = firebaseEvent;
+        }
+
+        // Remove devices from assignment
+        const remainingDevices = (event.assignedDeviceIds || []).filter(
+          (id) => !deviceIds.includes(id)
+        );
+
+        const updatedEvent = {
+          ...event,
+          assignedDeviceIds: remainingDevices,
+        };
+
+        await firebaseService.updateEvent(eventId, updatedEvent);
+        setEvents((prev) =>
+          prev.map((e) =>
+            e.id === eventId ? (updatedEvent as CalendarEvent) : e
+          )
+        );
+
+        console.log(
+          `✅ Event unassigned from ${deviceIds.length} device(s): ${eventId}`
+        );
+
+        // Sync remaining devices
+        for (const deviceId of remainingDevices) {
+          try {
+            await sendEventScheduleToDevice(deviceId);
+          } catch (error) {
+            console.error(`Error syncing device ${deviceId}:`, error);
+          }
+        }
+      } catch (error) {
+        console.error("Error unassigning event from devices:", error);
+        throw error;
+      }
+    },
+    [user, events]
+  );
+
+  const syncAllDeviceEvents = useCallback(async (): Promise<void> => {
+    // Placeholder: sync all registered devices
+    console.log("Syncing all device events...");
+  }, []);
+
+  const checkForDeviceResyncNeeds = useCallback(async (): Promise<void> => {
+    // Placeholder: check if any devices need resync
+    console.log("Checking for device resync needs...");
+  }, []);
+
   const getUpcomingEvents = useCallback(
     (hours: number = 24): CalendarEvent[] => {
       const now = new Date();
@@ -636,6 +829,14 @@ export const CalendarProvider = ({ children }: { children: ReactNode }) => {
     sendAlertBatch,
     sendImmediateAlert: sendImmediateAlertToKid,
     markKidForResync,
+
+    // Device management
+    sendEventScheduleToDevice,
+    markDeviceForResync,
+    assignEventToDevices,
+    unassignEventFromDevices,
+    syncAllDeviceEvents,
+    checkForDeviceResyncNeeds,
 
     // Utility
     getEventsForKid,

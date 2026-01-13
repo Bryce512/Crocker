@@ -15,6 +15,7 @@ import { Feather } from "@expo/vector-icons";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { RegisteredDevice } from "../models";
 import { useBluetooth } from "../contexts/BluetoothContext";
+import { useCalendar } from "../contexts/CalendarContext";
 import deviceManagementService from "../services/deviceManagementService";
 import DeviceScannerModal from "../components/DeviceScannerModal";
 import SlidingMenu from "../components/SlidingMenu";
@@ -44,9 +45,11 @@ const DeviceConnection = () => {
     disconnectDevice,
     loadRegisteredDevices,
   } = useBluetooth();
+  const { sendEventScheduleToDevice } = useCalendar();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState<string | null>(null);
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -55,9 +58,11 @@ const DeviceConnection = () => {
     const initializeDevices = async () => {
       setIsLoading(true);
       try {
+        console.log("🔷 ScanDevices: Loading registered devices...");
         await loadRegisteredDevices();
+        console.log("✅ ScanDevices: Devices loaded successfully");
       } catch (error) {
-        console.error("Error loading registered devices:", error);
+        console.error("❌ ScanDevices: Error loading registered devices:", error);
         Alert.alert("Error", "Failed to load registered devices");
       } finally {
         setIsLoading(false);
@@ -65,35 +70,41 @@ const DeviceConnection = () => {
     };
 
     initializeDevices();
+    // Empty dependency array - only run once on mount
   }, []);
 
   const handleDeviceConnect = async (device: RegisteredDevice) => {
+    console.log("🔷 ScanDevices: Device clicked -", device.nickname, device.id);
+    
     if (connectionState.isConnected && connectionState.deviceId === device.id) {
       // Device is connected, disconnect it
+      console.log("🔷 ScanDevices: Device is already connected, attempting disconnect...");
       try {
         await disconnectDevice();
         await deviceManagementService.updateRegisteredDevice(device.id, {
           lastConnected: new Date(),
         });
+        console.log("✅ ScanDevices: Device disconnected successfully");
       } catch (error) {
-        console.error("Disconnect error:", error);
+        console.error("❌ ScanDevices: Disconnect error:", error);
         Alert.alert("Error", "Failed to disconnect device");
       }
     } else {
       // Device is not connected, connect to it
+      console.log("🔷 ScanDevices: Attempting to connect to device:", device.nickname);
       setIsConnecting(device.id);
       try {
         const success = await connectToRegisteredDevice(device);
+        console.log("🔷 ScanDevices: Connection result -", success);
+        
         if (success) {
-          Alert.alert(
-            "Connected!",
-            `Successfully connected to ${device.nickname}`
-          );
+          console.log("✅ ScanDevices: Successfully connected to device");
         } else {
+          console.log("❌ ScanDevices: Connection was not successful");
           Alert.alert("Connection Failed", "Unable to connect to device");
         }
       } catch (error) {
-        console.error("Connection error:", error);
+        console.error("❌ ScanDevices: Connection error:", error);
         Alert.alert("Error", "Failed to connect to device");
       } finally {
         setIsConnecting(null);
@@ -108,6 +119,59 @@ const DeviceConnection = () => {
   const handleDeviceRegistered = async (device: RegisteredDevice) => {
     // Refresh the registered devices list from the context
     await loadRegisteredDevices();
+  };
+
+  const handleForgetDevice = (device: RegisteredDevice) => {
+    Alert.alert(
+      "Forget Device?",
+      `Are you sure you want to forget "${device.nickname}"? You'll need to re-pair it to use it again.`,
+      [
+        {
+          text: "Cancel",
+          onPress: () => console.log("Cancel forget device"),
+          style: "cancel",
+        },
+        {
+          text: "Forget",
+          onPress: async () => {
+            try {
+              console.log("🗑️ ScanDevices: Forgetting device -", device.nickname);
+              const result = await deviceManagementService.unregisterDevice(device.id);
+              
+              if (result.success) {
+                console.log("✅ ScanDevices: Device forgotten successfully");
+                // Refresh the device list
+                await loadRegisteredDevices();
+              } else {
+                throw new Error(result.error || "Failed to forget device");
+              }
+            } catch (error) {
+              console.error("❌ ScanDevices: Error forgetting device:", error);
+              Alert.alert("Error", "Failed to remove device. Please try again.");
+            }
+          },
+          style: "destructive",
+        },
+      ]
+    );
+  };
+
+  const handleSyncEvents = async (device: RegisteredDevice) => {
+    try {
+      setIsSyncing(device.id);
+      console.log(`📡 ScanDevices: Syncing events for device ${device.nickname}`);
+      
+      const success = await sendEventScheduleToDevice(device.id);
+      
+      if (success) {
+        console.log(`✅ ScanDevices: Events synced to ${device.nickname}`);
+      }
+    } catch (error) {
+      console.error("❌ ScanDevices: Error syncing events:", error);
+      Alert.alert("Error", "Failed to sync events to device");
+    } finally {
+      setIsSyncing(null);
+    }
   };
 
   const handleSkip = () => {
@@ -176,67 +240,99 @@ const DeviceConnection = () => {
                   </Text>
                 </View>
               ) : (
-                registeredDevices.map((device) => (
-                  <TouchableOpacity
-                    key={device.id}
-                    style={[
-                      styles.deviceCard,
-                      isDeviceConnected(device.id) &&
-                        styles.deviceCardConnected,
-                    ]}
-                    onPress={() => handleDeviceConnect(device)}
-                    disabled={isConnecting === device.id}
-                  >
-                    <View style={styles.deviceInfo}>
-                      <View style={styles.deviceHeader}>
-                        <Text
-                          style={[
-                            styles.deviceName,
-                            isDeviceConnected(device.id) &&
-                              styles.deviceNameConnected,
-                          ]}
-                        >
-                          {device.nickname}
-                        </Text>
-                        {isDeviceConnected(device.id) && (
-                          <View style={styles.connectedIndicator}>
-                            <Text style={styles.connectedText}>Connected</Text>
+                registeredDevices.map((device) => {
+                  return (
+                    <View key={device.id} style={styles.deviceCardContainer}>
+                      <TouchableOpacity
+                        style={[
+                          styles.deviceCard,
+                          isDeviceConnected(device.id) &&
+                            styles.deviceCardConnected,
+                        ]}
+                        onPress={() => handleDeviceConnect(device)}
+                        disabled={isConnecting === device.id}
+                      >
+                        <View style={styles.deviceInfo}>
+                          <View style={styles.deviceHeader}>
+                            <Text
+                              style={[
+                                styles.deviceName,
+                                isDeviceConnected(device.id) &&
+                                  styles.deviceNameConnected,
+                              ]}
+                            >
+                              {device.nickname}
+                            </Text>
+                            {isDeviceConnected(device.id) && (
+                              <View style={styles.connectedIndicator}>
+                                <Text style={styles.connectedText}>Connected</Text>
+                              </View>
+                            )}
                           </View>
-                        )}
-                      </View>
-                      <Text style={styles.deviceType}>
-                        {device.deviceType.toUpperCase()}
-                      </Text>
-                      {device.lastConnected && (
-                        <Text style={styles.lastConnected}>
-                          Last connected:{" "}
-                          {device.lastConnected.toLocaleDateString()}
-                        </Text>
-                      )}
-                    </View>
+                          <Text style={styles.deviceType}>
+                            {device.deviceType.toUpperCase()}
+                          </Text>
+                          {device.lastConnected && (
+                            <Text style={styles.lastConnected}>
+                              Last connected:{" "}
+                              {device.lastConnected.toLocaleDateString()}
+                            </Text>
+                          )}
+                        </View>
 
-                    {isConnecting === device.id ? (
-                      <ActivityIndicator
-                        color={semanticColors.primary}
-                        size="small"
-                      />
-                    ) : (
-                      <Feather
-                        name={
-                          isDeviceConnected(device.id)
-                            ? "check-circle"
-                            : "bluetooth"
-                        }
-                        size={24}
-                        color={
-                          isDeviceConnected(device.id)
-                            ? semanticColors.success
-                            : semanticColors.primary
-                        }
-                      />
-                    )}
-                  </TouchableOpacity>
-                ))
+                        {isConnecting === device.id ? (
+                          <ActivityIndicator
+                            color={semanticColors.primary}
+                            size="small"
+                          />
+                        ) : (
+                          <Feather
+                            name={
+                              isDeviceConnected(device.id)
+                                ? "check-circle"
+                                : "bluetooth"
+                            }
+                            size={24}
+                            color={
+                              isDeviceConnected(device.id)
+                                ? semanticColors.success
+                                : semanticColors.primary
+                            }
+                          />
+                        )}
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => handleForgetDevice(device)}
+                      >
+                        <Feather name="trash-2" size={18} color={semanticColors.error} />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.syncButton,
+                          isSyncing === device.id && styles.syncButtonActive,
+                        ]}
+                        onPress={() => handleSyncEvents(device)}
+                        disabled={isSyncing === device.id}
+                      >
+                        {isSyncing === device.id ? (
+                          <ActivityIndicator
+                            color={semanticColors.primary}
+                            size="small"
+                          />
+                        ) : (
+                          <Feather
+                            name="refresh-cw"
+                            size={18}
+                            color={semanticColors.primary}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })
               )}
             </View>
           )}
@@ -400,6 +496,9 @@ const styles = StyleSheet.create({
   devicesList: {
     gap: 16,
   },
+  deviceCardContainer: {
+    position: "relative",
+  },
   deviceCard: {
     backgroundColor: "rgba(219, 234, 254, 0.6)",
     borderRadius: 12,
@@ -517,6 +616,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#059669",
     fontWeight: "500",
+  },
+  deleteButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.2)",
+  },
+  syncButton: {
+    position: "absolute",
+    top: 12,
+    right: 56,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(59, 130, 246, 0.2)",
+  },
+  syncButtonActive: {
+    backgroundColor: "rgba(59, 130, 246, 0.1)",
   },
 });
 

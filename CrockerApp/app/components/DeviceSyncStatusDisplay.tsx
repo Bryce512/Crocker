@@ -35,23 +35,11 @@ export const DeviceSyncStatusDisplay: React.FC<
         deviceStatus.deviceId
       );
 
-      if (success) {
-        Alert.alert(
-          "Sync Successful",
-          `Events synced successfully to device ${deviceStatus.deviceId}`
-        );
-      } else {
-        Alert.alert(
-          "Sync Failed",
-          `Failed to sync events to device ${deviceStatus.deviceId}`
-        );
-      }
-
       if (onSyncDevice) {
         onSyncDevice(deviceStatus.deviceId, deviceStatus.kidId);
       }
     } catch (error) {
-      Alert.alert(
+      console.log(
         "Sync Error",
         error instanceof Error ? error.message : "Unknown error occurred"
       );
@@ -61,9 +49,8 @@ export const DeviceSyncStatusDisplay: React.FC<
   const handleMarkAllForResync = async () => {
     try {
       await markAllDevicesForResync();
-      Alert.alert("Success", "All devices marked for resync");
     } catch (error) {
-      Alert.alert(
+      console.log(
         "Error",
         error instanceof Error
           ? error.message
@@ -84,9 +71,8 @@ export const DeviceSyncStatusDisplay: React.FC<
           onPress: async () => {
             try {
               await forceSyncAll();
-              Alert.alert("Success", "All devices synced successfully");
             } catch (error) {
-              Alert.alert(
+              console.log(
                 "Error",
                 error instanceof Error
                   ? error.message

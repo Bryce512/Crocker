@@ -287,17 +287,213 @@ export const createJson = (data: any): string => {
   return JSON.stringify(data);
 };
 
-// Interface for CrockerDisplay event payload
-interface CrockerEventPayload {
-  events: Array<{
-    start: number; // minutes from midnight
-    duration: number; // seconds
-    label: string; // event title
-    path: string; // image path on device
-  }>;
-  checksum?: string;
-  error?: string;
-}
+// Simple hash function for checksum (replaces Buffer which isn't available in React Native)
+const simpleHash = (str: string): string => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  // Convert to base64-like string (first 8 chars)
+  return Math.abs(hash).toString(16).padStart(8, "0").substring(0, 8);
+};
+
+// Create event schedule JSON for a specific device
+// Filters events assigned to the given device and creates the simplified format
+// Device firmware expects: {"events": [{...}, {...}]}
+export const createEventScheduleForDevice = async (
+  deviceId: string,
+  eventsOverride?: any[]
+): Promise<string> => {
+  try {
+    const firebaseService = require("./firebaseService").default;
+
+    // Use provided events or fetch from Firebase
+    const allEvents: any[] = eventsOverride || (await firebaseService.getEvents());
+    console.log(
+      `🔍 DEBUG: Retrieved ${allEvents.length} total events ${eventsOverride ? '(from local state)' : '(from Firebase)'}`
+    );
+    console.log(
+      `🔍 DEBUG: All events:`,
+      allEvents.map((e) => ({ id: e.id, title: e.title, assigned: e.assignedDeviceIds }))
+    );
+
+    // Calculate time range for current calendar day (midnight to midnight) in UTC
+    // Use UTC since all Firebase timestamps are stored in UTC
+    const now = new Date();
+    const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+    const endOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+
+    console.log(
+      `🔍 DEBUG: Filtering for events between ${startOfDay.toLocaleTimeString()} and ${endOfDay.toLocaleTimeString()}`
+    );
+
+    // Filter events for current day that are assigned to this device
+    const deviceEvents = allEvents.filter((event: any) => {
+      const eventStart = new Date(event.startTime);
+      const isInTimeRange = eventStart >= startOfDay && eventStart <= endOfDay;
+      const isAssignedToDevice =
+        event.assignedDeviceIds && event.assignedDeviceIds.includes(deviceId);
+      if (!isInTimeRange) {
+        console.log(
+          `  ❌ Event "${event.title}" filtered out: not in time range (${eventStart.toLocaleTimeString()})`
+        );
+      }
+      if (!isAssignedToDevice) {
+        console.log(
+          `  ❌ Event "${event.title}" filtered out: not assigned to device ${deviceId}`
+        );
+      }
+      return isInTimeRange && isAssignedToDevice;
+    });
+
+    console.log(
+      `✅ DEBUG: ${deviceEvents.length} events pass filter for device ${deviceId}`
+    );
+    deviceEvents.forEach((e) => {
+      console.log(`  ✓ Event: "${e.title}" at ${new Date(e.startTime).toLocaleTimeString()}`);
+    });
+
+    // Sort events by start time
+    deviceEvents.sort(
+      (a: any, b: any) =>
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    );
+
+    // Create event schedule in the specified format
+    const scheduleEvents = deviceEvents.map((event: any) => {
+      const startTime = new Date(event.startTime);
+      const endTime = new Date(event.endTime);
+
+      // Calculate minutes from midnight (local time)
+      const startOfDay = new Date(startTime);
+      startOfDay.setHours(0, 0, 0, 0);
+      const minutesFromMidnight = Math.floor(
+        (startTime.getTime() - startOfDay.getTime()) / (1000 * 60)
+      );
+
+      // Calculate duration in seconds
+      const durationSeconds = Math.floor(
+        (endTime.getTime() - startTime.getTime()) / 1000
+      );
+
+      return {
+        start: minutesFromMidnight,
+        duration: durationSeconds,
+        label: (event.title || "Untitled Event").substring(0, 50),
+        path:
+          event.path ||
+          `/sdcard/${event.title?.toLowerCase().replace(/\s+/g, "-")}.png` ||
+          "/sdcard/event.png",
+      };
+    });
+
+    // Create simple events array payload
+    const payload = {
+      events: scheduleEvents,
+    };
+
+    console.log(
+      `📅 Created event schedule for device ${deviceId} with ${deviceEvents.length} events`
+    );
+    console.log(`📦 Schedule size: ${JSON.stringify(payload).length} bytes`);
+
+    return JSON.stringify(payload);
+  } catch (error) {
+    console.error("Error creating event schedule for device:", error);
+    // Return empty schedule on error
+    const emptyPayload = {
+      events: [],
+    };
+    return JSON.stringify(emptyPayload);
+  }
+};
+
+// Send event schedule to a device via CONFIG_CHAR_UUID (0001 characteristic)
+export const sendEventScheduleToDevice = async (
+  deviceId: string,
+  eventsOverride?: any[]
+): Promise<ServiceResponse<boolean>> => {
+  try {
+    // Discover services on the device first
+    console.log(`🔍 Discovering services on device ${deviceId}...`);
+    await BleManager.retrieveServices(deviceId);
+    console.log(`✅ Services discovered`);
+
+    // Create the event schedule JSON payload
+    const scheduleJson = await createEventScheduleForDevice(deviceId, eventsOverride);
+
+    // Convert JSON string to bytes for Bluetooth transmission
+    const scheduleBytes = stringToBytes(scheduleJson);
+
+    console.log(
+      `📡 Sending event schedule (${scheduleBytes.length} bytes) to device ${deviceId}`
+    );
+    console.log("📋 Schedule payload:", scheduleJson);
+
+    // Send length header first (4 bytes, big-endian) so device knows total payload size
+    const lengthBuffer = new ArrayBuffer(4);
+    const lengthView = new Uint32Array(lengthBuffer);
+    lengthView[0] = scheduleBytes.length;
+    const lengthBytes = Array.from(new Uint8Array(lengthBuffer));
+    
+    console.log(
+      `📏 Sending length header: ${scheduleBytes.length} bytes (${lengthBytes.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')})`
+    );
+    
+    await BleManager.write(
+      deviceId,
+      SERVICE_UUID,
+      CONFIG_CHAR_UUID,
+      lengthBytes,
+      lengthBytes.length
+    );
+
+    // Small delay after header
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Send in chunks if necessary (BLE has MTU limits)
+    const chunkSize = BLE_FILE_CHUNK_SIZE;
+    for (let i = 0; i < scheduleBytes.length; i += chunkSize) {
+      const chunk = scheduleBytes.slice(
+        i,
+        Math.min(i + chunkSize, scheduleBytes.length)
+      );
+      console.log(
+        `📦 Sending chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(
+          scheduleBytes.length / chunkSize
+        )} (${chunk.length} bytes)`
+      );
+
+      await BleManager.write(
+        deviceId,
+        SERVICE_UUID,
+        CONFIG_CHAR_UUID,
+        chunk,
+        chunk.length
+      );
+
+      // Small delay between chunks to let device process
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    console.log(
+      `✅ Event schedule sent successfully to CONFIG_CHAR_UUID for device ${deviceId}`
+    );
+
+    return {
+      success: true,
+      data: true,
+    };
+  } catch (error) {
+    console.error("Error sending event schedule to device:", error);
+    return {
+      success: false,
+      error: `Failed to send event schedule: ${error}`,
+    };
+  }
+};
 
 // Get events for the next 24 hours and create JSON payload for CrockerDisplay
 export const createNext24HoursEventsJson = async (
@@ -330,53 +526,53 @@ export const createNext24HoursEventsJson = async (
         new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
     );
 
-    // Create CrockerDisplay-friendly payload
-    const payload: CrockerEventPayload = {
-      events: filteredEvents.map((event: any) => {
-        const startTime = new Date(event.startTime);
-        const endTime = new Date(event.endTime);
-        
-        // Calculate minutes from midnight
-        const startOfDay = new Date(startTime);
-        startOfDay.setHours(0, 0, 0, 0);
-        const minutesFromMidnight = Math.floor(
-          (startTime.getTime() - startOfDay.getTime()) / (1000 * 60)
-        );
-        
-        // Calculate duration in seconds
-        const durationSeconds = Math.floor(
-          (endTime.getTime() - startTime.getTime()) / 1000
-        );
-        
-        return {
-          start: minutesFromMidnight,
-          duration: durationSeconds,
-          label: (event.title || "Untitled Event").substring(0, 30),
-          path: event.path || `/sdcard/${event.title?.toLowerCase().replace(/\s+/g, "-")}.png` || "/sdcard/event.png",
-        };
-      }),
+    // Create events array payload (device firmware expects just this, not metadata)
+    const eventsPayload = filteredEvents.map((event: any) => {
+      const startTime = new Date(event.startTime);
+      const endTime = new Date(event.endTime);
+
+      // Calculate minutes from midnight
+      const startOfDay = new Date(startTime);
+      startOfDay.setHours(0, 0, 0, 0);
+      const minutesFromMidnight = Math.floor(
+        (startTime.getTime() - startOfDay.getTime()) / (1000 * 60)
+      );
+
+      // Calculate duration in seconds
+      const durationSeconds = Math.floor(
+        (endTime.getTime() - startTime.getTime()) / 1000
+      );
+
+      return {
+        start: minutesFromMidnight,
+        duration: durationSeconds,
+        label: (event.title || "Untitled Event").substring(0, 30),
+        path:
+          event.path ||
+          `/sdcard/${event.title?.toLowerCase().replace(/\s+/g, "-")}.png` ||
+          "/sdcard/event.png",
+      };
+    });
+
+    // Device firmware expects just the events array as JSON
+    const payload = {
+      events: eventsPayload,
     };
 
-    // Add checksum for data integrity
-    const payloadString = JSON.stringify(payload.events);
-    payload.checksum = Buffer.from(payloadString)
-      .toString("base64")
-      .substring(0, 8);
+    const payloadString = JSON.stringify(payload);
 
     console.log(
       `📤 Created JSON payload for ${filteredEvents.length} events (next 24 hours)`
     );
-    console.log(`📦 Payload size: ${JSON.stringify(payload).length} bytes`);
-    console.log("📋 Payload:", payload);
+    console.log(`📦 Payload size: ${payloadString.length} bytes`);
+    console.log("📋 Payload:", payloadString);
 
-    return JSON.stringify(payload);
+    return payloadString;
   } catch (error) {
     console.error("Error creating events JSON:", error);
-    // Return empty payload on error
-    const emptyPayload: CrockerEventPayload = {
+    // Return empty payload on error (just empty events array)
+    const emptyPayload = {
       events: [],
-      checksum: "empty000",
-      error: "Failed to load events",
     };
     return JSON.stringify(emptyPayload);
   }
@@ -388,19 +584,46 @@ export const sendEventsToPeripheral = async (
   kidId?: string
 ): Promise<ServiceResponse<boolean>> => {
   try {
+    // Discover services on the device first
+    console.log(`🔍 Discovering services on device ${deviceId}...`);
+    await BleManager.retrieveServices(deviceId);
+    console.log(`✅ Services discovered`);
+
     // Create the JSON payload
     const eventsJson = await createNext24HoursEventsJson(kidId);
 
     // Convert JSON string to bytes for Bluetooth transmission
     const jsonBytes = stringToBytes(eventsJson);
 
-    // Here you would integrate with your BLE write function
-    // This is a placeholder - you'll need to implement the actual BLE write
     console.log(`📡 Sending ${jsonBytes.length} bytes to device ${deviceId}`);
     console.log("📄 JSON Payload:", eventsJson);
 
-    // For now, just log the payload - you'll implement actual BLE write later
-    await BleManager.write(deviceId, SERVICE_UUID, WRITE_UUID, jsonBytes);
+    // Send in chunks if necessary (BLE has MTU limits)
+    const chunkSize = BLE_FILE_CHUNK_SIZE;
+    for (let i = 0; i < jsonBytes.length; i += chunkSize) {
+      const chunk = jsonBytes.slice(
+        i,
+        Math.min(i + chunkSize, jsonBytes.length)
+      );
+      console.log(
+        `📦 Sending chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(
+          jsonBytes.length / chunkSize
+        )} (${chunk.length} bytes)`
+      );
+
+      await BleManager.write(
+        deviceId,
+        SERVICE_UUID,
+        WRITE_UUID,
+        chunk,
+        chunk.length
+      );
+
+      // Small delay between chunks to let device process
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    console.log(`✅ Events sent successfully to device ${deviceId}`);
 
     return {
       success: true,
@@ -415,15 +638,231 @@ export const sendEventsToPeripheral = async (
   }
 };
 
+// Create device configuration JSON with simplified event format
+export const createDeviceConfigJson = async (
+  kidId?: string
+): Promise<string> => {
+  try {
+    const firebaseService = require("./firebaseService").default;
+
+    // Get all events from Firebase
+    const allEvents: any[] = await firebaseService.getEvents();
+
+    // Calculate time range for next 24 hours
+    const now = new Date();
+    const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    // Filter events for next 24 hours
+    const upcomingEvents = allEvents.filter((event: any) => {
+      const eventStart = new Date(event.startTime);
+      return eventStart >= now && eventStart <= next24Hours;
+    });
+
+    // Further filter by kidId if provided
+    const filteredEvents = kidId
+      ? upcomingEvents.filter((event: any) => event.assignedKidId === kidId)
+      : upcomingEvents;
+
+    // Sort events by start time
+    filteredEvents.sort(
+      (a: any, b: any) =>
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    );
+
+    // Create simplified event config format
+    const configEvents = filteredEvents.map((event: any) => {
+      const startTime = new Date(event.startTime);
+      const endTime = new Date(event.endTime);
+
+      // Calculate minutes from midnight (local time)
+      const startOfDay = new Date(startTime);
+      startOfDay.setHours(0, 0, 0, 0);
+      const minutesFromMidnight = Math.floor(
+        (startTime.getTime() - startOfDay.getTime()) / (1000 * 60)
+      );
+
+      // Calculate duration in seconds
+      const durationSeconds = Math.floor(
+        (endTime.getTime() - startTime.getTime()) / 1000
+      );
+
+      return {
+        start: minutesFromMidnight,
+        duration: durationSeconds,
+        label: (event.title || "Untitled Event").substring(0, 30),
+        path:
+          event.path ||
+          `/sdcard/${event.title?.toLowerCase().replace(/\s+/g, "-")}.png` ||
+          "/sdcard/event.png",
+      };
+    });
+
+    const payload = {
+      events: configEvents,
+    };
+
+    console.log(`⚙️ Created device config for ${filteredEvents.length} events`);
+    console.log(`📦 Config size: ${JSON.stringify(payload).length} bytes`);
+    console.log("⚙️ Config payload:", payload);
+
+    return JSON.stringify(payload);
+  } catch (error) {
+    console.error("Error creating device config JSON:", error);
+    // Return empty config on error
+    const emptyPayload = {
+      events: [],
+    };
+    return JSON.stringify(emptyPayload);
+  }
+};
+
+// Send device configuration JSON to connected peripheral
+export const sendConfigToPeripheral = async (
+  deviceId: string,
+  kidId?: string
+): Promise<ServiceResponse<boolean>> => {
+  try {
+    // Create the config JSON payload
+    const configJson = await createDeviceConfigJson(kidId);
+
+    // Convert JSON string to bytes for Bluetooth transmission
+    const configBytes = stringToBytes(configJson);
+
+    console.log(
+      `⚙️ Sending config (${configBytes.length} bytes) to device ${deviceId}`
+    );
+    console.log("📋 Config payload:", configJson);
+
+    // Send via BLE on CONFIG characteristic
+    await BleManager.write(
+      deviceId,
+      SERVICE_UUID,
+      CONFIG_CHAR_UUID,
+      configBytes
+    );
+
+    console.log("✅ Config sent successfully to CONFIG_CHAR_UUID");
+
+    return {
+      success: true,
+      data: true,
+    };
+  } catch (error) {
+    console.error("Error sending config to peripheral:", error);
+    return {
+      success: false,
+      error: `Failed to send config: ${error}`,
+    };
+  }
+};
+
+// Send current unix timestamp to connected peripheral
+export const sendTimestampToPeripheral = async (
+  deviceId: string
+): Promise<ServiceResponse<boolean>> => {
+  try {
+    // Get current unix timestamp (in seconds)
+    let unixTimestamp = Math.floor(Date.now() / 1000);
+
+    // Adjust for timezone offset
+    // Get timezone offset in minutes, convert to seconds
+    const timezoneOffsetMinutes = new Date().getTimezoneOffset();
+    const timezoneOffsetSeconds = timezoneOffsetMinutes * 60;
+
+    // Adjust timestamp: currentUnix + (timezone * 3600)
+    // Note: getTimezoneOffset() returns negative for east of UTC, positive for west
+    // So we negate it to get the proper offset
+    unixTimestamp = unixTimestamp - timezoneOffsetSeconds;
+
+    // Convert timestamp to UTF8 string bytes
+    const timestampString = unixTimestamp.toString();
+    const timestampBytes = stringToBytes(timestampString);
+
+    console.log(
+      `⏰ Sending timezone-adjusted timestamp to device ${deviceId}: ${timestampString} (offset: ${-timezoneOffsetSeconds}s)`
+    );
+    console.log("📄 Timestamp bytes:", timestampBytes);
+
+    // Send via BLE on TIME_SYNC characteristic
+    await BleManager.write(
+      deviceId,
+      SERVICE_UUID,
+      TIME_SYNC_CHAR_UUID,
+      timestampBytes
+    );
+
+    return {
+      success: true,
+      data: true,
+    };
+  } catch (error) {
+    console.error("Error sending timestamp to peripheral:", error);
+    return {
+      success: false,
+      error: `Failed to send timestamp: ${error}`,
+    };
+  }
+};
+
+// Read device sync confirmation from STATUS characteristic (0003)
+export const readDeviceSyncConfirmation = async (
+  deviceId: string
+): Promise<{ success: boolean; eventsSynced: boolean; error?: string }> => {
+  try {
+    console.log(
+      `⏳ Reading device sync confirmation from ${deviceId}...`
+    );
+
+    // First ensure services are discovered
+    await BleManager.retrieveServices(deviceId);
+
+    // Read from STATUS characteristic
+    const response = await BleManager.read(
+      deviceId,
+      SERVICE_UUID,
+      STATUS_CHAR_UUID
+    );
+
+    // Response should be a byte array
+    // Assuming device sends: [1] for success, [0] for failure
+    const statusByte = response[0];
+    const eventsSynced = statusByte === 1;
+
+    console.log(
+      `📊 Device sync status: ${eventsSynced ? "✅ Synced" : "❌ Failed"}`
+    );
+
+    return {
+      success: true,
+      eventsSynced,
+    };
+  } catch (error) {
+    console.error("Error reading device sync confirmation:", error);
+    return {
+      success: false,
+      eventsSynced: false,
+      error: `Failed to read sync status: ${error}`,
+    };
+  }
+};
+
 export default {
   // Utility functions
   stringToBytes,
   base64ToBytes,
   createJson,
 
-  // Event JSON creation
+  // Event schedule creation and sending
+  createEventScheduleForDevice,
+  sendEventScheduleToDevice,
+  readDeviceSyncConfirmation,
+
+  // Event JSON creation (legacy)
   createNext24HoursEventsJson,
   sendEventsToPeripheral,
+  createDeviceConfigJson,
+  sendConfigToPeripheral,
+  sendTimestampToPeripheral,
 
   // Permission management
   requestBluetoothPermissions,

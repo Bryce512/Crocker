@@ -1,6 +1,7 @@
 // firebaseService.ts
 import auth from "@react-native-firebase/auth";
 import database from "@react-native-firebase/database";
+import { ref, get, set, update, remove } from "@react-native-firebase/database";
 import type { FirebaseAuthTypes } from "@react-native-firebase/auth";
 
 // Flag to track initialization status
@@ -26,25 +27,25 @@ export const initializeFirebase = async () => {
 
 // Function to write data to the database
 export const writeData = (userId: string, name: string, email: string) => {
-  const userRef = database().ref(`users/${userId}`);
+  const db = database();
+  const userRef = ref(db, `users/${userId}`);
   console.log(`Writing to user ${userId}`);
   const userData = {
     name: name,
     email: email,
   };
 
-  return userRef
-    .set(userData)
+  return set(userRef, userData)
     .then(() => console.log("Data written successfully"))
     .catch((error: any) => console.error("Error writing data:", error));
 };
 
 // Function to read data from the database
 export const readData = (userId: string) => {
-  const userRef = database().ref(`users/${userId}`);
+  const db = database();
+  const userRef = ref(db, `users/${userId}`);
 
-  return userRef
-    .once("value")
+  return get(userRef)
     .then((snapshot) => {
       if (snapshot.exists()) {
         const userData = snapshot.val();
@@ -172,10 +173,11 @@ export const onAuthChange = (
 
 // Vehicle-specific functions
 export const getVehicles = async (userId: string) => {
-  const vehiclesRef = database().ref(`users/${userId}/vehicles`);
+  const db = database();
+  const vehiclesRef = ref(db, `users/${userId}/vehicles`);
 
   try {
-    const snapshot = await vehiclesRef.once("value");
+    const snapshot = await get(vehiclesRef);
     if (snapshot.exists()) {
       const vehiclesData = snapshot.val();
       // Convert object to array with id included
@@ -192,14 +194,16 @@ export const getVehicles = async (userId: string) => {
 };
 
 export const addVehicle = async (userId: string, vehicleData: any) => {
-  const vehiclesRef = database().ref(`users/${userId}/vehicles`);
+  const db = database();
+  const vehiclesRef = ref(db, `users/${userId}/vehicles`);
 
   // Create a new unique key for the vehicle
-  const newVehicleRef = vehiclesRef.push();
+  const newVehicleId = `vehicle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const newVehicleRef = ref(db, `users/${userId}/vehicles/${newVehicleId}`);
 
   try {
-    await newVehicleRef.set(vehicleData);
-    return { id: newVehicleRef.key, ...vehicleData };
+    await set(newVehicleRef, vehicleData);
+    return { id: newVehicleId, ...vehicleData };
   } catch (error) {
     console.error("Error adding vehicle:", error);
     throw error;
@@ -211,10 +215,11 @@ export const updateVehicle = async (
   vehicleId: string,
   vehicleData: any
 ) => {
-  const vehicleRef = database().ref(`users/${userId}/vehicles/${vehicleId}`);
+  const db = database();
+  const vehicleRef = ref(db, `users/${userId}/vehicles/${vehicleId}`);
 
   try {
-    await vehicleRef.update(vehicleData);
+    await update(vehicleRef, vehicleData);
     return { id: vehicleId, ...vehicleData };
   } catch (error) {
     console.error("Error updating vehicle:", error);
@@ -223,10 +228,11 @@ export const updateVehicle = async (
 };
 
 export const deleteVehicle = async (userId: string, vehicleId: string) => {
-  const vehicleRef = database().ref(`users/${userId}/vehicles/${vehicleId}`);
+  const db = database();
+  const vehicleRef = ref(db, `users/${userId}/vehicles/${vehicleId}`);
 
   try {
-    await vehicleRef.remove();
+    await remove(vehicleRef);
     return true;
   } catch (error) {
     console.error("Error deleting vehicle:", error);
@@ -236,10 +242,11 @@ export const deleteVehicle = async (userId: string, vehicleId: string) => {
 
 // Get diagnostic logs for a specific vehicle
 export const getDiagnosticLogs = async (userId: string, vehicleId: string) => {
-  const logsRef = database().ref(`users/${userId}/diagnostic_logs`);
+  const db = database();
+  const logsRef = ref(db, `users/${userId}/diagnostic_logs`);
 
   try {
-    const snapshot = await logsRef.once("value");
+    const snapshot = await get(logsRef);
     if (snapshot.exists()) {
       const logsData = snapshot.val();
       // Filter logs for the specific vehicle and convert to array
@@ -266,11 +273,12 @@ export const ensureUserProfile = async (user: FirebaseAuthTypes.User) => {
   // Add a small delay to ensure auth state is fully propagated
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  const userRef = database().ref(`users/${user.uid}`);
+  const db = database();
+  const userRef = ref(db, `users/${user.uid}`);
 
   try {
     // Check if user profile already exists
-    const snapshot = await userRef.once("value");
+    const snapshot = await get(userRef);
 
     if (!snapshot.exists()) {
       console.log(
@@ -293,7 +301,7 @@ export const ensureUserProfile = async (user: FirebaseAuthTypes.User) => {
         deviceProfiles: {}, // For device settings and preferences
       };
 
-      await userRef.set(userData);
+      await set(userRef, userData);
       console.log(
         "✅ Successfully created user profile in database with path: users/" +
           user.uid
@@ -320,7 +328,7 @@ export const ensureUserProfile = async (user: FirebaseAuthTypes.User) => {
         console.log(
           "🔷 Updating existing user profile to include device sections"
         );
-        await userRef.set(existingData);
+        await set(userRef, existingData);
       }
 
       return existingData;
@@ -365,20 +373,21 @@ export const testDatabaseConnection = async () => {
   }
 
   console.log("🔍 Testing database connection for user:", user.uid);
-  const testRef = database().ref(`users/${user.uid}/test`);
+  const db = database();
+  const testRef = ref(db, `users/${user.uid}/test`);
 
   try {
     // Try to write a simple test value
-    await testRef.set({ timestamp: Date.now(), test: true });
+    await set(testRef, { timestamp: Date.now(), test: true });
     console.log("✅ Database write test successful");
 
     // Try to read it back
-    const snapshot = await testRef.once("value");
+    const snapshot = await get(testRef);
     if (snapshot.exists()) {
       console.log("✅ Database read test successful");
 
       // Clean up test data
-      await testRef.set(null);
+      await set(testRef, null);
       console.log("✅ Database cleanup successful");
       return true;
     } else {
@@ -392,10 +401,11 @@ export const testDatabaseConnection = async () => {
 };
 
 export const getUserProfile = async (userId: string) => {
-  const userRef = database().ref(`users/${userId}/profile`);
+  const db = database();
+  const userRef = ref(db, `users/${userId}/profile`);
 
   try {
-    const snapshot = await userRef.once("value");
+    const snapshot = await get(userRef);
     if (snapshot.exists()) {
       return snapshot.val();
     }
@@ -413,7 +423,8 @@ export const migrateEventsToIndividualObjects = async (eventsArray: any[]) => {
     throw new Error("No authenticated user found");
   }
 
-  const eventsRef = database().ref(`users/${user.uid}/events`);
+  const db = database();
+  const eventsRef = ref(db, `users/${user.uid}/events`);
 
   try {
     console.log(
@@ -434,7 +445,7 @@ export const migrateEventsToIndividualObjects = async (eventsArray: any[]) => {
     });
 
     // Replace the array with the object structure
-    await eventsRef.set(eventsObject);
+    await set(eventsRef, eventsObject);
 
     console.log(
       `✅ Successfully migrated ${eventsArray.length} events to individual objects`
@@ -454,20 +465,15 @@ export const getEvents = async () => {
   }
 
   console.log(`Fetching events for user ${user.uid}`);
-  const eventsRef = database().ref(`users/${user.uid}/events`);
+  const db = database();
+  const eventsRef = ref(db, `users/${user.uid}/events`);
 
   try {
-    const snapshot = await eventsRef.once("value");
-    console.log("🔍 DEBUG getEvents: snapshot exists:", snapshot.exists());
+    const snapshot = await get(eventsRef);
 
     if (snapshot.exists()) {
       const eventsData = snapshot.val();
-      console.log("🔍 DEBUG getEvents: Raw eventsData:", eventsData);
       console.log("🔍 DEBUG getEvents: eventsData type:", typeof eventsData);
-      console.log(
-        "🔍 DEBUG getEvents: eventsData isArray:",
-        Array.isArray(eventsData)
-      );
 
       // Handle both array and object formats for backward compatibility
       let eventsArray;
@@ -481,51 +487,23 @@ export const getEvents = async () => {
           ...event,
           id: event.id || `event_${Date.now()}_${index}`, // Ensure ID exists
         }));
-        console.log(
-          "🔍 DEBUG getEvents: eventsArray after migration:",
-          eventsArray
-        );
       } else if (eventsData && typeof eventsData === "object") {
         // New object format - convert to array for app use
-        console.log("🔍 DEBUG getEvents: Converting object format to array");
         eventsArray = Object.keys(eventsData).map((key) => ({
           id: key,
           ...eventsData[key],
         }));
-        console.log(
-          "🔍 DEBUG getEvents: eventsArray after object conversion:",
-          eventsArray
-        );
       } else {
         eventsArray = [];
-        console.log(
-          "🔍 DEBUG getEvents: No valid events data, returning empty array"
-        );
       }
 
       // Restore Date objects from ISO strings
       const finalEventsArray = eventsArray.map((event) => {
-        console.log(
-          "🔍 DEBUG getEvents: Processing event for date conversion:",
-          event.id
-        );
 
         if (event.startTime && typeof event.startTime === "string") {
-          console.log(
-            "🔍 DEBUG getEvents: Converting startTime from string:",
-            event.startTime
-          );
           event.startTime = new Date(event.startTime);
-          console.log(
-            "🔍 DEBUG getEvents: Converted startTime to Date:",
-            event.startTime
-          );
         }
         if (event.endTime && typeof event.endTime === "string") {
-          console.log(
-            "🔍 DEBUG getEvents: Converting endTime from string:",
-            event.endTime
-          );
           event.endTime = new Date(event.endTime);
         }
         if (event.lastModified && typeof event.lastModified === "string") {
@@ -534,12 +512,57 @@ export const getEvents = async () => {
         return event;
       });
 
-      console.log("🔍 DEBUG getEvents: Final events array:", finalEventsArray);
       return finalEventsArray;
     }
     return [];
   } catch (error) {
     console.error("Error fetching events:", error);
+    throw error;
+  }
+};
+
+// Get a specific event by ID
+export const getEventById = async (eventId: string): Promise<any | null> => {
+  const user = getCurrentUser();
+  if (!user) {
+    throw new Error("No authenticated user found");
+  }
+
+  try {
+    const db = database();
+    const eventRef = ref(db, `users/${user.uid}/events/${eventId}`);
+    const snapshot = await get(eventRef);
+
+    if (snapshot.exists()) {
+      const eventData = snapshot.val();
+      
+      // Convert date strings back to Date objects
+      const event = {
+        id: eventId,
+        ...eventData,
+      };
+      
+      if (event.startTime && typeof event.startTime === "string") {
+        event.startTime = new Date(event.startTime);
+      }
+      if (event.endTime && typeof event.endTime === "string") {
+        event.endTime = new Date(event.endTime);
+      }
+      if (event.lastModified && typeof event.lastModified === "string") {
+        event.lastModified = new Date(event.lastModified);
+      }
+      
+      // Ensure assignedDeviceIds exists
+      if (!event.assignedDeviceIds) {
+        event.assignedDeviceIds = [];
+      }
+      
+      return event;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error fetching event by ID:", error);
     throw error;
   }
 };
@@ -551,10 +574,11 @@ export const getKids = async () => {
     throw new Error("No authenticated user found");
   }
 
-  const kidsRef = database().ref(`users/${user.uid}/kids`);
+  const db = database();
+  const kidsRef = ref(db, `users/${user.uid}/kids`);
 
   try {
-    const snapshot = await kidsRef.once("value");
+    const snapshot = await get(kidsRef);
     if (snapshot.exists()) {
       const kidsData = snapshot.val();
       // Convert object to array with id included
@@ -578,7 +602,8 @@ export const setEvents = async (events: any[]) => {
   }
 
   console.log(`Writing events for user ${user}`);
-  const eventsRef = database().ref(`users/${user.uid}/events`);
+  const db = database();
+  const eventsRef = ref(db, `users/${user.uid}/events`);
 
   try {
     // Convert array events to object structure with serialized dates
@@ -609,7 +634,7 @@ export const setEvents = async (events: any[]) => {
     });
 
     // Save as object structure (individual events)
-    await eventsRef.set(eventsObject);
+    await set(eventsRef, eventsObject);
     console.log(
       `Events saved successfully to Firebase as individual objects: ${events.length} events`
     );
@@ -627,7 +652,8 @@ export const addEvent = async (eventData: any) => {
     throw new Error("No authenticated user found");
   }
 
-  const eventRef = database().ref(`users/${user.uid}/events/${eventData.id}`);
+  const db = database();
+  const eventRef = ref(db, `users/${user.uid}/events/${eventData.id}`);
 
   try {
     // Ensure event has an ID
@@ -660,7 +686,7 @@ export const addEvent = async (eventData: any) => {
     const { id, ...eventDataWithoutId } = eventCopy;
 
     // Save individual event object
-    await eventRef.set(eventDataWithoutId);
+    await set(eventRef, eventDataWithoutId);
 
     console.log(`Event ${id} saved successfully as individual object`);
 
@@ -682,7 +708,8 @@ export const updateEvent = async (eventId: string, updates: any) => {
     throw new Error("No authenticated user found");
   }
 
-  const eventRef = database().ref(`users/${user.uid}/events/${eventId}`);
+  const db = database();
+  const eventRef = ref(db, `users/${user.uid}/events/${eventId}`);
 
   try {
     // Create a copy of updates and ensure dates are properly serialized
@@ -708,7 +735,7 @@ export const updateEvent = async (eventId: string, updates: any) => {
     const { id, ...updatesWithoutId } = updatesCopy;
 
     // Update the individual event object
-    await eventRef.update(updatesWithoutId);
+    await update(eventRef, updatesWithoutId);
 
     console.log(`Event ${eventId} updated successfully`);
     return true;
@@ -725,17 +752,38 @@ export const deleteEvent = async (eventId: string) => {
     throw new Error("No authenticated user found");
   }
 
-  const eventRef = database().ref(`users/${user.uid}/events/${eventId}`);
+  const path = `users/${user.uid}/events/${eventId}`;
+  console.log(`🗑️ Attempting to delete event ${eventId} at path: ${path}`);
+  
+  const db = database();
+  const eventRef = ref(db, path);
 
   try {
+    // Log the current value before deleting
+    const snapshot = await get(eventRef);
+    console.log(`📋 Event exists before delete: ${snapshot.exists()}`);
+    if (snapshot.exists()) {
+      console.log(`📋 Event data before delete:`, snapshot.val());
+    }
+
     // Remove the individual event object
-    await eventRef.remove();
-    console.log(
-      `Event ${eventId} deleted successfully from individual objects`
-    );
-    return true;
+    await remove(eventRef);
+    
+    // Verify deletion
+    const afterSnapshot = await get(eventRef);
+    console.log(`📋 Event exists after delete: ${afterSnapshot.exists()}`);
+    
+    if (!afterSnapshot.exists()) {
+      console.log(
+        `✅ Event ${eventId} deleted successfully from Firebase at path: ${path}`
+      );
+      return true;
+    } else {
+      console.error(`❌ Event ${eventId} still exists after delete attempt!`);
+      return false;
+    }
   } catch (error) {
-    console.error("Error deleting event:", error);
+    console.error(`❌ Error deleting event ${eventId}:`, error);
     throw error;
   }
 };
@@ -747,7 +795,8 @@ export const addKid = async (kidData: any) => {
     throw new Error("No authenticated user found");
   }
 
-  const kidsRef = database().ref(`users/${user.uid}/kids`);
+  const db = database();
+  const kidsRef = ref(db, `users/${user.uid}/kids`);
 
   try {
     if (Array.isArray(kidData)) {
@@ -758,15 +807,16 @@ export const addKid = async (kidData: any) => {
           kidsObject[kid.id] = kid;
         }
       });
-      await kidsRef.set(kidsObject);
+      await set(kidsRef, kidsObject);
       console.log(
         `Kids saved successfully to Firebase: ${kidData.length} kids`
       );
       return kidData;
     } else {
       // If it's a single kid, save it
-      const kidRef = database().ref(`users/${user.uid}/kids/${kidData.id}`);
-      await kidRef.set(kidData);
+      const db = database();
+      const kidRef = ref(db, `users/${user.uid}/kids/${kidData.id}`);
+      await set(kidRef, kidData);
       console.log("Kid saved successfully to Firebase");
       return kidData;
     }
@@ -783,10 +833,11 @@ export const getDevices = async () => {
     throw new Error("No authenticated user found");
   }
 
-  const devicesRef = database().ref(`users/${user.uid}/devices`);
+  const db = database();
+  const devicesRef = ref(db, `users/${user.uid}/devices`);
 
   try {
-    const snapshot = await devicesRef.once("value");
+    const snapshot = await get(devicesRef);
     if (snapshot.exists()) {
       const devicesData = snapshot.val();
       return Object.keys(devicesData).map((key) => ({
@@ -813,14 +864,16 @@ export const addDevice = async (deviceData: any) => {
     throw new Error("No authenticated user found");
   }
 
-  const deviceRef = database().ref(
+  const db = database();
+  const deviceRef = ref(
+    db,
     `users/${user.uid}/devices/${deviceData.id}`
   );
 
   try {
     // Remove ID from data since it becomes the key
     const { id, ...deviceDataWithoutId } = deviceData;
-    await deviceRef.set(deviceDataWithoutId);
+    await set(deviceRef, deviceDataWithoutId);
     console.log("Device saved successfully to Firebase");
     return deviceData;
   } catch (error) {
@@ -835,7 +888,8 @@ export const updateDevice = async (deviceId: string, updates: any) => {
     throw new Error("No authenticated user found");
   }
 
-  const deviceRef = database().ref(`users/${user.uid}/devices/${deviceId}`);
+  const db = database();
+  const deviceRef = ref(db, `users/${user.uid}/devices/${deviceId}`);
 
   try {
     // Convert Date objects to ISO strings for Firebase storage
@@ -849,7 +903,7 @@ export const updateDevice = async (deviceId: string, updates: any) => {
 
     // Remove ID from updates since it's the key
     const { id, ...updatesWithoutId } = updatesCopy;
-    await deviceRef.update(updatesWithoutId);
+    await update(deviceRef, updatesWithoutId);
     console.log(`Device ${deviceId} updated successfully`);
     return true;
   } catch (error) {
@@ -864,10 +918,11 @@ export const deleteDevice = async (deviceId: string) => {
     throw new Error("No authenticated user found");
   }
 
-  const deviceRef = database().ref(`users/${user.uid}/devices/${deviceId}`);
+  const db = database();
+  const deviceRef = ref(db, `users/${user.uid}/devices/${deviceId}`);
 
   try {
-    await deviceRef.remove();
+    await remove(deviceRef);
     console.log(`Device ${deviceId} deleted successfully`);
     return true;
   } catch (error) {
@@ -896,10 +951,11 @@ export const clearUserData = async () => {
     throw new Error("No authenticated user found");
   }
 
-  const userRef = database().ref(`users/${user.uid}`);
+  const db = database();
+  const userRef = ref(db, `users/${user.uid}`);
 
   try {
-    await userRef.remove();
+    await remove(userRef);
     console.log("🗑️ All user data cleared from Firebase");
     return true;
   } catch (error) {
@@ -935,10 +991,11 @@ export const verifyDatabaseAccess = async () => {
 
     console.log("🔷 Verifying database access for UID:", user.uid);
 
-    const userRef = database().ref(`users/${user.uid}`);
+    const db = database();
+    const userRef = ref(db, `users/${user.uid}`);
 
     // Try to read the user's data
-    const snapshot = await userRef.once("value");
+    const snapshot = await get(userRef);
 
     if (snapshot.exists()) {
       const data = snapshot.val();

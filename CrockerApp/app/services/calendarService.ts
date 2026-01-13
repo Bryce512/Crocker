@@ -11,6 +11,7 @@ export interface CalendarEvent {
   alertIntervals: number[]; // minutes before event [15, 10, 5]
   isActive: boolean;
   assignedKidId?: string | null;
+  assignedDeviceIds?: string[]; // Track which devices this event is assigned to
   source: "native" | "manual" | "imported";
   lastModified: Date;
 }
@@ -154,6 +155,7 @@ class CalendarService {
           alertIntervals: [15, 10, 5], // Default intervals
           isActive: true,
           assignedKidId: null, // Imported events have no kid assigned by default
+          assignedDeviceIds: [], // Imported events have no devices assigned by default
           source: "native" as const,
           lastModified: new Date(),
         };
@@ -403,6 +405,7 @@ class CalendarService {
       ...event,
       id: `manual_${Date.now()}`,
       lastModified: new Date(),
+      assignedDeviceIds: event.assignedDeviceIds || [],
     };
 
     const user = firebaseService.getCurrentUser();

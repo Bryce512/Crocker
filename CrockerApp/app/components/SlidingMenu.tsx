@@ -116,11 +116,7 @@ const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
             text: "Import",
             onPress: async () => {
               try {
-                const importedEvents = await importCalendarEvents();
-                Alert.alert(
-                  "Success",
-                  `Imported ${importedEvents.length} events from your calendar`
-                );
+                await importCalendarEvents();
               } catch (error) {
                 console.error("Import error:", error);
                 let errorMessage = "Failed to import calendar events.";

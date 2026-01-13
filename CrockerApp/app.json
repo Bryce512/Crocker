@@ -3,6 +3,7 @@
     "name": "Sori",
     "slug": "Sori",
     "version": "1.0.0",
+    "scheme": "sori",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
@@ -20,11 +21,12 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "teamId": "93Z7U9MQAB",
       "infoPlist": {
-        "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
-        "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
+        "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to your CrockerDisplay device.",
+        "NSBluetoothCentralUsageDescription": "This app uses Bluetooth to connect to your CrockerDisplay device.",
+        "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to your CrockerDisplay device.",
         "NSCalendarsUsageDescription": "This app needs access to your calendar to schedule transition alerts for your child.",
         "NSRemindersUsageDescription": "This app needs access to your reminders to help manage your child's schedule.",
-        "UIBackgroundModes": ["bluetooth-central"]
+        "UIBackgroundModes": ["bluetooth-central", "bluetooth-peripheral"]
       }
     },
     "android": {
