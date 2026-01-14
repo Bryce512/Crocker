@@ -171,75 +171,6 @@ export const onAuthChange = (
   return auth().onAuthStateChanged(callback);
 };
 
-// Vehicle-specific functions
-export const getVehicles = async (userId: string) => {
-  const db = database();
-  const vehiclesRef = ref(db, `users/${userId}/vehicles`);
-
-  try {
-    const snapshot = await get(vehiclesRef);
-    if (snapshot.exists()) {
-      const vehiclesData = snapshot.val();
-      // Convert object to array with id included
-      return Object.keys(vehiclesData).map((key) => ({
-        id: key,
-        ...vehiclesData[key],
-      }));
-    }
-    return [];
-  } catch (error) {
-    console.error("Error fetching vehicles:", error);
-    throw error;
-  }
-};
-
-export const addVehicle = async (userId: string, vehicleData: any) => {
-  const db = database();
-  const vehiclesRef = ref(db, `users/${userId}/vehicles`);
-
-  // Create a new unique key for the vehicle
-  const newVehicleId = `vehicle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const newVehicleRef = ref(db, `users/${userId}/vehicles/${newVehicleId}`);
-
-  try {
-    await set(newVehicleRef, vehicleData);
-    return { id: newVehicleId, ...vehicleData };
-  } catch (error) {
-    console.error("Error adding vehicle:", error);
-    throw error;
-  }
-};
-
-export const updateVehicle = async (
-  userId: string,
-  vehicleId: string,
-  vehicleData: any
-) => {
-  const db = database();
-  const vehicleRef = ref(db, `users/${userId}/vehicles/${vehicleId}`);
-
-  try {
-    await update(vehicleRef, vehicleData);
-    return { id: vehicleId, ...vehicleData };
-  } catch (error) {
-    console.error("Error updating vehicle:", error);
-    throw error;
-  }
-};
-
-export const deleteVehicle = async (userId: string, vehicleId: string) => {
-  const db = database();
-  const vehicleRef = ref(db, `users/${userId}/vehicles/${vehicleId}`);
-
-  try {
-    await remove(vehicleRef);
-    return true;
-  } catch (error) {
-    console.error("Error deleting vehicle:", error);
-    throw error;
-  }
-};
-
 // Get diagnostic logs for a specific vehicle
 export const getDiagnosticLogs = async (userId: string, vehicleId: string) => {
   const db = database();
@@ -499,7 +430,6 @@ export const getEvents = async () => {
 
       // Restore Date objects from ISO strings
       const finalEventsArray = eventsArray.map((event) => {
-
         if (event.startTime && typeof event.startTime === "string") {
           event.startTime = new Date(event.startTime);
         }
@@ -535,13 +465,13 @@ export const getEventById = async (eventId: string): Promise<any | null> => {
 
     if (snapshot.exists()) {
       const eventData = snapshot.val();
-      
+
       // Convert date strings back to Date objects
       const event = {
         id: eventId,
         ...eventData,
       };
-      
+
       if (event.startTime && typeof event.startTime === "string") {
         event.startTime = new Date(event.startTime);
       }
@@ -551,12 +481,12 @@ export const getEventById = async (eventId: string): Promise<any | null> => {
       if (event.lastModified && typeof event.lastModified === "string") {
         event.lastModified = new Date(event.lastModified);
       }
-      
+
       // Ensure assignedDeviceIds exists
       if (!event.assignedDeviceIds) {
         event.assignedDeviceIds = [];
       }
-      
+
       return event;
     }
 
@@ -754,7 +684,7 @@ export const deleteEvent = async (eventId: string) => {
 
   const path = `users/${user.uid}/events/${eventId}`;
   console.log(`🗑️ Attempting to delete event ${eventId} at path: ${path}`);
-  
+
   const db = database();
   const eventRef = ref(db, path);
 
@@ -768,11 +698,11 @@ export const deleteEvent = async (eventId: string) => {
 
     // Remove the individual event object
     await remove(eventRef);
-    
+
     // Verify deletion
     const afterSnapshot = await get(eventRef);
     console.log(`📋 Event exists after delete: ${afterSnapshot.exists()}`);
-    
+
     if (!afterSnapshot.exists()) {
       console.log(
         `✅ Event ${eventId} deleted successfully from Firebase at path: ${path}`
@@ -865,10 +795,7 @@ export const addDevice = async (deviceData: any) => {
   }
 
   const db = database();
-  const deviceRef = ref(
-    db,
-    `users/${user.uid}/devices/${deviceData.id}`
-  );
+  const deviceRef = ref(db, `users/${user.uid}/devices/${deviceData.id}`);
 
   try {
     // Remove ID from data since it becomes the key
@@ -1045,10 +972,6 @@ export default {
   signOut,
   getCurrentUser,
   onAuthChange,
-  getVehicles,
-  addVehicle,
-  updateVehicle,
-  deleteVehicle,
   getDiagnosticLogs,
   ensureUserProfile,
   getUserProfile,

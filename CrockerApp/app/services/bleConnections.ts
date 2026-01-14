@@ -409,7 +409,9 @@ export const useBleConnection = (options?: {
 
     try {
       // Initialize BLE Manager first
-      logMessage("📱 Initializing BLE Manager for remembered device connection...");
+      logMessage(
+        "📱 Initializing BLE Manager for remembered device connection..."
+      );
       try {
         await BleManager.start({ showAlert: false });
         logMessage("✅ BLE Manager started");
@@ -634,11 +636,30 @@ export const useBleConnection = (options?: {
       // Add a timeout to prevent hanging indefinitely
       const connectionPromise = BleManager.connect(device.id);
       const timeoutPromise = new Promise<void>((_, reject) =>
-        setTimeout(() => reject(new Error("Connection timeout after 15 seconds")), 15000)
+        setTimeout(
+          () => reject(new Error("Connection timeout after 15 seconds")),
+          15000
+        )
       );
 
       await Promise.race([connectionPromise, timeoutPromise]);
       logMessage("✅ Connection established");
+
+      // Discover services on the device to ensure it's fully connected
+      logMessage("🔍 Discovering device services...");
+      try {
+        await BleManager.retrieveServices(device.id);
+        logMessage("✅ Services discovered successfully");
+      } catch (serviceError) {
+        logMessage(
+          `⚠️ Service discovery error: ${
+            serviceError instanceof Error
+              ? serviceError.message
+              : String(serviceError)
+          }`
+        );
+        // Continue anyway - services might be discovered later
+      }
 
       // Update connection state
       setDeviceId(device.id);

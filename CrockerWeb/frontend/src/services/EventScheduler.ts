@@ -299,7 +299,7 @@ export class BasicEventScheduler {
       if (notification.parentElement) {
         notification.remove();
       }
-    }, 15000);
+    }, 5000);
   }
 
   /**

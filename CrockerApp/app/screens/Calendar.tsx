@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
@@ -31,17 +37,20 @@ import FontAwesome from "react-native-vector-icons/FontAwesome";
 // Helper function to get local date string (YYYY-MM-DD) for consistent date comparisons
 const getLocalDateString = (date: Date | string | null | undefined): string => {
   if (!date) return "";
-  
+
   // Convert string to Date if needed
   const dateObj = typeof date === "string" ? new Date(date) : date;
-  
+
   // Validate it's actually a Date object
   if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
     console.warn("Invalid date passed to getLocalDateString:", date);
     return "";
   }
-  
-  return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+
+  return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-${String(dateObj.getDate()).padStart(2, "0")}`;
 };
 
 const Calendar = () => {
@@ -404,16 +413,16 @@ const Calendar = () => {
 
   const formatDate = (date: Date | string | null | undefined): string => {
     if (!date) return "--";
-    
+
     // Convert string to Date if needed
     const dateObj = typeof date === "string" ? new Date(date) : date;
-    
+
     // Validate it's actually a Date object
     if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
       console.warn("Invalid date passed to formatDate:", date);
       return "--";
     }
-    
+
     return dateObj.toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
@@ -423,16 +432,16 @@ const Calendar = () => {
 
   const formatTime = (date: Date | string | null | undefined): string => {
     if (!date) return "--:--";
-    
+
     // Convert string to Date if needed
     const dateObj = typeof date === "string" ? new Date(date) : date;
-    
+
     // Validate it's actually a Date object
     if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
       console.warn("Invalid date passed to formatTime:", date);
       return "--:--";
     }
-    
+
     return dateObj.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
@@ -709,7 +718,10 @@ const Calendar = () => {
     };
   };
 
-  const todaysEvents = useMemo(() => getEventsForSelectedDate(), [getEventsForSelectedDate]);
+  const todaysEvents = useMemo(
+    () => getEventsForSelectedDate(),
+    [getEventsForSelectedDate]
+  );
   const hourBlocks = useMemo(() => generateHourBlocks(), [generateHourBlocks]);
 
   // Calculate responsive dimensions
@@ -781,11 +793,10 @@ const Calendar = () => {
       {lastSyncTime && (
         <View style={styles.syncStatus}>
           <Text style={styles.syncStatusText}>
-            Last sync: {
-              typeof lastSyncTime === "string" 
-                ? new Date(lastSyncTime).toLocaleTimeString()
-                : lastSyncTime.toLocaleTimeString()
-            }
+            Last sync:{" "}
+            {typeof lastSyncTime === "string"
+              ? new Date(lastSyncTime).toLocaleTimeString()
+              : lastSyncTime.toLocaleTimeString()}
           </Text>
         </View>
       )}
@@ -853,70 +864,67 @@ const Calendar = () => {
             showsVerticalScrollIndicator={false}
             scrollEnabled={true}
           >
-              <View style={styles.scheduleGrid}>
-                {/* Current Time Indicator */}
-                {(() => {
-                  const timeLinePosition = getCurrentTimeLinePosition();
-                  return timeLinePosition ? (
-                    <View
-                      style={[
-                        styles.currentTimeLine,
-                        { top: timeLinePosition.top },
-                      ]}
-                    >
-                      <View style={styles.currentTimeLabel}>
-                        <Text style={styles.currentTimeText}>
-                          {formatTime(currentTime)}
-                        </Text>
-                      </View>
-                      <View style={styles.currentTimeLineBar} />
+            <View style={styles.scheduleGrid}>
+              {/* Current Time Indicator */}
+              {(() => {
+                const timeLinePosition = getCurrentTimeLinePosition();
+                return timeLinePosition ? (
+                  <View
+                    style={[
+                      styles.currentTimeLine,
+                      { top: timeLinePosition.top },
+                    ]}
+                  >
+                    <View style={styles.currentTimeLabel}>
+                      <Text style={styles.currentTimeText}>
+                        {formatTime(currentTime)}
+                      </Text>
                     </View>
-                  ) : null;
-                })()}
+                    <View style={styles.currentTimeLineBar} />
+                  </View>
+                ) : null;
+              })()}
 
-                {hourBlocks.map((hour) => {
-                  // Get events that should be rendered in this hour (only events that START in this hour)
-                  const hourEvents = todaysEvents.filter((event) => {
-                    const eventStartTime =
-                      event.startTime instanceof Date
-                        ? event.startTime
-                        : new Date(event.startTime);
-                    return eventStartTime.getHours() === hour;
-                  });
+              {hourBlocks.map((hour) => {
+                // Get events that should be rendered in this hour (only events that START in this hour)
+                const hourEvents = todaysEvents.filter((event) => {
+                  const eventStartTime =
+                    event.startTime instanceof Date
+                      ? event.startTime
+                      : new Date(event.startTime);
+                  return eventStartTime.getHours() === hour;
+                });
 
-                  // Get all events that span through this hour (for overlap detection)
-                  const allHourEvents = todaysEvents.filter((event) => {
-                    const eventStartTime =
-                      event.startTime instanceof Date
-                        ? event.startTime
-                        : new Date(event.startTime);
-                    const eventEndTime =
-                      event.endTime instanceof Date
-                        ? event.endTime
-                        : new Date(event.endTime);
+                // Get all events that span through this hour (for overlap detection)
+                const allHourEvents = todaysEvents.filter((event) => {
+                  const eventStartTime =
+                    event.startTime instanceof Date
+                      ? event.startTime
+                      : new Date(event.startTime);
+                  const eventEndTime =
+                    event.endTime instanceof Date
+                      ? event.endTime
+                      : new Date(event.endTime);
 
-                    const startHour = eventStartTime.getHours();
-                    const endHour = eventEndTime.getHours();
+                  const startHour = eventStartTime.getHours();
+                  const endHour = eventEndTime.getHours();
 
-                    // Include event if this hour is within the event's time span
-                    return hour >= startHour && hour <= endHour;
-                  });
+                  // Include event if this hour is within the event's time span
+                  return hour >= startHour && hour <= endHour;
+                });
 
-                  return (
-                    <View
-                      key={hour}
-                      style={[styles.hourBlock, { height: hourBlockHeight }]}
-                    >
-                      <View style={styles.hourLabel}>
-                        <Text style={styles.hourText}>{formatHour(hour)}</Text>
-                      </View>
-                      <View style={styles.hourContent}>
-                        <View style={styles.hourLine} />
-                        {calculateEventLayout(
-                          hourEvents,
-                          todaysEvents,
-                          hour
-                        ).map((eventItem) => {
+                return (
+                  <View
+                    key={hour}
+                    style={[styles.hourBlock, { height: hourBlockHeight }]}
+                  >
+                    <View style={styles.hourLabel}>
+                      <Text style={styles.hourText}>{formatHour(hour)}</Text>
+                    </View>
+                    <View style={styles.hourContent}>
+                      <View style={styles.hourLine} />
+                      {calculateEventLayout(hourEvents, todaysEvents, hour).map(
+                        (eventItem) => {
                           const { event, position, column, totalColumns } =
                             eventItem;
                           const assignedKid = kids.find(
@@ -977,22 +985,26 @@ const Calendar = () => {
                                 style={[
                                   styles.eventBlockTitle,
                                   {
-                                    fontSize: position.pixelHeight < 50 ? 12 : 14,
+                                    fontSize:
+                                      position.pixelHeight < 50 ? 12 : 14,
                                   },
                                 ]}
-                                numberOfLines={Math.floor(position.pixelHeight / 20)}
+                                numberOfLines={Math.floor(
+                                  position.pixelHeight / 20
+                                )}
                                 ellipsizeMode="tail"
                               >
                                 {event.title}
                               </Text>
                             </TouchableOpacity>
                           );
-                        })}
-                      </View>
+                        }
+                      )}
                     </View>
-                  );
-                })}
-              </View>
+                  </View>
+                );
+              })}
+            </View>
           </ScrollView>
         </Animated.View>
       </View>

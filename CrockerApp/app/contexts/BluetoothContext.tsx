@@ -158,48 +158,45 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     let isAutoConnecting = false;
 
     const startAutoConnect = async () => {
-      if (isConnected || isAutoConnecting || registeredDevices.length === 0) {
-        return; // Skip if already connected or already attempting
+      if (isConnected || isAutoConnecting) {
+        logMessage("⏭️ Skipping auto-scan: already connected or scanning");
+        return;
+      }
+
+      // Don't proceed if we have no registered devices
+      if (registeredDevices.length === 0) {
+        logMessage("⏭️ No registered devices available for auto-connect");
+        return;
       }
 
       isAutoConnecting = true;
 
       try {
-        logMessage("🔍 Auto-scanning for registered devices...");
+        logMessage(`🔍 Auto-scanning for ${registeredDevices.length} registered device(s)...`);
 
-        // Start active BLE scan
+        // Start active BLE scan - use longer scan time to ensure discovery
         try {
-          await BleManager.scan([], 3, false); // Scan for 3 seconds
+          await BleManager.scan([], 5, false); // Scan for 5 seconds
         } catch (scanError) {
           console.error("Scan initiation error:", scanError);
+          logMessage(`⚠️ Scan initiation error: ${scanError}`);
           // Continue anyway, we can still check already discovered
         }
 
-        // Wait a moment for scan to complete
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // Wait longer for scan to complete
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Get both connected and discovered devices
         const connectedPeripherals = await BleManager.getConnectedPeripherals(
           []
         );
-        const discoveredPeripherals = await BleManager.getDiscoveredPeripherals(
-          []
-        );
+        const discoveredPeripherals = await BleManager.getDiscoveredPeripherals();
 
         // Combine all found devices
         const allFoundDevices = [
           ...connectedPeripherals,
           ...discoveredPeripherals,
         ];
-
-        logMessage(
-          `📱 Found ${allFoundDevices.length} devices (${connectedPeripherals.length} connected, ${discoveredPeripherals.length} discovered)`
-        );
-
-        // Log discovered device IDs for debugging
-        allFoundDevices.forEach((device) => {
-          logMessage(`  📍 Device: ${device.name || "Unnamed"} (${device.id})`);
-        });
 
         // Check if any registered device is in range
         for (const registeredDevice of registeredDevices) {
@@ -235,7 +232,13 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
                 `🔗 Auto-connecting to ${registeredDevice.nickname}...`
               );
               try {
-                await connectToRegisteredDevice(registeredDevice);
+                // If we matched by name, update the device ID to the actual found device
+                const deviceToConnect =
+                  foundDevice.id !== registeredDevice.id
+                    ? { ...registeredDevice, id: foundDevice.id }
+                    : registeredDevice;
+
+                await connectToRegisteredDevice(deviceToConnect);
                 logMessage(`✅ Auto-connected to ${registeredDevice.nickname}`);
                 return; // Exit after successful connection
               } catch (error) {
@@ -262,12 +265,14 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     };
 
     // Start auto-scan interval (check every 10 seconds)
-    scanInterval = setInterval(startAutoConnect, 10000);
-
-    // Initial attempt
-    startAutoConnect();
+    // But wait 2 seconds before first attempt to let devices load
+    const initialDelay = setTimeout(() => {
+      startAutoConnect();
+      scanInterval = setInterval(startAutoConnect, 10000);
+    }, 2000);
 
     return () => {
+      clearTimeout(initialDelay);
       if (scanInterval) {
         clearInterval(scanInterval);
       }

@@ -310,24 +310,29 @@ export const createEventScheduleForDevice = async (
     const firebaseService = require("./firebaseService").default;
 
     // Use provided events or fetch from Firebase
-    const allEvents: any[] = eventsOverride || (await firebaseService.getEvents());
+    const allEvents: any[] =
+      eventsOverride || (await firebaseService.getEvents());
     console.log(
-      `🔍 DEBUG: Retrieved ${allEvents.length} total events ${eventsOverride ? '(from local state)' : '(from Firebase)'}`
+      `🔍 DEBUG: Retrieved ${allEvents.length} total events ${
+        eventsOverride ? "(from local state)" : "(from Firebase)"
+      }`
     );
-    console.log(
-      `🔍 DEBUG: All events:`,
-      allEvents.map((e) => ({ id: e.id, title: e.title, assigned: e.assignedDeviceIds }))
-    );
-
-    // Calculate time range for current calendar day (midnight to midnight) in UTC
-    // Use UTC since all Firebase timestamps are stored in UTC
+    // Calculate time range: from 00:01 today to 23:59 today (local time)
+    // This ensures we capture only today's scheduled events
     const now = new Date();
-    const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
-    const endOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+    
+    // Start: 00:01 today (local time)
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 1, 0, 0); // Set to 00:01
+    
+    // End: 23:59 today (local time)
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999); // Set to 23:59:59.999
 
     console.log(
-      `🔍 DEBUG: Filtering for events between ${startOfDay.toLocaleTimeString()} and ${endOfDay.toLocaleTimeString()}`
+      `🔍 DEBUG: Filtering for events between ${startOfDay.toLocaleString()} and ${endOfDay.toLocaleString()}`
     );
+    console.log(`🔍 DEBUG: Device ID to match: ${deviceId}`);
 
     // Filter events for current day that are assigned to this device
     const deviceEvents = allEvents.filter((event: any) => {
@@ -335,16 +340,8 @@ export const createEventScheduleForDevice = async (
       const isInTimeRange = eventStart >= startOfDay && eventStart <= endOfDay;
       const isAssignedToDevice =
         event.assignedDeviceIds && event.assignedDeviceIds.includes(deviceId);
-      if (!isInTimeRange) {
-        console.log(
-          `  ❌ Event "${event.title}" filtered out: not in time range (${eventStart.toLocaleTimeString()})`
-        );
-      }
-      if (!isAssignedToDevice) {
-        console.log(
-          `  ❌ Event "${event.title}" filtered out: not assigned to device ${deviceId}`
-        );
-      }
+      
+      
       return isInTimeRange && isAssignedToDevice;
     });
 
@@ -352,7 +349,11 @@ export const createEventScheduleForDevice = async (
       `✅ DEBUG: ${deviceEvents.length} events pass filter for device ${deviceId}`
     );
     deviceEvents.forEach((e) => {
-      console.log(`  ✓ Event: "${e.title}" at ${new Date(e.startTime).toLocaleTimeString()}`);
+      console.log(
+        `  ✓ Event: "${e.title}" at ${new Date(
+          e.startTime
+        ).toLocaleTimeString()}`
+      );
     });
 
     // Sort events by start time
@@ -416,13 +417,48 @@ export const sendEventScheduleToDevice = async (
   eventsOverride?: any[]
 ): Promise<ServiceResponse<boolean>> => {
   try {
-    // Discover services on the device first
-    console.log(`🔍 Discovering services on device ${deviceId}...`);
-    await BleManager.retrieveServices(deviceId);
-    console.log(`✅ Services discovered`);
+    console.log(`📡 Starting event schedule send for device ${deviceId}`);
+
+    // Verify the device is still connected before attempting to send
+    console.log(`🔍 Verifying connection status before event send...`);
+    try {
+      const connectedDevices = await BleManager.getConnectedPeripherals([]);
+      const isStillConnected = connectedDevices.some(
+        (device) => device.id === deviceId
+      );
+      
+      if (!isStillConnected) {
+        console.warn(
+          `⚠️ Device ${deviceId} is not connected. Attempting to reconnect...`
+        );
+        
+        // Try to reconnect
+        try {
+          await BleManager.connect(deviceId);
+          await BleManager.retrieveServices(deviceId);
+          console.log(`✅ Successfully reconnected to device ${deviceId}`);
+        } catch (reconnectError) {
+          console.error(
+            `❌ Failed to reconnect to device ${deviceId}: ${reconnectError}`
+          );
+          return {
+            success: false,
+            error: `Device disconnected and reconnection failed: ${reconnectError}`,
+          };
+        }
+      } else {
+        console.log(`✅ Device ${deviceId} is still connected`);
+      }
+    } catch (connCheckError) {
+      console.warn(`⚠️ Could not verify connection status: ${connCheckError}`);
+      // Continue anyway, the write will fail if truly disconnected
+    }
 
     // Create the event schedule JSON payload
-    const scheduleJson = await createEventScheduleForDevice(deviceId, eventsOverride);
+    const scheduleJson = await createEventScheduleForDevice(
+      deviceId,
+      eventsOverride
+    );
 
     // Convert JSON string to bytes for Bluetooth transmission
     const scheduleBytes = stringToBytes(scheduleJson);
@@ -437,45 +473,94 @@ export const sendEventScheduleToDevice = async (
     const lengthView = new Uint32Array(lengthBuffer);
     lengthView[0] = scheduleBytes.length;
     const lengthBytes = Array.from(new Uint8Array(lengthBuffer));
-    
+
     console.log(
-      `📏 Sending length header: ${scheduleBytes.length} bytes (${lengthBytes.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')})`
+      `📏 Sending length header: ${scheduleBytes.length} bytes (${lengthBytes
+        .map((b) => "0x" + b.toString(16).padStart(2, "0"))
+        .join(" ")})`
     );
-    
-    await BleManager.write(
-      deviceId,
-      SERVICE_UUID,
-      CONFIG_CHAR_UUID,
-      lengthBytes,
-      lengthBytes.length
-    );
+    console.log(`📝 Length bytes type: ${typeof lengthBytes}, Array: ${Array.isArray(lengthBytes)}`);
+    console.log(`📝 Length bytes content: [${lengthBytes.join(", ")}]`);
 
-    // Small delay after header
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Send in chunks if necessary (BLE has MTU limits)
-    const chunkSize = BLE_FILE_CHUNK_SIZE;
-    for (let i = 0; i < scheduleBytes.length; i += chunkSize) {
-      const chunk = scheduleBytes.slice(
-        i,
-        Math.min(i + chunkSize, scheduleBytes.length)
-      );
-      console.log(
-        `📦 Sending chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(
-          scheduleBytes.length / chunkSize
-        )} (${chunk.length} bytes)`
-      );
-
+    try {
+      console.log("📝 Writing length header...");
       await BleManager.write(
         deviceId,
         SERVICE_UUID,
         CONFIG_CHAR_UUID,
-        chunk,
-        chunk.length
+        lengthBytes,
+        lengthBytes.length
       );
+      console.log("✅ Length header written successfully");
+    } catch (headerError) {
+      console.error(
+        `❌ Error writing length header: ${
+          headerError instanceof Error ? headerError.message : String(headerError)
+        }`
+      );
+      throw headerError;
+    }
 
-      // Small delay between chunks to let device process
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    // Delay after header to keep connection alive
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Send in chunks if necessary (BLE has MTU limits)
+    console.log(`📦 Starting chunk send loop for ${scheduleBytes.length} bytes`);
+    const chunkSize = BLE_FILE_CHUNK_SIZE;
+    const totalChunks = Math.ceil(scheduleBytes.length / chunkSize);
+    console.log(`📦 Total chunks to send: ${totalChunks}`);
+
+    for (let i = 0; i < scheduleBytes.length; i += chunkSize) {
+      const chunkNumber = Math.floor(i / chunkSize) + 1;
+      console.log(`\n📦 === CHUNK ${chunkNumber}/${totalChunks} ===`);
+
+      try {
+        const chunk = scheduleBytes.slice(
+          i,
+          Math.min(i + chunkSize, scheduleBytes.length)
+        );
+        
+        console.log(
+          `📦 Chunk ${chunkNumber}: sliced ${chunk.length} bytes from position ${i}`
+        );
+
+        // Convert to Uint8Array for proper BLE transmission
+        const uint8Chunk = new Uint8Array(chunk);
+        const dataToWrite = Array.from(uint8Chunk);
+        
+        console.log(`📝 About to write ${dataToWrite.length} bytes to device`);
+        console.log(`📝 Data type: ${typeof dataToWrite}, is Array: ${Array.isArray(dataToWrite)}`);
+        
+        // Add safety check before write
+        if (!Array.isArray(dataToWrite) || dataToWrite.length === 0) {
+          throw new Error(`Invalid data to write: ${JSON.stringify({
+            isArray: Array.isArray(dataToWrite),
+            length: dataToWrite.length,
+            type: typeof dataToWrite
+          })}`);
+        }
+        
+        await BleManager.write(
+          deviceId,
+          SERVICE_UUID,
+          CONFIG_CHAR_UUID,
+          dataToWrite,
+          dataToWrite.length
+        );
+        
+        console.log(`✅ Chunk ${chunkNumber} written successfully`);
+        
+        // Delay between chunks to let device process
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      } catch (writeError) {
+        console.error(
+          `❌ Error writing chunk ${chunkNumber}: ${
+            writeError instanceof Error ? writeError.message : String(writeError)
+          }`
+        );
+        console.error(`Error stack: ${writeError instanceof Error ? writeError.stack : "no stack"}`);
+        throw writeError;
+      }
     }
 
     console.log(
@@ -600,24 +685,50 @@ export const sendEventsToPeripheral = async (
 
     // Send in chunks if necessary (BLE has MTU limits)
     const chunkSize = BLE_FILE_CHUNK_SIZE;
+    const totalChunks = Math.ceil(jsonBytes.length / chunkSize);
     for (let i = 0; i < jsonBytes.length; i += chunkSize) {
+      const chunkNumber = Math.floor(i / chunkSize) + 1;
       const chunk = jsonBytes.slice(
         i,
         Math.min(i + chunkSize, jsonBytes.length)
       );
       console.log(
-        `📦 Sending chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(
-          jsonBytes.length / chunkSize
-        )} (${chunk.length} bytes)`
+        `📦 Sending chunk ${chunkNumber}/${totalChunks} (${chunk.length} bytes)`
       );
 
-      await BleManager.write(
-        deviceId,
-        SERVICE_UUID,
-        WRITE_UUID,
-        chunk,
-        chunk.length
-      );
+      try {
+        // Convert to Uint8Array for proper BLE transmission
+        const uint8Chunk = new Uint8Array(chunk);
+        const dataToWrite = Array.from(uint8Chunk);
+        
+        console.log(`📝 About to write ${dataToWrite.length} bytes to device`);
+        
+        // Add safety check before write
+        if (!Array.isArray(dataToWrite) || dataToWrite.length === 0) {
+          throw new Error(`Invalid data to write: ${JSON.stringify({
+            isArray: Array.isArray(dataToWrite),
+            length: dataToWrite.length,
+            type: typeof dataToWrite
+          })}`);
+        }
+        
+        await BleManager.write(
+          deviceId,
+          SERVICE_UUID,
+          WRITE_UUID,
+          dataToWrite,
+          dataToWrite.length
+        );
+        
+        console.log(`✅ Chunk ${chunkNumber} written successfully`);
+      } catch (writeError) {
+        console.error(
+          `❌ Error writing chunk ${chunkNumber}: ${
+            writeError instanceof Error ? writeError.message : String(writeError)
+          }`
+        );
+        throw writeError;
+      }
 
       // Small delay between chunks to let device process
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -733,12 +844,17 @@ export const sendConfigToPeripheral = async (
     );
     console.log("📋 Config payload:", configJson);
 
+    // Convert to Uint8Array for proper BLE transmission
+    const uint8Config = new Uint8Array(configBytes);
+    const dataToWrite = Array.from(uint8Config);
+
     // Send via BLE on CONFIG characteristic
     await BleManager.write(
       deviceId,
       SERVICE_UUID,
       CONFIG_CHAR_UUID,
-      configBytes
+      dataToWrite,
+      dataToWrite.length
     );
 
     console.log("✅ Config sent successfully to CONFIG_CHAR_UUID");
@@ -757,10 +873,73 @@ export const sendConfigToPeripheral = async (
 };
 
 // Send current unix timestamp to connected peripheral
+// Diagnostic function to list all services and characteristics on a device
+export const listDeviceServices = async (
+  deviceId: string
+): Promise<ServiceResponse<any>> => {
+  try {
+    console.log(`🔍 Discovering all services on device ${deviceId}...`);
+    
+    // Use the BLE-PLX manager to get detailed service information
+    const device = await blePlxManager.connectToDevice(deviceId);
+    await device.discoverAllServicesAndCharacteristics();
+    
+    const services = await device.services();
+    
+    console.log(`\n📋 ===== DEVICE SERVICES AND CHARACTERISTICS =====`);
+    console.log(`Device: ${deviceId}\n`);
+    
+    const servicesInfo: any[] = [];
+    
+    for (const service of services) {
+      console.log(`\n🔹 Service: ${service.uuid}`);
+      const characteristics = await service.characteristics();
+      
+      const charInfo: any[] = [];
+      for (const char of characteristics) {
+        console.log(`  └─ Characteristic: ${char.uuid}`);
+        console.log(`     Properties: ${char.isReadable ? 'R' : '-'}${char.isWritableWithResponse ? 'W' : '-'}${char.isWritableWithoutResponse ? 'w' : '-'}${char.isNotifiable ? 'N' : '-'}${char.isIndicatable ? 'I' : '-'}`);
+        charInfo.push({
+          uuid: char.uuid,
+          readable: char.isReadable,
+          writable: char.isWritableWithResponse,
+          writableWithoutResponse: char.isWritableWithoutResponse,
+          notifiable: char.isNotifiable,
+          indicatable: char.isIndicatable,
+        });
+      }
+      
+      servicesInfo.push({
+        uuid: service.uuid,
+        characteristics: charInfo,
+      });
+    }
+    
+    console.log(`\n✅ Found ${servicesInfo.length} services`);
+    
+    await device.cancelConnection();
+    
+    return {
+      success: true,
+      data: servicesInfo,
+    };
+  } catch (error) {
+    console.error(`❌ Error discovering services: ${error}`);
+    return {
+      success: false,
+      error: `Failed to discover services: ${error}`,
+      data: null,
+    };
+  }
+};
+
 export const sendTimestampToPeripheral = async (
   deviceId: string
 ): Promise<ServiceResponse<boolean>> => {
   try {
+    // Services should already be discovered from connectToDevice()
+    // Skip redundant service discovery to avoid disconnects
+
     // Get current unix timestamp (in seconds)
     let unixTimestamp = Math.floor(Date.now() / 1000);
 
@@ -783,12 +962,17 @@ export const sendTimestampToPeripheral = async (
     );
     console.log("📄 Timestamp bytes:", timestampBytes);
 
+    // Convert to Uint8Array for proper BLE transmission
+    const uint8Timestamp = new Uint8Array(timestampBytes);
+    const dataToWrite = Array.from(uint8Timestamp);
+
     // Send via BLE on TIME_SYNC characteristic
     await BleManager.write(
       deviceId,
       SERVICE_UUID,
       TIME_SYNC_CHAR_UUID,
-      timestampBytes
+      dataToWrite,
+      dataToWrite.length
     );
 
     return {
@@ -809,9 +993,7 @@ export const readDeviceSyncConfirmation = async (
   deviceId: string
 ): Promise<{ success: boolean; eventsSynced: boolean; error?: string }> => {
   try {
-    console.log(
-      `⏳ Reading device sync confirmation from ${deviceId}...`
-    );
+    console.log(`⏳ Reading device sync confirmation from ${deviceId}...`);
 
     // First ensure services are discovered
     await BleManager.retrieveServices(deviceId);
@@ -863,6 +1045,9 @@ export default {
   createDeviceConfigJson,
   sendConfigToPeripheral,
   sendTimestampToPeripheral,
+  
+  // Diagnostic functions
+  listDeviceServices,
 
   // Permission management
   requestBluetoothPermissions,

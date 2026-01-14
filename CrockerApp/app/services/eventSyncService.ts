@@ -227,30 +227,21 @@ class EventSyncService {
       syncAttempt.success = success;
 
       if (success) {
-        // Verify delivery if possible
-        const verified = await bleConnection.verifyAlertBatchDelivery(
-          eventBatch.checksum,
-          targetDeviceId
+        // Send was successful, mark as synced
+        console.log(
+          `✅ Event batch successfully synced to device ${targetDeviceId}`
         );
-
-        if (verified) {
-          console.log(
-            `✅ Event batch successfully synced to device ${targetDeviceId}`
-          );
-          await this.markSyncSuccessful(
-            targetDeviceId,
-            kidId,
-            eventBatch,
-            syncAttempt
-          );
-          return true;
-        } else {
-          console.log(
-            `⚠️ Event batch sent but verification failed for device ${targetDeviceId}`
-          );
-          syncAttempt.error = "Verification failed";
-        }
+        await this.markSyncSuccessful(
+          targetDeviceId,
+          kidId,
+          eventBatch,
+          syncAttempt
+        );
+        return true;
       } else {
+        console.log(
+          `⚠️ Event batch failed to send for device ${targetDeviceId}`
+        );
         syncAttempt.error = "Bluetooth transmission failed";
       }
     } catch (transmissionError) {

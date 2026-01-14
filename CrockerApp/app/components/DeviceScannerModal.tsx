@@ -49,7 +49,8 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
   onDeviceRegistered,
   assignedKidId,
 }) => {
-  const { connectionState, discoveredDevices, startScan, connectToDevice } = useBluetooth();
+  const { connectionState, discoveredDevices, startScan, connectToDevice } =
+    useBluetooth();
   const [isScanning, setIsScanning] = useState(false);
   const [devicesWithStatus, setDevicesWithStatus] = useState<
     DeviceWithRegistrationStatus[]
@@ -100,11 +101,20 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
   };
 
   const handleDevicePress = (device: DeviceWithRegistrationStatus) => {
-    console.log("🔷 DeviceScannerModal: Device pressed -", device.name, device.id);
-    console.log("🔷 DeviceScannerModal: Device isRegistered?", device.isRegistered);
-    
+    console.log(
+      "🔷 DeviceScannerModal: Device pressed -",
+      device.name,
+      device.id
+    );
+    console.log(
+      "🔷 DeviceScannerModal: Device isRegistered?",
+      device.isRegistered
+    );
+
     if (device.isRegistered) {
-      console.log("🔷 DeviceScannerModal: Device already registered, showing alert");
+      console.log(
+        "🔷 DeviceScannerModal: Device already registered, showing alert"
+      );
       Alert.alert(
         "Device Already Registered",
         `This device is already registered as "${device.registeredNickname}".`,
@@ -113,7 +123,9 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
       return;
     }
 
-    console.log("🔷 DeviceScannerModal: Setting selected device and showing naming modal");
+    console.log(
+      "🔷 DeviceScannerModal: Setting selected device and showing naming modal"
+    );
     setSelectedDevice(device);
     setDeviceNickname(device.name || "My Soristuffy");
     setShowNamingModal(true);
@@ -136,13 +148,12 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
       if (result.success && result.data) {
         console.log("Device registered successfully:", result.data);
         onDeviceRegistered(result.data);
-        
+
         // Attempt to connect to the device immediately after registration
         const connectionSuccess = await connectToDevice(selectedDevice);
-        
+
         setShowNamingModal(false);
         onClose();
-
       } else {
         throw new Error(result.error || "Registration failed");
       }
@@ -165,11 +176,7 @@ const DeviceScannerModal: React.FC<DeviceScannerModalProps> = ({
   };
 
   const renderDeviceItem = useCallback(
-    ({
-      item,
-    }: {
-      item: DeviceWithRegistrationStatus;
-    }) => (
+    ({ item }: { item: DeviceWithRegistrationStatus }) => (
       <TouchableOpacity
         style={[
           styles.deviceItem,

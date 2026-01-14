@@ -165,10 +165,42 @@ const DeviceConnection = () => {
       
       if (success) {
         console.log(`✅ ScanDevices: Events synced to ${device.nickname}`);
+        Alert.alert("Success", `Events synced to ${device.nickname}`);
+      } else {
+        console.log(`❌ ScanDevices: Events sync failed for ${device.nickname}`);
+        Alert.alert(
+          "Sync Failed",
+          `Failed to sync events. Make sure ${device.nickname} is connected and nearby.`,
+          [
+            {
+              text: "Retry",
+              onPress: () => handleSyncEvents(device),
+            },
+            {
+              text: "Cancel",
+              onPress: () => {},
+              style: "cancel",
+            },
+          ]
+        );
       }
     } catch (error) {
       console.error("❌ ScanDevices: Error syncing events:", error);
-      Alert.alert("Error", "Failed to sync events to device");
+      Alert.alert(
+        "Sync Error",
+        `Failed to sync events: ${error instanceof Error ? error.message : String(error)}`,
+        [
+          {
+            text: "Retry",
+            onPress: () => handleSyncEvents(device),
+          },
+          {
+            text: "Cancel",
+            onPress: () => {},
+            style: "cancel",
+          },
+        ]
+      );
     } finally {
       setIsSyncing(null);
     }
