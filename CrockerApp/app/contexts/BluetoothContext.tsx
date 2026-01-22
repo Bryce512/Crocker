@@ -172,7 +172,9 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       isAutoConnecting = true;
 
       try {
-        logMessage(`🔍 Auto-scanning for ${registeredDevices.length} registered device(s)...`);
+        logMessage(
+          `🔍 Auto-scanning for ${registeredDevices.length} registered device(s)...`
+        );
 
         // Start active BLE scan - use longer scan time to ensure discovery
         try {
@@ -190,7 +192,8 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
         const connectedPeripherals = await BleManager.getConnectedPeripherals(
           []
         );
-        const discoveredPeripherals = await BleManager.getDiscoveredPeripherals();
+        const discoveredPeripherals =
+          await BleManager.getDiscoveredPeripherals();
 
         // Combine all found devices
         const allFoundDevices = [

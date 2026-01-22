@@ -320,11 +320,11 @@ export const createEventScheduleForDevice = async (
     // Calculate time range: from 00:01 today to 23:59 today (local time)
     // This ensures we capture only today's scheduled events
     const now = new Date();
-    
+
     // Start: 00:01 today (local time)
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 1, 0, 0); // Set to 00:01
-    
+
     // End: 23:59 today (local time)
     const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59, 999); // Set to 23:59:59.999
@@ -340,8 +340,7 @@ export const createEventScheduleForDevice = async (
       const isInTimeRange = eventStart >= startOfDay && eventStart <= endOfDay;
       const isAssignedToDevice =
         event.assignedDeviceIds && event.assignedDeviceIds.includes(deviceId);
-      
-      
+
       return isInTimeRange && isAssignedToDevice;
     });
 
@@ -426,12 +425,12 @@ export const sendEventScheduleToDevice = async (
       const isStillConnected = connectedDevices.some(
         (device) => device.id === deviceId
       );
-      
+
       if (!isStillConnected) {
         console.warn(
           `⚠️ Device ${deviceId} is not connected. Attempting to reconnect...`
         );
-        
+
         // Try to reconnect
         try {
           await BleManager.connect(deviceId);
@@ -479,7 +478,11 @@ export const sendEventScheduleToDevice = async (
         .map((b) => "0x" + b.toString(16).padStart(2, "0"))
         .join(" ")})`
     );
-    console.log(`📝 Length bytes type: ${typeof lengthBytes}, Array: ${Array.isArray(lengthBytes)}`);
+    console.log(
+      `📝 Length bytes type: ${typeof lengthBytes}, Array: ${Array.isArray(
+        lengthBytes
+      )}`
+    );
     console.log(`📝 Length bytes content: [${lengthBytes.join(", ")}]`);
 
     try {
@@ -495,7 +498,9 @@ export const sendEventScheduleToDevice = async (
     } catch (headerError) {
       console.error(
         `❌ Error writing length header: ${
-          headerError instanceof Error ? headerError.message : String(headerError)
+          headerError instanceof Error
+            ? headerError.message
+            : String(headerError)
         }`
       );
       throw headerError;
@@ -505,7 +510,9 @@ export const sendEventScheduleToDevice = async (
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Send in chunks if necessary (BLE has MTU limits)
-    console.log(`📦 Starting chunk send loop for ${scheduleBytes.length} bytes`);
+    console.log(
+      `📦 Starting chunk send loop for ${scheduleBytes.length} bytes`
+    );
     const chunkSize = BLE_FILE_CHUNK_SIZE;
     const totalChunks = Math.ceil(scheduleBytes.length / chunkSize);
     console.log(`📦 Total chunks to send: ${totalChunks}`);
@@ -519,7 +526,7 @@ export const sendEventScheduleToDevice = async (
           i,
           Math.min(i + chunkSize, scheduleBytes.length)
         );
-        
+
         console.log(
           `📦 Chunk ${chunkNumber}: sliced ${chunk.length} bytes from position ${i}`
         );
@@ -527,19 +534,25 @@ export const sendEventScheduleToDevice = async (
         // Convert to Uint8Array for proper BLE transmission
         const uint8Chunk = new Uint8Array(chunk);
         const dataToWrite = Array.from(uint8Chunk);
-        
+
         console.log(`📝 About to write ${dataToWrite.length} bytes to device`);
-        console.log(`📝 Data type: ${typeof dataToWrite}, is Array: ${Array.isArray(dataToWrite)}`);
-        
+        console.log(
+          `📝 Data type: ${typeof dataToWrite}, is Array: ${Array.isArray(
+            dataToWrite
+          )}`
+        );
+
         // Add safety check before write
         if (!Array.isArray(dataToWrite) || dataToWrite.length === 0) {
-          throw new Error(`Invalid data to write: ${JSON.stringify({
-            isArray: Array.isArray(dataToWrite),
-            length: dataToWrite.length,
-            type: typeof dataToWrite
-          })}`);
+          throw new Error(
+            `Invalid data to write: ${JSON.stringify({
+              isArray: Array.isArray(dataToWrite),
+              length: dataToWrite.length,
+              type: typeof dataToWrite,
+            })}`
+          );
         }
-        
+
         await BleManager.write(
           deviceId,
           SERVICE_UUID,
@@ -547,18 +560,24 @@ export const sendEventScheduleToDevice = async (
           dataToWrite,
           dataToWrite.length
         );
-        
+
         console.log(`✅ Chunk ${chunkNumber} written successfully`);
-        
+
         // Delay between chunks to let device process
         await new Promise((resolve) => setTimeout(resolve, 100));
       } catch (writeError) {
         console.error(
           `❌ Error writing chunk ${chunkNumber}: ${
-            writeError instanceof Error ? writeError.message : String(writeError)
+            writeError instanceof Error
+              ? writeError.message
+              : String(writeError)
           }`
         );
-        console.error(`Error stack: ${writeError instanceof Error ? writeError.stack : "no stack"}`);
+        console.error(
+          `Error stack: ${
+            writeError instanceof Error ? writeError.stack : "no stack"
+          }`
+        );
         throw writeError;
       }
     }
@@ -700,18 +719,20 @@ export const sendEventsToPeripheral = async (
         // Convert to Uint8Array for proper BLE transmission
         const uint8Chunk = new Uint8Array(chunk);
         const dataToWrite = Array.from(uint8Chunk);
-        
+
         console.log(`📝 About to write ${dataToWrite.length} bytes to device`);
-        
+
         // Add safety check before write
         if (!Array.isArray(dataToWrite) || dataToWrite.length === 0) {
-          throw new Error(`Invalid data to write: ${JSON.stringify({
-            isArray: Array.isArray(dataToWrite),
-            length: dataToWrite.length,
-            type: typeof dataToWrite
-          })}`);
+          throw new Error(
+            `Invalid data to write: ${JSON.stringify({
+              isArray: Array.isArray(dataToWrite),
+              length: dataToWrite.length,
+              type: typeof dataToWrite,
+            })}`
+          );
         }
-        
+
         await BleManager.write(
           deviceId,
           SERVICE_UUID,
@@ -719,12 +740,14 @@ export const sendEventsToPeripheral = async (
           dataToWrite,
           dataToWrite.length
         );
-        
+
         console.log(`✅ Chunk ${chunkNumber} written successfully`);
       } catch (writeError) {
         console.error(
           `❌ Error writing chunk ${chunkNumber}: ${
-            writeError instanceof Error ? writeError.message : String(writeError)
+            writeError instanceof Error
+              ? writeError.message
+              : String(writeError)
           }`
         );
         throw writeError;
@@ -879,26 +902,32 @@ export const listDeviceServices = async (
 ): Promise<ServiceResponse<any>> => {
   try {
     console.log(`🔍 Discovering all services on device ${deviceId}...`);
-    
+
     // Use the BLE-PLX manager to get detailed service information
     const device = await blePlxManager.connectToDevice(deviceId);
     await device.discoverAllServicesAndCharacteristics();
-    
+
     const services = await device.services();
-    
+
     console.log(`\n📋 ===== DEVICE SERVICES AND CHARACTERISTICS =====`);
     console.log(`Device: ${deviceId}\n`);
-    
+
     const servicesInfo: any[] = [];
-    
+
     for (const service of services) {
       console.log(`\n🔹 Service: ${service.uuid}`);
       const characteristics = await service.characteristics();
-      
+
       const charInfo: any[] = [];
       for (const char of characteristics) {
         console.log(`  └─ Characteristic: ${char.uuid}`);
-        console.log(`     Properties: ${char.isReadable ? 'R' : '-'}${char.isWritableWithResponse ? 'W' : '-'}${char.isWritableWithoutResponse ? 'w' : '-'}${char.isNotifiable ? 'N' : '-'}${char.isIndicatable ? 'I' : '-'}`);
+        console.log(
+          `     Properties: ${char.isReadable ? "R" : "-"}${
+            char.isWritableWithResponse ? "W" : "-"
+          }${char.isWritableWithoutResponse ? "w" : "-"}${
+            char.isNotifiable ? "N" : "-"
+          }${char.isIndicatable ? "I" : "-"}`
+        );
         charInfo.push({
           uuid: char.uuid,
           readable: char.isReadable,
@@ -908,17 +937,17 @@ export const listDeviceServices = async (
           indicatable: char.isIndicatable,
         });
       }
-      
+
       servicesInfo.push({
         uuid: service.uuid,
         characteristics: charInfo,
       });
     }
-    
+
     console.log(`\n✅ Found ${servicesInfo.length} services`);
-    
+
     await device.cancelConnection();
-    
+
     return {
       success: true,
       data: servicesInfo,
@@ -1045,7 +1074,7 @@ export default {
   createDeviceConfigJson,
   sendConfigToPeripheral,
   sendTimestampToPeripheral,
-  
+
   // Diagnostic functions
   listDeviceServices,
 

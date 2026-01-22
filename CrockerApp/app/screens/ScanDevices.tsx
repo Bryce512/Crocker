@@ -62,7 +62,10 @@ const DeviceConnection = () => {
         await loadRegisteredDevices();
         console.log("✅ ScanDevices: Devices loaded successfully");
       } catch (error) {
-        console.error("❌ ScanDevices: Error loading registered devices:", error);
+        console.error(
+          "❌ ScanDevices: Error loading registered devices:",
+          error
+        );
         Alert.alert("Error", "Failed to load registered devices");
       } finally {
         setIsLoading(false);
@@ -75,10 +78,12 @@ const DeviceConnection = () => {
 
   const handleDeviceConnect = async (device: RegisteredDevice) => {
     console.log("🔷 ScanDevices: Device clicked -", device.nickname, device.id);
-    
+
     if (connectionState.isConnected && connectionState.deviceId === device.id) {
       // Device is connected, disconnect it
-      console.log("🔷 ScanDevices: Device is already connected, attempting disconnect...");
+      console.log(
+        "🔷 ScanDevices: Device is already connected, attempting disconnect..."
+      );
       try {
         await disconnectDevice();
         await deviceManagementService.updateRegisteredDevice(device.id, {
@@ -91,12 +96,15 @@ const DeviceConnection = () => {
       }
     } else {
       // Device is not connected, connect to it
-      console.log("🔷 ScanDevices: Attempting to connect to device:", device.nickname);
+      console.log(
+        "🔷 ScanDevices: Attempting to connect to device:",
+        device.nickname
+      );
       setIsConnecting(device.id);
       try {
         const success = await connectToRegisteredDevice(device);
         console.log("🔷 ScanDevices: Connection result -", success);
-        
+
         if (success) {
           console.log("✅ ScanDevices: Successfully connected to device");
         } else {
@@ -135,9 +143,14 @@ const DeviceConnection = () => {
           text: "Forget",
           onPress: async () => {
             try {
-              console.log("🗑️ ScanDevices: Forgetting device -", device.nickname);
-              const result = await deviceManagementService.unregisterDevice(device.id);
-              
+              console.log(
+                "🗑️ ScanDevices: Forgetting device -",
+                device.nickname
+              );
+              const result = await deviceManagementService.unregisterDevice(
+                device.id
+              );
+
               if (result.success) {
                 console.log("✅ ScanDevices: Device forgotten successfully");
                 // Refresh the device list
@@ -147,7 +160,10 @@ const DeviceConnection = () => {
               }
             } catch (error) {
               console.error("❌ ScanDevices: Error forgetting device:", error);
-              Alert.alert("Error", "Failed to remove device. Please try again.");
+              Alert.alert(
+                "Error",
+                "Failed to remove device. Please try again."
+              );
             }
           },
           style: "destructive",
@@ -159,15 +175,19 @@ const DeviceConnection = () => {
   const handleSyncEvents = async (device: RegisteredDevice) => {
     try {
       setIsSyncing(device.id);
-      console.log(`📡 ScanDevices: Syncing events for device ${device.nickname}`);
-      
+      console.log(
+        `📡 ScanDevices: Syncing events for device ${device.nickname}`
+      );
+
       const success = await sendEventScheduleToDevice(device.id);
-      
+
       if (success) {
         console.log(`✅ ScanDevices: Events synced to ${device.nickname}`);
         Alert.alert("Success", `Events synced to ${device.nickname}`);
       } else {
-        console.log(`❌ ScanDevices: Events sync failed for ${device.nickname}`);
+        console.log(
+          `❌ ScanDevices: Events sync failed for ${device.nickname}`
+        );
         Alert.alert(
           "Sync Failed",
           `Failed to sync events. Make sure ${device.nickname} is connected and nearby.`,
@@ -188,7 +208,9 @@ const DeviceConnection = () => {
       console.error("❌ ScanDevices: Error syncing events:", error);
       Alert.alert(
         "Sync Error",
-        `Failed to sync events: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to sync events: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         [
           {
             text: "Retry",
@@ -297,7 +319,9 @@ const DeviceConnection = () => {
                             </Text>
                             {isDeviceConnected(device.id) && (
                               <View style={styles.connectedIndicator}>
-                                <Text style={styles.connectedText}>Connected</Text>
+                                <Text style={styles.connectedText}>
+                                  Connected
+                                </Text>
                               </View>
                             )}
                           </View>
@@ -338,7 +362,11 @@ const DeviceConnection = () => {
                         style={styles.deleteButton}
                         onPress={() => handleForgetDevice(device)}
                       >
-                        <Feather name="trash-2" size={18} color={semanticColors.error} />
+                        <Feather
+                          name="trash-2"
+                          size={18}
+                          color={semanticColors.error}
+                        />
                       </TouchableOpacity>
 
                       <TouchableOpacity
