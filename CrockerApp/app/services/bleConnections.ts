@@ -52,13 +52,13 @@ export const useBleConnection = (options?: {
 }) => {
   // Initialize BLE Manager once on hook mount (singleton pattern)
   const bleManagerInitialized = useRef(false);
-  
+
   useEffect(() => {
     const initBleManager = async () => {
       if (bleManagerInitialized.current) {
         return; // Already initialized
       }
-      
+
       try {
         await BleManager.start({ showAlert: false });
         bleManagerInitialized.current = true;
@@ -72,7 +72,7 @@ export const useBleConnection = (options?: {
         // May already be initialized, which is fine
       }
     };
-    
+
     initBleManager();
   }, []);
 
@@ -110,19 +110,19 @@ export const useBleConnection = (options?: {
       "BleManagerDisconnectPeripheral",
       (data) => {
         logMessage(`📵 Device disconnected: ${data.peripheral}`);
-        
+
         // Update connection state if this is the connected device
         if (data.peripheral === deviceId) {
           logMessage(`🔴 Connection lost - updating UI state`);
           setIsConnected(false);
           setDeviceId(null);
           forceClearLock();
-          
+
           // Notify external callback if provided
           if (options?.onConnectionChange) {
             options.onConnectionChange(false, null);
           }
-          
+
           // Note: Auto-reconnect logic is handled by the BluetoothContext's
           // verification and auto-connect effects. We just ensure the state is updated here.
         }
@@ -835,7 +835,7 @@ export const useBleConnection = (options?: {
 
     try {
       // BLE Manager is already initialized in the hook - no need to reinitialize
-      
+
       // Check if Bluetooth is on
       const bluetoothState = await BleManager.checkState();
       logMessage(`Bluetooth state before scan: ${bluetoothState}`);

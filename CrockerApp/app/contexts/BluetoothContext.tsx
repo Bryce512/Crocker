@@ -107,13 +107,9 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   // Monitor connection state changes and log them
   useEffect(() => {
     if (isConnected && deviceId) {
-      logMessage(
-        `✅ CONNECTED to device: ${deviceName || deviceId}`
-      );
+      logMessage(`✅ CONNECTED to device: ${deviceName || deviceId}`);
     } else if (!isConnected && deviceId) {
-      logMessage(
-        `❌ DISCONNECTED from device: ${deviceName || deviceId}`
-      );
+      logMessage(`❌ DISCONNECTED from device: ${deviceName || deviceId}`);
     }
   }, [isConnected, deviceId, deviceName]);
 
