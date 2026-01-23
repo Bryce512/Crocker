@@ -44,6 +44,7 @@ const DeviceConnection = () => {
     connectToRegisteredDevice,
     disconnectDevice,
     loadRegisteredDevices,
+    setSyncingFlag,
   } = useBluetooth();
   const { sendEventScheduleToDevice } = useCalendar();
 
@@ -175,6 +176,7 @@ const DeviceConnection = () => {
   const handleSyncEvents = async (device: RegisteredDevice) => {
     try {
       setIsSyncing(device.id);
+      setSyncingFlag(true);
       console.log(
         `📡 ScanDevices: Syncing events for device ${device.nickname}`
       );
@@ -225,6 +227,7 @@ const DeviceConnection = () => {
       );
     } finally {
       setIsSyncing(null);
+      setSyncingFlag(false);
     }
   };
 

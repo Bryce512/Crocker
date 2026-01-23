@@ -8,12 +8,10 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Sori</string>
-	<key>CFBundleGetInfoString</key>
-	<string></string>
-	<key>LSApplicationCategoryType</key>
-	<string></string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleGetInfoString</key>
+	<string></string>
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
@@ -46,6 +44,8 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>LSApplicationCategoryType</key>
+	<string></string>
 	<key>LSMinimumSystemVersion</key>
 	<string>12.0</string>
 	<key>LSRequiresIPhoneOS</key>
@@ -65,8 +65,10 @@
 	<string>This app uses Bluetooth to connect to your Sori device.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>This app needs access to your calendar to schedule transition alerts for your child.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app access your Photo Library to help remind your child of the current event.</string>
 	<key>NSRemindersUsageDescription</key>
-	<string>This app needs access to your reminders to help manage your child&apos;s schedule.</string>
+	<string>This app needs access to your reminders to help manage your child's schedule.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>
@@ -98,7 +100,5 @@
 	<string>Light</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app access your Photo Library to help remind your child of the current event.</string>
 </dict>
 </plist>

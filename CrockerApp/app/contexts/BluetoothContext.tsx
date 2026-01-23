@@ -57,6 +57,7 @@ interface BluetoothContextType {
   // State setters
   setDiscoveredDevices: (devices: BluetoothDevice[]) => void;
   setShowDeviceSelector: (show: boolean) => void;
+  setSyncingFlag: (isSyncing: boolean) => void;
 
   // Utility functions
   logMessage: (message: string) => void;
@@ -98,9 +99,23 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   const [registeredDevices, setRegisteredDevices] = useState<
     RegisteredDevice[]
   >([]);
+  const [isSyncing, setIsSyncing] = useState(false);
   const logMessage = bleConnectionHook.logMessage;
 
   // Reference to hook's log to track changes
+
+  // Monitor connection state changes and log them
+  useEffect(() => {
+    if (isConnected && deviceId) {
+      logMessage(
+        `✅ CONNECTED to device: ${deviceName || deviceId}`
+      );
+    } else if (!isConnected && deviceId) {
+      logMessage(
+        `❌ DISCONNECTED from device: ${deviceName || deviceId}`
+      );
+    }
+  }, [isConnected, deviceId, deviceName]);
 
   // Sync hook state to context state
   useEffect(() => {
@@ -137,9 +152,9 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.remove();
   }, [deviceId, isConnected]);
 
-  // Verify connection periodically
+  // Verify connection periodically (but skip during sync)
   useEffect(() => {
-    if (isConnected && deviceId) {
+    if (isConnected && deviceId && !isSyncing) {
       const interval = setInterval(async () => {
         const stillConnected = await verifyConnection(deviceId);
         if (!stillConnected && rememberedDevice) {
@@ -150,16 +165,46 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
 
       return () => clearInterval(interval);
     }
-  }, [isConnected, deviceId, rememberedDevice]);
+  }, [isConnected, deviceId, rememberedDevice, isSyncing]);
+
+  // Keep-alive effect: Send periodic RSSI reads to prevent device timeout
+  // This runs even during sync to keep the connection alive
+  useEffect(() => {
+    if (isConnected && deviceId) {
+      const interval = setInterval(async () => {
+        try {
+          // Send a lightweight RSSI read to keep the device active
+          await verifyConnection(deviceId);
+          logMessage("💓 Keep-alive signal sent");
+        } catch (error) {
+          logMessage(
+            `⚠️ Keep-alive signal failed: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+        }
+      }, 5000); // Send keep-alive every 5 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [isConnected, deviceId]);
 
   // Auto-connect effect: Continuously scan for registered devices and auto-connect
+  // Skip when syncing to prevent BLE operation interference
   useEffect(() => {
     let scanInterval: NodeJS.Timeout | null = null;
     let isAutoConnecting = false;
 
     const startAutoConnect = async () => {
-      if (isConnected || isAutoConnecting) {
-        logMessage("⏭️ Skipping auto-scan: already connected or scanning");
+      // Skip if any operation is in progress
+      if (isAutoConnecting || isSyncing) {
+        logMessage("⏭️ Skipping auto-scan: operation in progress");
+        return;
+      }
+
+      // Skip auto-scan if we're already connected - let manual disconnection happen first
+      if (isConnected && deviceId) {
+        logMessage("⏭️ Skipping auto-scan: device already connected");
         return;
       }
 
@@ -229,8 +274,12 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
               }`
             );
 
-            // Check if not already connected
-            if (!isConnected && registeredDevice.id !== deviceId) {
+            // Check if device is already in the connected peripherals list
+            const isAlreadyConnected = connectedPeripherals.some(
+              (d) => d.id === foundDevice!.id
+            );
+
+            if (!isAlreadyConnected) {
               logMessage(
                 `🔗 Auto-connecting to ${registeredDevice.nickname}...`
               );
@@ -252,6 +301,10 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
                   }`
                 );
               }
+            } else {
+              logMessage(
+                `ℹ️ Device already connected: ${registeredDevice.nickname}`
+              );
             }
           }
         }
@@ -267,11 +320,12 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    // Start auto-scan interval (check every 10 seconds)
-    // But wait 2 seconds before first attempt to let devices load
+    // Start auto-scan interval (check every 30 seconds instead of 10)
+    // Wait 2 seconds before first attempt to let devices load
+    // Reduced frequency to prevent connection interference
     const initialDelay = setTimeout(() => {
       startAutoConnect();
-      scanInterval = setInterval(startAutoConnect, 10000);
+      scanInterval = setInterval(startAutoConnect, 30000);
     }, 2000);
 
     return () => {
@@ -280,7 +334,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
         clearInterval(scanInterval);
       }
     };
-  }, [isConnected, deviceId, registeredDevices]);
+  }, [isConnected, deviceId, registeredDevices, isSyncing]);
 
   // Enhanced version of verifyConnection that updates context state
   const verifyConnection = async (deviceId: string): Promise<boolean> => {
@@ -324,6 +378,9 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
         setDeviceId(device.id);
         setDeviceName(device.name);
         setRememberedDevice(device);
+
+        // Wait a moment for device to stabilize after connection
+        await new Promise((resolve) => setTimeout(resolve, 200));
 
         // Send current unix timestamp to device after successful connection
         try {
@@ -548,6 +605,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     // State setters
     setDiscoveredDevices,
     setShowDeviceSelector,
+    setSyncingFlag: setIsSyncing,
 
     // Utility
     logMessage,

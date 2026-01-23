@@ -50,6 +50,32 @@ export const useBleConnection = (options?: {
   onConnectionChange?: (connected: boolean, id: string | null) => void;
   onLogMessage?: (message: string) => void;
 }) => {
+  // Initialize BLE Manager once on hook mount (singleton pattern)
+  const bleManagerInitialized = useRef(false);
+  
+  useEffect(() => {
+    const initBleManager = async () => {
+      if (bleManagerInitialized.current) {
+        return; // Already initialized
+      }
+      
+      try {
+        await BleManager.start({ showAlert: false });
+        bleManagerInitialized.current = true;
+        console.log("✅ BLE Manager initialized (singleton)");
+      } catch (error) {
+        console.log(
+          `⚠️ BLE Manager initialization note: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+        // May already be initialized, which is fine
+      }
+    };
+    
+    initBleManager();
+  }, []);
+
   // State variables
   const [isScanning, setIsScanning] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -77,6 +103,36 @@ export const useBleConnection = (options?: {
   const [readCharUUID, setReadCharUUID] = useState<string>(CONFIG_CHAR_UUID);
   const activeOperations = useRef(0);
   const connectionLockTime = useRef<number | null>(null);
+
+  // Set up disconnect listener to monitor connection status changes
+  useEffect(() => {
+    const disconnectSub = bleEmitter.addListener(
+      "BleManagerDisconnectPeripheral",
+      (data) => {
+        logMessage(`📵 Device disconnected: ${data.peripheral}`);
+        
+        // Update connection state if this is the connected device
+        if (data.peripheral === deviceId) {
+          logMessage(`🔴 Connection lost - updating UI state`);
+          setIsConnected(false);
+          setDeviceId(null);
+          forceClearLock();
+          
+          // Notify external callback if provided
+          if (options?.onConnectionChange) {
+            options.onConnectionChange(false, null);
+          }
+          
+          // Note: Auto-reconnect logic is handled by the BluetoothContext's
+          // verification and auto-connect effects. We just ensure the state is updated here.
+        }
+      }
+    );
+
+    return () => {
+      disconnectSub.remove();
+    };
+  }, [deviceId, options]);
 
   // Clean up listeners on unmount
   useEffect(() => {
@@ -408,20 +464,8 @@ export const useBleConnection = (options?: {
     }
 
     try {
-      // Initialize BLE Manager first
-      logMessage(
-        "📱 Initializing BLE Manager for remembered device connection..."
-      );
-      try {
-        await BleManager.start({ showAlert: false });
-        logMessage("✅ BLE Manager started");
-      } catch (error) {
-        logMessage(
-          `⚠️ BLE Manager start error (may already be started): ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
+      // BLE Manager is already initialized in the hook
+      // No need to reinitialize - it's a singleton
 
       // Now attempt connection
       const success = await connectToDevice(rememberedDevice);
@@ -618,19 +662,7 @@ export const useBleConnection = (options?: {
     setLock(); // Set connection lock
 
     try {
-      // Initialize BLE Manager if needed
-      logMessage("📱 Initializing BLE Manager for device connection...");
-      try {
-        await BleManager.start({ showAlert: false });
-        logMessage("✅ BLE Manager ready");
-      } catch (error) {
-        logMessage(
-          `⚠️ BLE Manager initialization note: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-
+      // BLE Manager is already initialized in the hook - no need to reinitialize
       logMessage(`Connecting to ${device.id}...`);
 
       // Add a timeout to prevent hanging indefinitely
@@ -659,6 +691,23 @@ export const useBleConnection = (options?: {
           }`
         );
         // Continue anyway - services might be discovered later
+      }
+
+      // Send initial keep-alive command to device to confirm connection is active
+      // This prevents devices from silently disconnecting due to timeout
+      logMessage("📡 Sending keep-alive signal to device...");
+      try {
+        await BleManager.readRSSI(device.id);
+        logMessage("✅ Keep-alive signal confirmed - device is responding");
+      } catch (keepAliveError) {
+        logMessage(
+          `⚠️ Keep-alive signal failed: ${
+            keepAliveError instanceof Error
+              ? keepAliveError.message
+              : String(keepAliveError)
+          }`
+        );
+        // This is just a safety measure, don't fail the connection
       }
 
       // Update connection state
@@ -718,7 +767,7 @@ export const useBleConnection = (options?: {
     try {
       if (Platform.OS === "ios") {
         logMessage("📱 iOS detected, no explicit permission requests needed");
-        await BleManager.start({ showAlert: false });
+        // BLE Manager is already initialized in the hook
         return true;
       } else if (Platform.OS === "android") {
         logMessage(`📱 Android API level ${Platform.Version} detected`);
@@ -785,19 +834,8 @@ export const useBleConnection = (options?: {
     }
 
     try {
-      // Initialize BLE Manager
-      logMessage("📱 Initializing BLE Manager...");
-      try {
-        await BleManager.start({ showAlert: false });
-        logMessage("✅ BLE Manager started successfully");
-      } catch (error) {
-        logMessage(
-          `⚠️ BLE Manager start error (may already be started): ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-
+      // BLE Manager is already initialized in the hook - no need to reinitialize
+      
       // Check if Bluetooth is on
       const bluetoothState = await BleManager.checkState();
       logMessage(`Bluetooth state before scan: ${bluetoothState}`);

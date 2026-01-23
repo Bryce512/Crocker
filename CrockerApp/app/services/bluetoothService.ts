@@ -52,7 +52,7 @@ export const base64ToBytes = (b64: string): number[] => {
 export const requestBluetoothPermissions = async (): Promise<boolean> => {
   try {
     if (Platform.OS === "ios") {
-      await BleManager.start({ showAlert: false });
+      // BLE Manager is initialized in the hook - no need to reinitialize here
       return true;
     } else if (Platform.OS === "android") {
       let permissionsToRequest: string[] = [];
@@ -124,7 +124,7 @@ export const initializeBluetooth = async (): Promise<
   ServiceResponse<boolean>
 > => {
   try {
-    await BleManager.start({ showAlert: false });
+    // BLE Manager is initialized in the hook - just check state
     const state = await BleManager.checkState();
 
     return {
