@@ -26,6 +26,9 @@
         "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to your CrockerDisplay device.",
         "NSCalendarsUsageDescription": "This app needs access to your calendar to schedule transition alerts for your child.",
         "NSRemindersUsageDescription": "This app needs access to your reminders to help manage your child's schedule.",
+        "NSCameraUsageDescription": "This app needs access to your camera to add event images.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to add event images.",
+        "NSPhotoLibraryAddUsageDescription": "This app needs to save images to your photo library.",
         "UIBackgroundModes": ["bluetooth-central", "bluetooth-peripheral"]
       }
     },
@@ -44,7 +47,10 @@
         "android.permission.BLUETOOTH_SCAN",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.READ_CALENDAR",
-        "android.permission.WRITE_CALENDAR"
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -63,6 +69,9 @@
               "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to your OBD-II device.",
               "NSCalendarsUsageDescription": "This app needs access to your calendar to schedule transition alerts for your child.",
               "NSRemindersUsageDescription": "This app needs access to your reminders to help manage your child's schedule.",
+              "NSCameraUsageDescription": "This app needs access to your camera to add event images.",
+              "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to add event images.",
+              "NSPhotoLibraryAddUsageDescription": "This app needs to save images to your photo library.",
               "UIBackgroundModes": ["bluetooth-central"]
             }
           },
@@ -74,7 +83,10 @@
               "android.permission.BLUETOOTH_SCAN",
               "android.permission.ACCESS_FINE_LOCATION",
               "android.permission.READ_CALENDAR",
-              "android.permission.WRITE_CALENDAR"
+              "android.permission.WRITE_CALENDAR",
+              "android.permission.CAMERA",
+              "android.permission.READ_EXTERNAL_STORAGE",
+              "android.permission.WRITE_EXTERNAL_STORAGE"
             ]
           }
         }

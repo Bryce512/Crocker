@@ -14,6 +14,7 @@ export interface CalendarEvent {
   assignedDeviceIds?: string[]; // Track which devices this event is assigned to
   source: "native" | "manual" | "imported";
   lastModified: Date;
+  imageStoragePath?: string; // Firebase Storage path: user_uploads/{userId}/{eventId}.png
 }
 
 export interface Kid {

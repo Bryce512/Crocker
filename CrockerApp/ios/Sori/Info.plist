@@ -63,10 +63,14 @@
 	<string>This app uses Bluetooth to connect to your Sori device.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>This app uses Bluetooth to connect to your Sori device.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to your camera to add event images.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>This app needs access to your calendar to schedule transition alerts for your child.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app access your Photo Library to help remind your child of the current event.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs to save images to your photo library.</string>
 	<key>NSRemindersUsageDescription</key>
 	<string>This app needs access to your reminders to help manage your child's schedule.</string>
 	<key>UIBackgroundModes</key>

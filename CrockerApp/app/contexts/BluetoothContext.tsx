@@ -305,7 +305,6 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch (error) {
-        console.error("Auto-connect scan error:", error);
         logMessage(
           `⚠️ Auto-scan error: ${
             error instanceof Error ? error.message : String(error)
