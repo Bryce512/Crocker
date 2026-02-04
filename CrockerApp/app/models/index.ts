@@ -42,7 +42,7 @@ export interface BLEEvent {
   start: number; // minutes from midnight
   duration: number; // seconds
   label: string; // event title/label
-  path: string; // image path on device (e.g., "/sdcard/breakfast.png")
+  path: string; // image path on device (e.g., "/images/breakfast.png")
 }
 
 export interface Kid {

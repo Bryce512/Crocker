@@ -15,6 +15,7 @@ const CONFIG_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440001";
 const FILE_TRANSFER_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440002";
 const STATUS_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440003";
 const TIME_SYNC_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440004";
+const IMAGE_TRANSFER_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440005";
 
 // BLE MTU size (typically 512 bytes, minus overhead leaves ~480 for payload)
 const BLE_FILE_CHUNK_SIZE = 480;
@@ -72,11 +73,11 @@ export const requestBluetoothPermissions = async (): Promise<boolean> => {
       }
 
       const permissionResults = await PermissionsAndroid.requestMultiple(
-        permissionsToRequest as any
+        permissionsToRequest as any,
       );
 
       const denied = Object.values(permissionResults).includes(
-        PermissionsAndroid.RESULTS.DENIED
+        PermissionsAndroid.RESULTS.DENIED,
       );
       return !denied;
     }
@@ -89,7 +90,7 @@ export const requestBluetoothPermissions = async (): Promise<boolean> => {
 
 // Device memory management
 export const saveRememberedDevice = async (
-  device: BluetoothDevice
+  device: BluetoothDevice,
 ): Promise<void> => {
   try {
     await AsyncStorage.setItem(REMEMBERED_DEVICE_KEY, JSON.stringify(device));
@@ -142,7 +143,7 @@ export const initializeBluetooth = async (): Promise<
 
 export const scanForDevices = async (
   includeUnnamed = false,
-  duration = 2000
+  duration = 2000,
 ): Promise<ServiceResponse<BluetoothDevice[]>> => {
   try {
     const permissionsGranted = await requestBluetoothPermissions();
@@ -193,7 +194,7 @@ export const scanForDevices = async (
 };
 
 export const connectToDevice = async (
-  device: BluetoothDevice
+  device: BluetoothDevice,
 ): Promise<ConnectionResponse> => {
   try {
     await BleManager.connect(device.id);
@@ -216,7 +217,7 @@ export const connectToDevice = async (
 };
 
 export const disconnectFromDevice = async (
-  deviceId: string
+  deviceId: string,
 ): Promise<ServiceResponse<boolean>> => {
   try {
     await BleManager.disconnect(deviceId);
@@ -233,12 +234,12 @@ export const disconnectFromDevice = async (
 };
 
 export const verifyConnection = async (
-  deviceId: string
+  deviceId: string,
 ): Promise<ServiceResponse<boolean>> => {
   try {
     const connectedDevices = await BleManager.getConnectedPeripherals([]);
     const isConnected = connectedDevices.some(
-      (device) => device.id === deviceId
+      (device) => device.id === deviceId,
     );
 
     if (isConnected) {
@@ -304,7 +305,7 @@ const simpleHash = (str: string): string => {
 // Device firmware expects: {"events": [{...}, {...}]}
 export const createEventScheduleForDevice = async (
   deviceId: string,
-  eventsOverride?: any[]
+  eventsOverride?: any[],
 ): Promise<string> => {
   try {
     const firebaseService = require("./firebaseService").default;
@@ -315,7 +316,7 @@ export const createEventScheduleForDevice = async (
     console.log(
       `🔍 DEBUG: Retrieved ${allEvents.length} total events ${
         eventsOverride ? "(from local state)" : "(from Firebase)"
-      }`
+      }`,
     );
     // Calculate time range: from 00:01 today to 23:59 today (local time)
     // This ensures we capture only today's scheduled events
@@ -330,7 +331,7 @@ export const createEventScheduleForDevice = async (
     endOfDay.setHours(23, 59, 59, 999); // Set to 23:59:59.999
 
     console.log(
-      `🔍 DEBUG: Filtering for events between ${startOfDay.toLocaleString()} and ${endOfDay.toLocaleString()}`
+      `🔍 DEBUG: Filtering for events between ${startOfDay.toLocaleString()} and ${endOfDay.toLocaleString()}`,
     );
     console.log(`🔍 DEBUG: Device ID to match: ${deviceId}`);
 
@@ -345,20 +346,20 @@ export const createEventScheduleForDevice = async (
     });
 
     console.log(
-      `✅ DEBUG: ${deviceEvents.length} events pass filter for device ${deviceId}`
+      `✅ DEBUG: ${deviceEvents.length} events pass filter for device ${deviceId}`,
     );
     deviceEvents.forEach((e) => {
       console.log(
         `  ✓ Event: "${e.title}" at ${new Date(
-          e.startTime
-        ).toLocaleTimeString()}`
+          e.startTime,
+        ).toLocaleTimeString()}`,
       );
     });
 
     // Sort events by start time
     deviceEvents.sort(
       (a: any, b: any) =>
-        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
     );
 
     // Create event schedule in the specified format
@@ -370,12 +371,12 @@ export const createEventScheduleForDevice = async (
       const startOfDay = new Date(startTime);
       startOfDay.setHours(0, 0, 0, 0);
       const minutesFromMidnight = Math.floor(
-        (startTime.getTime() - startOfDay.getTime()) / (1000 * 60)
+        (startTime.getTime() - startOfDay.getTime()) / (1000 * 60),
       );
 
       // Calculate duration in seconds
       const durationSeconds = Math.floor(
-        (endTime.getTime() - startTime.getTime()) / 1000
+        (endTime.getTime() - startTime.getTime()) / 1000,
       );
 
       return {
@@ -384,8 +385,7 @@ export const createEventScheduleForDevice = async (
         label: (event.title || "Untitled Event").substring(0, 50),
         path:
           event.path ||
-          `/sdcard/${event.title?.toLowerCase().replace(/\s+/g, "-")}.png` ||
-          "/sdcard/event.png",
+          `/images/${event.title?.toLowerCase().replace(/\s+/g, "-")}.png`,
       };
     });
 
@@ -395,7 +395,7 @@ export const createEventScheduleForDevice = async (
     };
 
     console.log(
-      `📅 Created event schedule for device ${deviceId} with ${deviceEvents.length} events`
+      `📅 Created event schedule for device ${deviceId} with ${deviceEvents.length} events`,
     );
     console.log(`📦 Schedule size: ${JSON.stringify(payload).length} bytes`);
 
@@ -413,7 +413,7 @@ export const createEventScheduleForDevice = async (
 // Send event schedule to a device via CONFIG_CHAR_UUID (0001 characteristic)
 export const sendEventScheduleToDevice = async (
   deviceId: string,
-  eventsOverride?: any[]
+  eventsOverride?: any[],
 ): Promise<ServiceResponse<boolean>> => {
   try {
     console.log(`📡 Starting event schedule send for device ${deviceId}`);
@@ -423,12 +423,12 @@ export const sendEventScheduleToDevice = async (
     try {
       const connectedDevices = await BleManager.getConnectedPeripherals([]);
       const isStillConnected = connectedDevices.some(
-        (device) => device.id === deviceId
+        (device) => device.id === deviceId,
       );
 
       if (!isStillConnected) {
         console.warn(
-          `⚠️ Device ${deviceId} is not connected. Attempting to reconnect...`
+          `⚠️ Device ${deviceId} is not connected. Attempting to reconnect...`,
         );
 
         // Try to reconnect
@@ -438,7 +438,7 @@ export const sendEventScheduleToDevice = async (
           console.log(`✅ Successfully reconnected to device ${deviceId}`);
         } catch (reconnectError) {
           console.error(
-            `❌ Failed to reconnect to device ${deviceId}: ${reconnectError}`
+            `❌ Failed to reconnect to device ${deviceId}: ${reconnectError}`,
           );
           return {
             success: false,
@@ -456,14 +456,14 @@ export const sendEventScheduleToDevice = async (
     // Create the event schedule JSON payload
     const scheduleJson = await createEventScheduleForDevice(
       deviceId,
-      eventsOverride
+      eventsOverride,
     );
 
     // Convert JSON string to bytes for Bluetooth transmission
     const scheduleBytes = stringToBytes(scheduleJson);
 
     console.log(
-      `📡 Sending event schedule (${scheduleBytes.length} bytes) to device ${deviceId}`
+      `📡 Sending event schedule (${scheduleBytes.length} bytes) to device ${deviceId}`,
     );
     console.log("📋 Schedule payload:", scheduleJson);
 
@@ -476,12 +476,12 @@ export const sendEventScheduleToDevice = async (
     console.log(
       `📏 Sending length header: ${scheduleBytes.length} bytes (${lengthBytes
         .map((b) => "0x" + b.toString(16).padStart(2, "0"))
-        .join(" ")})`
+        .join(" ")})`,
     );
     console.log(
       `📝 Length bytes type: ${typeof lengthBytes}, Array: ${Array.isArray(
-        lengthBytes
-      )}`
+        lengthBytes,
+      )}`,
     );
     console.log(`📝 Length bytes content: [${lengthBytes.join(", ")}]`);
 
@@ -492,7 +492,7 @@ export const sendEventScheduleToDevice = async (
         SERVICE_UUID,
         CONFIG_CHAR_UUID,
         lengthBytes,
-        lengthBytes.length
+        lengthBytes.length,
       );
       console.log("✅ Length header written successfully");
     } catch (headerError) {
@@ -501,7 +501,7 @@ export const sendEventScheduleToDevice = async (
           headerError instanceof Error
             ? headerError.message
             : String(headerError)
-        }`
+        }`,
       );
       throw headerError;
     }
@@ -511,7 +511,7 @@ export const sendEventScheduleToDevice = async (
 
     // Send in chunks if necessary (BLE has MTU limits)
     console.log(
-      `📦 Starting chunk send loop for ${scheduleBytes.length} bytes`
+      `📦 Starting chunk send loop for ${scheduleBytes.length} bytes`,
     );
     const chunkSize = BLE_FILE_CHUNK_SIZE;
     const totalChunks = Math.ceil(scheduleBytes.length / chunkSize);
@@ -524,11 +524,11 @@ export const sendEventScheduleToDevice = async (
       try {
         const chunk = scheduleBytes.slice(
           i,
-          Math.min(i + chunkSize, scheduleBytes.length)
+          Math.min(i + chunkSize, scheduleBytes.length),
         );
 
         console.log(
-          `📦 Chunk ${chunkNumber}: sliced ${chunk.length} bytes from position ${i}`
+          `📦 Chunk ${chunkNumber}: sliced ${chunk.length} bytes from position ${i}`,
         );
 
         // Convert to Uint8Array for proper BLE transmission
@@ -538,8 +538,8 @@ export const sendEventScheduleToDevice = async (
         console.log(`📝 About to write ${dataToWrite.length} bytes to device`);
         console.log(
           `📝 Data type: ${typeof dataToWrite}, is Array: ${Array.isArray(
-            dataToWrite
-          )}`
+            dataToWrite,
+          )}`,
         );
 
         // Add safety check before write
@@ -549,7 +549,7 @@ export const sendEventScheduleToDevice = async (
               isArray: Array.isArray(dataToWrite),
               length: dataToWrite.length,
               type: typeof dataToWrite,
-            })}`
+            })}`,
           );
         }
 
@@ -558,7 +558,7 @@ export const sendEventScheduleToDevice = async (
           SERVICE_UUID,
           CONFIG_CHAR_UUID,
           dataToWrite,
-          dataToWrite.length
+          dataToWrite.length,
         );
 
         console.log(`✅ Chunk ${chunkNumber} written successfully`);
@@ -571,19 +571,19 @@ export const sendEventScheduleToDevice = async (
             writeError instanceof Error
               ? writeError.message
               : String(writeError)
-          }`
+          }`,
         );
         console.error(
           `Error stack: ${
             writeError instanceof Error ? writeError.stack : "no stack"
-          }`
+          }`,
         );
         throw writeError;
       }
     }
 
     console.log(
-      `✅ Event schedule sent successfully to CONFIG_CHAR_UUID for device ${deviceId}`
+      `✅ Event schedule sent successfully to CONFIG_CHAR_UUID for device ${deviceId}`,
     );
 
     return {
@@ -599,9 +599,243 @@ export const sendEventScheduleToDevice = async (
   }
 };
 
+// Send event image to device via IMAGE_TRANSFER_CHAR_UUID (0005 characteristic)
+// Accepts RGB565 binary data or file URI and sends to device
+export const sendImageToDevice = async (
+  deviceId: string,
+  imageDataOrUri: string | number[], // RGB565 binary array or a file URI
+  filename: string,
+  eventName?: string,
+  onProgress?: (currentChunk: number, totalChunks: number) => void,
+  cancelToken?: { cancelled: boolean },
+): Promise<ServiceResponse<boolean>> => {
+  try {
+    console.log(`🖼️  Starting image send for device ${deviceId}: ${filename}`);
+
+    // Verify device is connected
+    const connectedDevices = await BleManager.getConnectedPeripherals([]);
+    const isConnected = connectedDevices.some(
+      (device) => device.id === deviceId,
+    );
+
+    if (!isConnected) {
+      console.warn(
+        `⚠️ Device ${deviceId} is not connected. Attempting to reconnect...`,
+      );
+      try {
+        await BleManager.connect(deviceId);
+        await BleManager.retrieveServices(deviceId);
+        console.log(`✅ Successfully reconnected to device ${deviceId}`);
+      } catch (reconnectError) {
+        console.error(`❌ Failed to reconnect: ${reconnectError}`);
+        return {
+          success: false,
+          error: `Device disconnected: ${reconnectError}`,
+        };
+      }
+    }
+
+    // Determine if this is RGB565 array, URI, or base64 string
+    let imageBytes: number[];
+
+    if (Array.isArray(imageDataOrUri)) {
+      // Already RGB565 binary data
+      imageBytes = imageDataOrUri;
+      console.log(`✅ Using RGB565 binary data: ${imageBytes.length} bytes`);
+    } else if (typeof imageDataOrUri === "string") {
+      const isUri =
+        imageDataOrUri.startsWith("file://") ||
+        imageDataOrUri.startsWith("ph://") ||
+        imageDataOrUri.startsWith("http");
+
+      if (isUri) {
+        // Fetch the actual file and get binary data
+        console.log(`📥 Fetching binary image data from URI...`);
+        try {
+          const response = await fetch(imageDataOrUri);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.statusText}`);
+          }
+
+          // Use response.arrayBuffer() instead of blob.arrayBuffer() (React Native compatible)
+          const arrayBuffer = await response.arrayBuffer();
+          imageBytes = Array.from(new Uint8Array(arrayBuffer));
+          console.log(`✅ Fetched binary image: ${imageBytes.length} bytes`);
+        } catch (fetchError) {
+          console.error(`❌ Error fetching image: ${fetchError}`);
+          return {
+            success: false,
+            error: `Failed to fetch image: ${fetchError}`,
+          };
+        }
+      } else {
+        // Convert base64 to bytes (legacy support)
+        console.log(`🔄 Converting base64 to binary...`);
+        imageBytes = base64ToBytes(imageDataOrUri);
+        console.log(`✅ Converted base64: ${imageBytes.length} bytes`);
+      }
+    } else {
+      return {
+        success: false,
+        error: "Invalid image data format",
+      };
+    }
+
+    if (imageBytes.length === 0) {
+      return {
+        success: false,
+        error: "Failed to convert/fetch image data",
+      };
+    }
+
+    // Create filename bytes (UTF-8) with leading / for device path
+    const filenameWithPath = `/images/${filename}`;
+    const filenameBytes = stringToBytes(filenameWithPath);
+    console.log(
+      `📝 Filename bytes: ${filenameBytes.length} bytes (${filenameWithPath})`,
+    );
+
+    // Protocol: [filename_length:2bytes][filename][image_length:4bytes][image_data]
+    // Send filename length first (2 bytes, big-endian)
+    const filenameLengthBuffer = new ArrayBuffer(2);
+    const filenameLengthView = new Uint16Array(filenameLengthBuffer);
+    filenameLengthView[0] = filenameBytes.length;
+    const filenameLengthBytes = Array.from(
+      new Uint8Array(filenameLengthBuffer),
+    );
+
+    console.log(
+      `📏 Sending filename length header: ${filenameBytes.length} bytes`,
+    );
+
+    try {
+      await BleManager.write(
+        deviceId,
+        SERVICE_UUID,
+        IMAGE_TRANSFER_CHAR_UUID,
+        filenameLengthBytes,
+        filenameLengthBytes.length,
+      );
+      console.log("✅ Filename length header written");
+    } catch (headerError) {
+      console.error(`❌ Error writing filename length: ${headerError}`);
+      throw headerError;
+    }
+
+    // Minimal delay for faster transmission
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    // Send filename
+    try {
+      const filenameDataToWrite = Array.from(new Uint8Array(filenameBytes));
+      await BleManager.write(
+        deviceId,
+        SERVICE_UUID,
+        IMAGE_TRANSFER_CHAR_UUID,
+        filenameDataToWrite,
+        filenameDataToWrite.length,
+      );
+      console.log(`✅ Filename written (${filenameDataToWrite.length} bytes)`);
+    } catch (filenameError) {
+      console.error(`❌ Error writing filename: ${filenameError}`);
+      throw filenameError;
+    }
+
+    // Minimal delay for faster transmission
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    // Send image data length (4 bytes, big-endian)
+    const imageLengthBuffer = new ArrayBuffer(4);
+    const imageLengthView = new Uint32Array(imageLengthBuffer);
+    imageLengthView[0] = imageBytes.length;
+    const imageLengthBytes = Array.from(new Uint8Array(imageLengthBuffer));
+
+    console.log(`📏 Sending image length header: ${imageBytes.length} bytes`);
+
+    try {
+      await BleManager.write(
+        deviceId,
+        SERVICE_UUID,
+        IMAGE_TRANSFER_CHAR_UUID,
+        imageLengthBytes,
+        imageLengthBytes.length,
+      );
+      console.log("✅ Image length header written");
+    } catch (headerError) {
+      console.error(`❌ Error writing image length: ${headerError}`);
+      throw headerError;
+    }
+
+    // Minimal delay for faster transmission
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    // Send image data in chunks
+    const chunkSize = BLE_FILE_CHUNK_SIZE;
+    const totalChunks = Math.ceil(imageBytes.length / chunkSize);
+    console.log(
+      `📦 Sending image in ${totalChunks} chunks (${chunkSize} bytes each) - ${(imageBytes.length / 1024).toFixed(2)} KB total`,
+    );
+
+    for (let i = 0; i < imageBytes.length; i += chunkSize) {
+      const chunkNumber = Math.floor(i / chunkSize) + 1;
+
+      // Check if transfer was cancelled
+      if (cancelToken?.cancelled) {
+        console.log(`⏹️  Image transfer cancelled by user`);
+        return {
+          success: false,
+          error: "Transfer cancelled",
+        };
+      }
+
+      try {
+        const chunk = imageBytes.slice(
+          i,
+          Math.min(i + chunkSize, imageBytes.length),
+        );
+        const dataToWrite = Array.from(new Uint8Array(chunk));
+
+        await BleManager.write(
+          deviceId,
+          SERVICE_UUID,
+          IMAGE_TRANSFER_CHAR_UUID,
+          dataToWrite,
+          dataToWrite.length,
+        );
+
+        // Call progress callback if provided
+        if (onProgress) {
+          onProgress(chunkNumber, totalChunks);
+        }
+
+        // Minimal delay between chunks for faster transmission
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      } catch (writeError) {
+        console.error(`❌ Error writing chunk ${chunkNumber}: ${writeError}`);
+        throw writeError;
+      }
+    }
+
+    console.log(
+      `✅ Image sent successfully to IMAGE_TRANSFER_CHAR_UUID for device ${deviceId}`,
+    );
+
+    return {
+      success: true,
+      data: true,
+    };
+  } catch (error) {
+    console.error("Error sending image to device:", error);
+    return {
+      success: false,
+      error: `Failed to send image: ${error}`,
+    };
+  }
+};
+
 // Get events for the next 24 hours and create JSON payload for CrockerDisplay
 export const createNext24HoursEventsJson = async (
-  kidId?: string
+  kidId?: string,
 ): Promise<string> => {
   try {
     const firebaseService = require("./firebaseService").default;
@@ -627,7 +861,7 @@ export const createNext24HoursEventsJson = async (
     // Sort events by start time
     filteredEvents.sort(
       (a: any, b: any) =>
-        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
     );
 
     // Create events array payload (device firmware expects just this, not metadata)
@@ -639,12 +873,12 @@ export const createNext24HoursEventsJson = async (
       const startOfDay = new Date(startTime);
       startOfDay.setHours(0, 0, 0, 0);
       const minutesFromMidnight = Math.floor(
-        (startTime.getTime() - startOfDay.getTime()) / (1000 * 60)
+        (startTime.getTime() - startOfDay.getTime()) / (1000 * 60),
       );
 
       // Calculate duration in seconds
       const durationSeconds = Math.floor(
-        (endTime.getTime() - startTime.getTime()) / 1000
+        (endTime.getTime() - startTime.getTime()) / 1000,
       );
 
       return {
@@ -653,8 +887,7 @@ export const createNext24HoursEventsJson = async (
         label: (event.title || "Untitled Event").substring(0, 30),
         path:
           event.path ||
-          `/sdcard/${event.title?.toLowerCase().replace(/\s+/g, "-")}.png` ||
-          "/sdcard/event.png",
+          `/images/${event.title?.toLowerCase().replace(/\s+/g, "-")}.rgb565`,
       };
     });
 
@@ -666,7 +899,7 @@ export const createNext24HoursEventsJson = async (
     const payloadString = JSON.stringify(payload);
 
     console.log(
-      `📤 Created JSON payload for ${filteredEvents.length} events (next 24 hours)`
+      `📤 Created JSON payload for ${filteredEvents.length} events (next 24 hours)`,
     );
     console.log(`📦 Payload size: ${payloadString.length} bytes`);
     console.log("📋 Payload:", payloadString);
@@ -685,7 +918,7 @@ export const createNext24HoursEventsJson = async (
 // Send events JSON to connected peripheral
 export const sendEventsToPeripheral = async (
   deviceId: string,
-  kidId?: string
+  kidId?: string,
 ): Promise<ServiceResponse<boolean>> => {
   try {
     // Discover services on the device first
@@ -709,10 +942,10 @@ export const sendEventsToPeripheral = async (
       const chunkNumber = Math.floor(i / chunkSize) + 1;
       const chunk = jsonBytes.slice(
         i,
-        Math.min(i + chunkSize, jsonBytes.length)
+        Math.min(i + chunkSize, jsonBytes.length),
       );
       console.log(
-        `📦 Sending chunk ${chunkNumber}/${totalChunks} (${chunk.length} bytes)`
+        `📦 Sending chunk ${chunkNumber}/${totalChunks} (${chunk.length} bytes)`,
       );
 
       try {
@@ -729,7 +962,7 @@ export const sendEventsToPeripheral = async (
               isArray: Array.isArray(dataToWrite),
               length: dataToWrite.length,
               type: typeof dataToWrite,
-            })}`
+            })}`,
           );
         }
 
@@ -738,7 +971,7 @@ export const sendEventsToPeripheral = async (
           SERVICE_UUID,
           WRITE_UUID,
           dataToWrite,
-          dataToWrite.length
+          dataToWrite.length,
         );
 
         console.log(`✅ Chunk ${chunkNumber} written successfully`);
@@ -748,7 +981,7 @@ export const sendEventsToPeripheral = async (
             writeError instanceof Error
               ? writeError.message
               : String(writeError)
-          }`
+          }`,
         );
         throw writeError;
       }
@@ -774,7 +1007,7 @@ export const sendEventsToPeripheral = async (
 
 // Create device configuration JSON with simplified event format
 export const createDeviceConfigJson = async (
-  kidId?: string
+  kidId?: string,
 ): Promise<string> => {
   try {
     const firebaseService = require("./firebaseService").default;
@@ -800,7 +1033,7 @@ export const createDeviceConfigJson = async (
     // Sort events by start time
     filteredEvents.sort(
       (a: any, b: any) =>
-        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
     );
 
     // Create simplified event config format
@@ -812,12 +1045,12 @@ export const createDeviceConfigJson = async (
       const startOfDay = new Date(startTime);
       startOfDay.setHours(0, 0, 0, 0);
       const minutesFromMidnight = Math.floor(
-        (startTime.getTime() - startOfDay.getTime()) / (1000 * 60)
+        (startTime.getTime() - startOfDay.getTime()) / (1000 * 60),
       );
 
       // Calculate duration in seconds
       const durationSeconds = Math.floor(
-        (endTime.getTime() - startTime.getTime()) / 1000
+        (endTime.getTime() - startTime.getTime()) / 1000,
       );
 
       return {
@@ -826,8 +1059,8 @@ export const createDeviceConfigJson = async (
         label: (event.title || "Untitled Event").substring(0, 30),
         path:
           event.path ||
-          `/sdcard/${event.title?.toLowerCase().replace(/\s+/g, "-")}.png` ||
-          "/sdcard/event.png",
+          `/images/${event.title?.toLowerCase().replace(/\s+/g, "-")}.png` ||
+          "/images/event.png",
       };
     });
 
@@ -853,7 +1086,7 @@ export const createDeviceConfigJson = async (
 // Send device configuration JSON to connected peripheral
 export const sendConfigToPeripheral = async (
   deviceId: string,
-  kidId?: string
+  kidId?: string,
 ): Promise<ServiceResponse<boolean>> => {
   try {
     // Create the config JSON payload
@@ -863,7 +1096,7 @@ export const sendConfigToPeripheral = async (
     const configBytes = stringToBytes(configJson);
 
     console.log(
-      `⚙️ Sending config (${configBytes.length} bytes) to device ${deviceId}`
+      `⚙️ Sending config (${configBytes.length} bytes) to device ${deviceId}`,
     );
     console.log("📋 Config payload:", configJson);
 
@@ -877,7 +1110,7 @@ export const sendConfigToPeripheral = async (
       SERVICE_UUID,
       CONFIG_CHAR_UUID,
       dataToWrite,
-      dataToWrite.length
+      dataToWrite.length,
     );
 
     console.log("✅ Config sent successfully to CONFIG_CHAR_UUID");
@@ -898,7 +1131,7 @@ export const sendConfigToPeripheral = async (
 // Send current unix timestamp to connected peripheral
 // Diagnostic function to list all services and characteristics on a device
 export const listDeviceServices = async (
-  deviceId: string
+  deviceId: string,
 ): Promise<ServiceResponse<any>> => {
   try {
     console.log(`🔍 Discovering all services on device ${deviceId}...`);
@@ -926,7 +1159,7 @@ export const listDeviceServices = async (
             char.isWritableWithResponse ? "W" : "-"
           }${char.isWritableWithoutResponse ? "w" : "-"}${
             char.isNotifiable ? "N" : "-"
-          }${char.isIndicatable ? "I" : "-"}`
+          }${char.isIndicatable ? "I" : "-"}`,
         );
         charInfo.push({
           uuid: char.uuid,
@@ -963,7 +1196,7 @@ export const listDeviceServices = async (
 };
 
 export const sendTimestampToPeripheral = async (
-  deviceId: string
+  deviceId: string,
 ): Promise<ServiceResponse<boolean>> => {
   try {
     // Services should already be discovered from connectToDevice()
@@ -987,7 +1220,7 @@ export const sendTimestampToPeripheral = async (
     const timestampBytes = stringToBytes(timestampString);
 
     console.log(
-      `⏰ Sending timezone-adjusted timestamp to device ${deviceId}: ${timestampString} (offset: ${-timezoneOffsetSeconds}s)`
+      `⏰ Sending timezone-adjusted timestamp to device ${deviceId}: ${timestampString} (offset: ${-timezoneOffsetSeconds}s)`,
     );
     console.log("📄 Timestamp bytes:", timestampBytes);
 
@@ -1001,7 +1234,7 @@ export const sendTimestampToPeripheral = async (
       SERVICE_UUID,
       TIME_SYNC_CHAR_UUID,
       dataToWrite,
-      dataToWrite.length
+      dataToWrite.length,
     );
 
     return {
@@ -1019,7 +1252,7 @@ export const sendTimestampToPeripheral = async (
 
 // Read device sync confirmation from STATUS characteristic (0003)
 export const readDeviceSyncConfirmation = async (
-  deviceId: string
+  deviceId: string,
 ): Promise<{ success: boolean; eventsSynced: boolean; error?: string }> => {
   try {
     console.log(`⏳ Reading device sync confirmation from ${deviceId}...`);
@@ -1031,7 +1264,7 @@ export const readDeviceSyncConfirmation = async (
     const response = await BleManager.read(
       deviceId,
       SERVICE_UUID,
-      STATUS_CHAR_UUID
+      STATUS_CHAR_UUID,
     );
 
     // Response should be a byte array
@@ -1040,7 +1273,7 @@ export const readDeviceSyncConfirmation = async (
     const eventsSynced = statusByte === 1;
 
     console.log(
-      `📊 Device sync status: ${eventsSynced ? "✅ Synced" : "❌ Failed"}`
+      `📊 Device sync status: ${eventsSynced ? "✅ Synced" : "❌ Failed"}`,
     );
 
     return {
@@ -1100,6 +1333,7 @@ export default {
   FILE_TRANSFER_CHAR_UUID,
   STATUS_CHAR_UUID,
   TIME_SYNC_CHAR_UUID,
+  IMAGE_TRANSFER_CHAR_UUID,
   BLE_FILE_CHUNK_SIZE,
   WRITE_UUID,
   READ_UUID,

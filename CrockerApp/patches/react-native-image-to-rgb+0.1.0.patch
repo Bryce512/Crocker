@@ -1,0 +1,19 @@
+diff --git a/node_modules/react-native-image-to-rgb/ios/ImageToRgb.mm b/node_modules/react-native-image-to-rgb/ios/ImageToRgb.mm
+index 85594cd..2476fc3 100644
+--- a/node_modules/react-native-image-to-rgb/ios/ImageToRgb.mm
++++ b/node_modules/react-native-image-to-rgb/ios/ImageToRgb.mm
+@@ -1,11 +1,12 @@
+ #import "ImageToRgb.h"
++#import <React/RCTLog.h>
+ 
+ @implementation ImageToRgb
+ RCT_EXPORT_MODULE()
+ 
+ RCT_EXPORT_METHOD(convertToRGB:(NSString *)imageUri
+-                  resolver:(RCTPromiseResolveBlock)resolve
+-                  rejecter:(RCTPromiseRejectBlock)reject)
++                  resolve:(RCTPromiseResolveBlock)resolve
++                  reject:(RCTPromiseRejectBlock)reject)
+ {
+     // Check if the URI is local or remote
+     NSLog(@"LOGconvertToRGB imageUri: %@", imageUri);
