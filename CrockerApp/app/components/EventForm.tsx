@@ -179,7 +179,7 @@ const EventForm: React.FC<EventFormProps> = ({
             console.log("🎥 Take Photo pressed");
             const hasPermission = await requestCameraPermission();
             console.log("🎥 Permission result:", hasPermission);
-            
+
             if (!hasPermission) {
               Alert.alert("Permission Denied", "Camera permission is required");
               return;
@@ -205,7 +205,10 @@ const EventForm: React.FC<EventFormProps> = ({
             console.error("❌ Camera JS error caught:", error);
             console.error("   Error message:", (error as any)?.message);
             console.error("   Error code:", (error as any)?.code);
-            Alert.alert("Error", `Camera failed: ${(error as any)?.message || 'Unknown error'}`);
+            Alert.alert(
+              "Error",
+              `Camera failed: ${(error as any)?.message || "Unknown error"}`,
+            );
           }
         },
       },

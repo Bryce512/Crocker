@@ -42,7 +42,9 @@ export const eventNameToFilename = (eventName: string): string => {
  * @param imageUri - URI of the image to convert
  * @returns Array of bytes: 12-byte LVGL header + RGB565 pixel data (460,812 bytes total)
  */
-export const compressImageForDevice = async (imageUri: string): Promise<number[]> => {
+export const compressImageForDevice = async (
+  imageUri: string,
+): Promise<number[]> => {
   try {
     console.log(`🗜️  Converting image to RGB565 for device transmission...`);
     console.log(`   Original URI: ${imageUri}`);
@@ -50,13 +52,11 @@ export const compressImageForDevice = async (imageUri: string): Promise<number[]
     // First, resize to 480x480 using ImageManipulator
     const resized = await ImageManipulator.manipulateAsync(
       imageUri,
-      [
-        { resize: { width: 480, height: 480 } },
-      ],
+      [{ resize: { width: 480, height: 480 } }],
       {
         compress: 1.0,
         format: ImageManipulator.SaveFormat.PNG,
-      }
+      },
     );
 
     console.log(`✅ Image resized to 480x480`);
@@ -64,32 +64,36 @@ export const compressImageForDevice = async (imageUri: string): Promise<number[]
 
     // Get RGB array from the resized image (3 bytes per pixel: R, G, B)
     const rgbArray = await convertToRGB(resized.uri);
-    console.log(`✅ Converted to RGB: ${rgbArray.length} bytes (${rgbArray.length / 3} pixels)`);
+    console.log(
+      `✅ Converted to RGB: ${rgbArray.length} bytes (${rgbArray.length / 3} pixels)`,
+    );
 
     // Convert RGB (3 bytes/pixel) to RGB565 (2 bytes/pixel)
     // RGB565: 5-bit Red, 6-bit Green, 5-bit Blue
     const rgb565Array: number[] = [];
-    
+
     for (let i = 0; i < rgbArray.length; i += 3) {
-      const r = rgbArray[i] || 0;        // 8-bit red
-      const g = rgbArray[i + 1] || 0;    // 8-bit green
-      const b = rgbArray[i + 2] || 0;    // 8-bit blue
+      const r = rgbArray[i] || 0; // 8-bit red
+      const g = rgbArray[i + 1] || 0; // 8-bit green
+      const b = rgbArray[i + 2] || 0; // 8-bit blue
 
       // Convert to RGB565: R(5) G(6) B(5) = 16 bits
-      const r5 = (r >> 3) & 0x1F;  // Top 5 bits of 8-bit red
-      const g6 = (g >> 2) & 0x3F;  // Top 6 bits of 8-bit green
-      const b5 = (b >> 3) & 0x1F;  // Top 5 bits of 8-bit blue
+      const r5 = (r >> 3) & 0x1f; // Top 5 bits of 8-bit red
+      const g6 = (g >> 2) & 0x3f; // Top 6 bits of 8-bit green
+      const b5 = (b >> 3) & 0x1f; // Top 5 bits of 8-bit blue
 
       // Combine into 16-bit value: RRRRRGGGGGGBBBBB
       const rgb565 = (r5 << 11) | (g6 << 5) | b5;
 
       // Convert to 2 bytes (little-endian: low byte first, high byte second)
-      rgb565Array.push(rgb565 & 0xFF);        // Low byte
-      rgb565Array.push((rgb565 >> 8) & 0xFF); // High byte
+      rgb565Array.push(rgb565 & 0xff); // Low byte
+      rgb565Array.push((rgb565 >> 8) & 0xff); // High byte
     }
-    
+
     console.log(`✅ Image converted to RGB565 format`);
-    console.log(`   Size: ${rgb565Array.length} bytes (${rgb565Array.length / 2} pixels)`);
+    console.log(
+      `   Size: ${rgb565Array.length} bytes (${rgb565Array.length / 2} pixels)`,
+    );
 
     // Create LVGL header (12 bytes total)
     // Byte 0-3: Magic number "LVGL" (0x4C, 0x56, 0x47, 0x4C)
@@ -99,11 +103,11 @@ export const compressImageForDevice = async (imageUri: string): Promise<number[]
     // Byte 9-11: Reserved/padding (0x00, 0x00, 0x00)
     const header: number[] = [
       // Magic number: "LVGL"
-      0x4C, 0x56, 0x47, 0x4C,
+      0x4c, 0x56, 0x47, 0x4c,
       // Width: 480 (little-endian uint16_t)
-      0xE0, 0x01,
+      0xe0, 0x01,
       // Height: 480 (little-endian uint16_t)
-      0xE0, 0x01,
+      0xe0, 0x01,
       // Color format: 2 (LV_COLOR_FORMAT_RGB565)
       0x02,
       // Reserved padding
@@ -114,9 +118,11 @@ export const compressImageForDevice = async (imageUri: string): Promise<number[]
 
     // Combine header + RGB565 data
     const finalData = [...header, ...rgb565Array];
-    
+
     console.log(`✅ Final LVGL image format`);
-    console.log(`   Total size: ${finalData.length} bytes (${header.length} byte header + ${rgb565Array.length} byte RGB565 data)`);
+    console.log(
+      `   Total size: ${finalData.length} bytes (${header.length} byte header + ${rgb565Array.length} byte RGB565 data)`,
+    );
 
     return finalData;
   } catch (error) {
@@ -136,7 +142,7 @@ export const compressImageForDevice = async (imageUri: string): Promise<number[]
 export const uploadImageToFirebaseStorage = async (
   imageUri: string,
   userId: string,
-  eventId: string
+  eventId: string,
 ): Promise<string> => {
   try {
     console.log(`📤 Uploading image to Firebase Storage...`);
@@ -175,7 +181,9 @@ export const uploadImageToFirebaseStorage = async (
  * @param storagePath - Firebase Storage path (e.g., "user_uploads/abc123/event456.png")
  * @returns Download URL
  */
-export const getImageDownloadUrl = async (storagePath: string): Promise<string> => {
+export const getImageDownloadUrl = async (
+  storagePath: string,
+): Promise<string> => {
   try {
     const storageRef = storage().ref(storagePath);
     const url = await storageRef.getDownloadURL();
@@ -196,7 +204,7 @@ export const getImageDownloadUrl = async (storagePath: string): Promise<string> 
  */
 export const processImageForDevice = async (
   imageUri: string,
-  eventName?: string
+  eventName?: string,
 ): Promise<ImageData> => {
   try {
     console.log(`📸 Processing image for device: ${imageUri}`);
@@ -209,26 +217,26 @@ export const processImageForDevice = async (
     try {
       // Use fetch to read the image file
       const response = await fetch(imageUri);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch image: ${response.statusText}`);
       }
 
       const blob = await response.blob();
-      
+
       // Convert blob to base64 using a different method that works in React Native
       // We'll read the blob as text after encoding
       const reader = new FileReader();
-      
+
       // Check if FileReader exists (might not in all React Native environments)
-      if (!reader || typeof reader.readAsDataURL !== 'function') {
+      if (!reader || typeof reader.readAsDataURL !== "function") {
         // Fallback: use base64 encoding method
         console.log("⚠️ FileReader not available, using alternative encoding");
-        
+
         // Convert blob to arrayBuffer then to base64
         const arrayBuffer = await blob.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
-        let binaryString = '';
+        let binaryString = "";
         for (let i = 0; i < bytes.byteLength; i++) {
           binaryString += String.fromCharCode(bytes[i]);
         }
@@ -240,7 +248,7 @@ export const processImageForDevice = async (
           reader.onloadend = () => {
             const result = reader.result as string;
             // Extract base64 part after "data:image/png;base64,"
-            const base64 = result.split(',')[1] || result;
+            const base64 = result.split(",")[1] || result;
             resolve(base64);
           };
           reader.onerror = reject;
@@ -251,7 +259,6 @@ export const processImageForDevice = async (
       if (!base64Data || base64Data.length === 0) {
         throw new Error("Failed to convert image to base64 - result is empty");
       }
-
     } catch (fetchError) {
       console.error(`❌ Error fetching/converting image: ${fetchError}`);
       throw fetchError;

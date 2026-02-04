@@ -3,11 +3,12 @@
 ## Using Images in Events
 
 ### EventForm Component
+
 The `EventForm` component now automatically handles image selection and processing.
 
 ```tsx
 <EventForm
-  mode="create"  // or "edit"
+  mode="create" // or "edit"
   visible={true}
   onSave={handleSave}
   onCancel={handleCancel}
@@ -15,6 +16,7 @@ The `EventForm` component now automatically handles image selection and processi
 ```
 
 Users can:
+
 - Tap the image picker to select/capture a photo
 - View image preview (200px height)
 - Remove the image before saving
@@ -34,9 +36,9 @@ interface CalendarEvent {
   source: "native" | "manual" | "imported";
   lastModified: Date;
   imageData?: {
-    base64: string;        // Base64 encoded PNG image
-    filename: string;      // "school-time.png"
-    originalUri?: string;  // Original device path
+    base64: string; // Base64 encoded PNG image
+    filename: string; // "school-time.png"
+    originalUri?: string; // Original device path
   };
 }
 ```
@@ -55,7 +57,7 @@ import {
 const imageData = await processImageForDevice(
   imageUri,
   base64String,
-  "My Event Name"
+  "My Event Name",
 );
 
 // Validate image size
@@ -75,10 +77,10 @@ import { sendImageToDevice } from "../services/bluetoothService";
 
 // Send image to device
 const result = await sendImageToDevice(
-  deviceId,              // Bluetooth device ID
-  imageBase64,           // Base64 encoded PNG image
-  "school-time.png",     // Filename
-  "School time"          // Event name (optional)
+  deviceId, // Bluetooth device ID
+  imageBase64, // Base64 encoded PNG image
+  "school-time.png", // Filename
+  "School time", // Event name (optional)
 );
 
 if (result.success) {
@@ -96,7 +98,7 @@ if (selectedImage) {
   const processed = await processImageForDevice(
     selectedImage.uri,
     selectedImage.base64,
-    eventTitle
+    eventTitle,
   );
 
   if (!validateImageSize(processed.base64)) {
@@ -126,6 +128,7 @@ Event names are converted to filenames using this pattern:
 - Output: "school-time.png"
 
 Conversion rules:
+
 1. Convert to lowercase
 2. Replace spaces with dashes
 3. Remove special characters (keep only a-z, 0-9, dashes)
@@ -149,7 +152,7 @@ Images are sent via IMAGE_TRANSFER characteristic (550e8400-e29b-41d4-a716-44665
 ```typescript
 try {
   const result = await sendImageToDevice(deviceId, base64, filename);
-  
+
   if (!result.success) {
     console.error("Failed:", result.error);
     // Handle transmission error
@@ -164,13 +167,13 @@ try {
 
 ```typescript
 // BLE chunk size
-const BLE_FILE_CHUNK_SIZE = 480;  // Maximum bytes per chunk
+const BLE_FILE_CHUNK_SIZE = 480; // Maximum bytes per chunk
 
 // Maximum image size
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;  // 5MB
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 // Delay between chunks
-const CHUNK_DELAY = 50;  // milliseconds
+const CHUNK_DELAY = 50; // milliseconds
 ```
 
 ## State Management in EventForm

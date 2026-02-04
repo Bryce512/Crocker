@@ -88,7 +88,7 @@ class CalendarService {
 
         if (status !== "authorized") {
           throw new Error(
-            `Calendar permission denied. Status: ${status}. Please enable calendar access in Settings.`
+            `Calendar permission denied. Status: ${status}. Please enable calendar access in Settings.`,
           );
         }
       }
@@ -109,12 +109,12 @@ class CalendarService {
       const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
       console.log(
-        `Fetching events from ${startDate.toISOString()} to ${endDate.toISOString()}`
+        `Fetching events from ${startDate.toISOString()} to ${endDate.toISOString()}`,
       );
 
       const events = await RNCalendarEvents.fetchAllEvents(
         startDate.toISOString(),
-        endDate.toISOString()
+        endDate.toISOString(),
       );
 
       console.log(`Found ${events.length} calendar events`);
@@ -128,12 +128,12 @@ class CalendarService {
         console.log(
           "🔍 DEBUG: Raw event.startDate:",
           event.startDate,
-          typeof event.startDate
+          typeof event.startDate,
         );
         console.log(
           "🔍 DEBUG: Raw event.endDate:",
           event.endDate,
-          typeof event.endDate
+          typeof event.endDate,
         );
         console.log("🔍 DEBUG: Raw event object keys:", Object.keys(event));
 
@@ -177,11 +177,11 @@ class CalendarService {
           error.message.includes("not authorized")
         ) {
           throw new Error(
-            "Calendar access denied. Please enable calendar permissions in your device settings and try again."
+            "Calendar access denied. Please enable calendar permissions in your device settings and try again.",
           );
         } else if (error.message.includes("not found")) {
           throw new Error(
-            "No calendars found on your device. Please add a calendar first."
+            "No calendars found on your device. Please add a calendar first.",
           );
         }
       }
@@ -212,7 +212,7 @@ class CalendarService {
 
         event.alertIntervals.forEach((interval) => {
           const alertTime = new Date(
-            event.startTime.getTime() - interval * 60 * 1000
+            event.startTime.getTime() - interval * 60 * 1000,
           );
 
           // Only include alerts that are in the future and within 24 hours
@@ -225,7 +225,7 @@ class CalendarService {
               alertType: interval <= 5 ? "final_warning" : "transition_warning",
               vibrationPattern: this.getVibrationPattern(
                 interval,
-                kid.alertPreferences.alertStyle
+                kid.alertPreferences.alertStyle,
               ),
             });
           }
@@ -279,7 +279,7 @@ class CalendarService {
   async sendAlertBatchToBluetooth(kidId: string): Promise<boolean> {
     try {
       console.log(
-        `🔄 Delegating alert batch sync to EventSyncService for kid ${kidId}`
+        `🔄 Delegating alert batch sync to EventSyncService for kid ${kidId}`,
       );
 
       // Import and use the new EventSyncService
@@ -301,11 +301,14 @@ class CalendarService {
     });
 
     // Check every 5 minutes when app is active
-    setInterval(() => {
-      if (AppState.currentState === "active") {
-        this.checkForResyncNeeds();
-      }
-    }, 5 * 60 * 1000);
+    setInterval(
+      () => {
+        if (AppState.currentState === "active") {
+          this.checkForResyncNeeds();
+        }
+      },
+      5 * 60 * 1000,
+    );
   }
 
   private async checkForResyncNeeds(): Promise<void> {
@@ -318,7 +321,7 @@ class CalendarService {
       for (const kid of kids) {
         if (kid.needsResync) {
           console.log(
-            `Kid ${kid.name} needs resync, sending fresh alert batch`
+            `Kid ${kid.name} needs resync, sending fresh alert batch`,
           );
           await this.sendAlertBatchToBluetooth(kid.id);
         }
@@ -332,7 +335,7 @@ class CalendarService {
   private async getEventsForDateRange(
     userId: string,
     start: Date,
-    end: Date
+    end: Date,
   ): Promise<CalendarEvent[]> {
     // Implementation will use firebaseService to get events
     // This follows your existing Firebase patterns
@@ -356,10 +359,10 @@ class CalendarService {
   // Legacy method - now handled by EventSyncService
   private async sendJSONViaBluetooth(
     jsonPayload: string,
-    kidId: string
+    kidId: string,
   ): Promise<boolean> {
     console.log(
-      "⚠️ sendJSONViaBluetooth is deprecated. Use EventSyncService instead."
+      "⚠️ sendJSONViaBluetooth is deprecated. Use EventSyncService instead.",
     );
 
     // Import and delegate to EventSyncService
@@ -371,7 +374,7 @@ class CalendarService {
     try {
       await AsyncStorage.setItem(
         `alert_batch_${batch.kidId}`,
-        JSON.stringify(batch)
+        JSON.stringify(batch),
       );
     } catch (error) {
       console.error("Error caching alert batch:", error);
@@ -388,7 +391,7 @@ class CalendarService {
 
   private getVibrationPattern(
     minutesUntil: number,
-    style: "gentle" | "persistent"
+    style: "gentle" | "persistent",
   ): number[] {
     // Define vibration patterns for ESP32
     if (style === "gentle") {
@@ -400,7 +403,7 @@ class CalendarService {
 
   // Public methods for screens to use
   async addEvent(
-    event: Omit<CalendarEvent, "id" | "lastModified">
+    event: Omit<CalendarEvent, "id" | "lastModified">,
   ): Promise<CalendarEvent> {
     const newEvent: CalendarEvent = {
       ...event,
@@ -427,7 +430,7 @@ class CalendarService {
 
   async markKidNeedsResync(kidId: string): Promise<void> {
     console.log(
-      "⚠️ markKidNeedsResync is deprecated. Use EventSyncService instead."
+      "⚠️ markKidNeedsResync is deprecated. Use EventSyncService instead.",
     );
     await this.markAllDevicesForResync();
   }

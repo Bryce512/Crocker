@@ -385,7 +385,7 @@ export const createEventScheduleForDevice = async (
         label: (event.title || "Untitled Event").substring(0, 50),
         path:
           event.path ||
-          `/images/${event.title?.toLowerCase().replace(/\s+/g, "-")}.png`
+          `/images/${event.title?.toLowerCase().replace(/\s+/g, "-")}.png`,
       };
     });
 
@@ -642,9 +642,12 @@ export const sendImageToDevice = async (
       // Already RGB565 binary data
       imageBytes = imageDataOrUri;
       console.log(`✅ Using RGB565 binary data: ${imageBytes.length} bytes`);
-    } else if (typeof imageDataOrUri === 'string') {
-      const isUri = imageDataOrUri.startsWith('file://') || imageDataOrUri.startsWith('ph://') || imageDataOrUri.startsWith('http');
-      
+    } else if (typeof imageDataOrUri === "string") {
+      const isUri =
+        imageDataOrUri.startsWith("file://") ||
+        imageDataOrUri.startsWith("ph://") ||
+        imageDataOrUri.startsWith("http");
+
       if (isUri) {
         // Fetch the actual file and get binary data
         console.log(`📥 Fetching binary image data from URI...`);
@@ -653,7 +656,7 @@ export const sendImageToDevice = async (
           if (!response.ok) {
             throw new Error(`Failed to fetch image: ${response.statusText}`);
           }
-          
+
           // Use response.arrayBuffer() instead of blob.arrayBuffer() (React Native compatible)
           const arrayBuffer = await response.arrayBuffer();
           imageBytes = Array.from(new Uint8Array(arrayBuffer));

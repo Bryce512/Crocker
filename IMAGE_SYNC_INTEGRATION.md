@@ -67,7 +67,7 @@ export interface EventBatchWithImages extends AlertBatch {
   events: Array<{
     eventId: string;
     title: string;
-    imageFilename?: string;  // "school-time.png" if image exists
+    imageFilename?: string; // "school-time.png" if image exists
   }>;
 }
 ```
@@ -95,7 +95,7 @@ private async sendEventBatchWithRetry(
     if (success) {
       // NEW: Send images for events in this batch
       await this.sendEventImages(eventBatch, targetDeviceId, kidId);
-      
+
       console.log(
         `✅ Event batch successfully synced to device ${targetDeviceId}`
       );
@@ -182,7 +182,7 @@ When events are assigned to devices, trigger image sync:
 // In calendarService or where assignEventToDevices is called
 const assignEventToDevices = async (
   eventId: string,
-  deviceIds: string[]
+  deviceIds: string[],
 ): Promise<void> => {
   // ... existing assignment logic
 
@@ -334,12 +334,14 @@ private async processImageSyncQueue(): Promise<void> {
 ## Testing the Integration
 
 ### Manual Testing
+
 1. Create event with image
 2. Assign event to device
 3. Check Bluetooth logs for image send
 4. Verify image appears on device
 
 ### Automated Testing
+
 ```typescript
 test("sends event images when syncing to device", async () => {
   // Create event with image
@@ -364,7 +366,7 @@ test("sends event images when syncing to device", async () => {
   expect(bluetoothService.sendImageToDevice).toHaveBeenCalledWith(
     deviceId,
     event.imageData.base64,
-    event.imageData.filename
+    event.imageData.filename,
   );
 });
 ```
