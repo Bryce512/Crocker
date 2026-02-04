@@ -8,8 +8,9 @@ import React, {
   useRef,
 } from "react";
 import { useBleConnection } from "../services/bleConnections";
-import { AppState } from "react-native";
+import { AppState, NativeEventEmitter, NativeModules } from "react-native";
 import { Device } from "react-native-ble-plx";
+import BackgroundTimer from "react-native-background-timer";
 import BleManager from "react-native-ble-manager";
 import { obdDataFunctions } from "../services/obdDataCollection";
 import bluetoothService from "../services/bluetoothService";
@@ -103,6 +104,8 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   const logMessage = bleConnectionHook.logMessage;
 
   // Reference to hook's log to track changes
+  // Track intentional disconnects so we don't auto-reconnect if user manually disconnected
+  const intentionalDisconnectRef = useRef(false);
 
   // Monitor connection state changes and log them
   useEffect(() => {
@@ -140,18 +143,96 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "active") {
+        logMessage("📱 App returned to foreground - checking connection...");
         verifyAndReconnectIfNeeded();
         loadRegisteredDevices(); // Refresh registered devices when app becomes active
+
+        // If not currently connected, trigger immediate auto-connect attempt
+        if (!isConnected && registeredDevices.length > 0) {
+          logMessage(
+            "🔍 Not connected - triggering immediate auto-connect on foreground..."
+          );
+          // Add a small delay to let the app fully transition to foreground
+          setTimeout(async () => {
+            try {
+              await BleManager.scan([], 3, false); // Quick 3-second scan
+            } catch (error) {
+              console.error("Foreground scan error:", error);
+            }
+          }, 500);
+        }
       }
     });
 
     return () => subscription.remove();
-  }, [deviceId, isConnected]);
+  }, [deviceId, isConnected, registeredDevices]);
+
+  // Listen for native BLE disconnect events
+  // This works even when app is backgrounded - critical for background connectivity
+  useEffect(() => {
+    try {
+      const BleManagerModule = NativeModules.BleManager;
+      const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
+
+      // Listen for disconnect events from native BLE layer
+      const disconnectListener = bleManagerEmitter.addListener(
+        "BleManagerDisconnectPeripheral",
+        (args) => {
+          const disconnectedDeviceId = args.peripheral;
+          logMessage(
+            `🔌 BLE Disconnect Event: Device ${disconnectedDeviceId} disconnected`
+          );
+
+          // Check if this is our connected device
+          if (disconnectedDeviceId === deviceId) {
+            setIsConnected(false);
+            logMessage(
+              `❌ Connected device disconnected: ${deviceName || deviceId}`
+            );
+
+            // Only auto-reconnect if this was NOT an intentional disconnect by the user
+            if (!intentionalDisconnectRef.current && rememberedDevice) {
+              logMessage(
+                `🔄 Auto-reconnecting to ${rememberedDevice.name || deviceId}...`
+              );
+              // Use BackgroundTimer delay to allow BLE to reset before reconnecting
+              BackgroundTimer.setTimeout(() => {
+                connectToRememberedDevice();
+              }, 2000);
+            } else if (intentionalDisconnectRef.current) {
+              logMessage(
+                `ℹ️ Intentional disconnect detected - not auto-reconnecting`
+              );
+              // Reset the flag after 30 seconds so auto-reconnect works again for accidental disconnects
+              BackgroundTimer.setTimeout(() => {
+                intentionalDisconnectRef.current = false;
+                logMessage(
+                  `🔄 Intentional disconnect flag cleared - auto-reconnect re-enabled`
+                );
+              }, 30000);
+            }
+          }
+        }
+      );
+
+      return () => {
+        disconnectListener.remove();
+      };
+    } catch (error) {
+      console.error("Error setting up BLE disconnect listener:", error);
+      logMessage(
+        `⚠️ Could not set up BLE disconnect listener: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return undefined;
+    }
+  }, [deviceId, deviceName, rememberedDevice]);
 
   // Verify connection periodically (but skip during sync)
   useEffect(() => {
     if (isConnected && deviceId && !isSyncing) {
-      const interval = setInterval(async () => {
+      const interval = BackgroundTimer.setInterval(async () => {
         const stillConnected = await verifyConnection(deviceId);
         if (!stillConnected && rememberedDevice) {
           logMessage("Connection lost, attempting reconnection from context");
@@ -159,7 +240,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 30000);
 
-      return () => clearInterval(interval);
+      return () => BackgroundTimer.clearInterval(interval);
     }
   }, [isConnected, deviceId, rememberedDevice, isSyncing]);
 
@@ -167,7 +248,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   // This runs even during sync to keep the connection alive
   useEffect(() => {
     if (isConnected && deviceId) {
-      const interval = setInterval(async () => {
+      const interval = BackgroundTimer.setInterval(async () => {
         try {
           // Send a lightweight RSSI read to keep the device active
           await verifyConnection(deviceId);
@@ -181,7 +262,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 5000); // Send keep-alive every 5 seconds
 
-      return () => clearInterval(interval);
+      return () => BackgroundTimer.clearInterval(interval);
     }
   }, [isConnected, deviceId]);
 
@@ -321,13 +402,13 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
     // Reduced frequency to prevent connection interference
     const initialDelay = setTimeout(() => {
       startAutoConnect();
-      scanInterval = setInterval(startAutoConnect, 30000);
+      scanInterval = BackgroundTimer.setInterval(startAutoConnect, 30000);
     }, 2000);
 
     return () => {
       clearTimeout(initialDelay);
       if (scanInterval) {
-        clearInterval(scanInterval);
+        BackgroundTimer.clearInterval(scanInterval);
       }
     };
   }, [isConnected, deviceId, registeredDevices, isSyncing]);
@@ -426,6 +507,12 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   // Enhanced disconnect function
   const disconnectDevice = async (): Promise<void> => {
     try {
+      // Mark this as an intentional disconnect so auto-reconnect won't trigger
+      intentionalDisconnectRef.current = true;
+      logMessage(
+        "🔐 Setting intentional disconnect flag - auto-reconnect disabled"
+      );
+
       await bleConnectionHook.disconnectDevice();
       setIsConnected(false);
       setDeviceId(null);

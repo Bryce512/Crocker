@@ -54,7 +54,6 @@ const EventForm: React.FC<EventFormProps> = ({
 
   // Modal states
   const [showKidSelector, setShowKidSelector] = useState(false);
-  const [showDeviceSelector, setShowDeviceSelector] = useState(false);
   const [showAlertSelector, setShowAlertSelector] = useState(false);
   const [showDateTimePicker, setShowDateTimePicker] = useState<
     "start" | "end" | null
@@ -401,22 +400,23 @@ const EventForm: React.FC<EventFormProps> = ({
             {/* Device Assignment */}
             {availableDevices.length > 0 && (
               <View style={styles.deviceAssignmentContainer}>
-                <TouchableOpacity
-                  style={styles.assignmentButton}
-                  onPress={() => setShowDeviceSelector(true)}
-                >
-                  <Text style={styles.label}>Send schedule to</Text>
-                  <View style={styles.assignmentValue}>
-                    <Text style={styles.assignmentText}>
-                      {selectedDeviceIds.length > 0
-                        ? `${selectedDeviceIds.length} device${
-                            selectedDeviceIds.length > 1 ? "s" : ""
-                          }`
-                        : "No devices selected"}
-                    </Text>
-                    <Text style={styles.dropdownArrow}>›</Text>
-                  </View>
-                </TouchableOpacity>
+                <Text style={styles.label}>Send schedule to:</Text>
+                <View style={styles.checkboxContainer}>
+                  {availableDevices.map((device) => (
+                    <TouchableOpacity
+                      key={device.id}
+                      style={styles.checkboxRow}
+                      onPress={() => toggleDeviceSelection(device.id)}
+                    >
+                      <View style={styles.checkbox}>
+                        {selectedDeviceIds.includes(device.id) && (
+                          <Text style={styles.checkboxCheck}>✓</Text>
+                        )}
+                      </View>
+                      <Text style={styles.checkboxLabel}>{device.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
                 {selectedDeviceIds.length > 0 && (
                   <Text style={styles.assignmentHint}>
                     Schedule will sync to {selectedDeviceIds.length} device
@@ -580,52 +580,6 @@ const EventForm: React.FC<EventFormProps> = ({
                       {item} minute{item > 1 ? "s" : ""} before
                     </Text>
                     {alertIntervals.includes(item) && (
-                      <Text style={styles.checkmark}>✓</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-              />
-            </View>
-          </View>
-        </Modal>
-
-        {/* Device Selector Modal */}
-        <Modal visible={showDeviceSelector} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Select Devices</Text>
-                <TouchableOpacity onPress={() => setShowDeviceSelector(false)}>
-                  <Text style={styles.modalClose}>Done</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.modalSubtitle}>
-                Select which devices to send the event schedule to:
-              </Text>
-
-              <FlatList
-                data={availableDevices}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.modalItem,
-                      selectedDeviceIds.includes(item.id) &&
-                        styles.selectedModalItem,
-                    ]}
-                    onPress={() => toggleDeviceSelection(item.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.modalItemText,
-                        selectedDeviceIds.includes(item.id) &&
-                          styles.selectedModalItemText,
-                      ]}
-                    >
-                      {item.name}
-                    </Text>
-                    {selectedDeviceIds.includes(item.id) && (
                       <Text style={styles.checkmark}>✓</Text>
                     )}
                   </TouchableOpacity>
@@ -994,6 +948,43 @@ const styles = StyleSheet.create({
   dateTimePicker: {
     paddingHorizontal: 20,
     paddingVertical: 16,
+  },
+  checkboxContainer: {
+    marginTop: 12,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: "#3b82f6",
+    borderRadius: 4,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    backgroundColor: "#ffffff",
+  },
+  checkboxCheck: {
+    fontSize: 16,
+    color: "#3b82f6",
+    fontWeight: "600",
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    color: "#1f2937",
+    flex: 1,
   },
 });
 
