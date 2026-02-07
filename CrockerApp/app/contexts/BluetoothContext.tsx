@@ -66,7 +66,7 @@ interface BluetoothContextType {
 
 // Create the context
 const BluetoothContext = createContext<BluetoothContextType | undefined>(
-  undefined
+  undefined,
 );
 
 // Provider component
@@ -83,18 +83,18 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   const [isConnected, setIsConnected] = useState(bleConnectionHook.isConnected);
   const [isScanning, setIsScanning] = useState(bleConnectionHook.isScanning);
   const [deviceId, setDeviceId] = useState<string | null>(
-    bleConnectionHook.deviceId
+    bleConnectionHook.deviceId,
   );
   const [deviceName, setDeviceName] = useState<string | null>(null);
   const [discoveredDevices, setDiscoveredDevices] = useState<any[]>(
-    bleConnectionHook.discoveredDevices
+    bleConnectionHook.discoveredDevices,
   );
   const [showDeviceSelector, setShowDeviceSelector] = useState(
-    bleConnectionHook.showDeviceSelector
+    bleConnectionHook.showDeviceSelector,
   );
 
   const [rememberedDevice, setRememberedDevice] = useState(
-    bleConnectionHook.rememberedDevice
+    bleConnectionHook.rememberedDevice,
   );
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [registeredDevices, setRegisteredDevices] = useState<
@@ -134,7 +134,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   // Load registered devices on initialization
   useEffect(() => {
     console.log(
-      "🔷 BluetoothContext: Initializing and loading registered devices"
+      "🔷 BluetoothContext: Initializing and loading registered devices",
     );
     loadRegisteredDevices();
   }, []);
@@ -150,7 +150,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
         // If not currently connected, trigger immediate auto-connect attempt
         if (!isConnected && registeredDevices.length > 0) {
           logMessage(
-            "🔍 Not connected - triggering immediate auto-connect on foreground..."
+            "🔍 Not connected - triggering immediate auto-connect on foreground...",
           );
           // Add a small delay to let the app fully transition to foreground
           setTimeout(async () => {
@@ -180,20 +180,20 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
         (args) => {
           const disconnectedDeviceId = args.peripheral;
           logMessage(
-            `🔌 BLE Disconnect Event: Device ${disconnectedDeviceId} disconnected`
+            `🔌 BLE Disconnect Event: Device ${disconnectedDeviceId} disconnected`,
           );
 
           // Check if this is our connected device
           if (disconnectedDeviceId === deviceId) {
             setIsConnected(false);
             logMessage(
-              `❌ Connected device disconnected: ${deviceName || deviceId}`
+              `❌ Connected device disconnected: ${deviceName || deviceId}`,
             );
 
             // Only auto-reconnect if this was NOT an intentional disconnect by the user
             if (!intentionalDisconnectRef.current && rememberedDevice) {
               logMessage(
-                `🔄 Auto-reconnecting to ${rememberedDevice.name || deviceId}...`
+                `🔄 Auto-reconnecting to ${rememberedDevice.name || deviceId}...`,
               );
               // Use BackgroundTimer delay to allow BLE to reset before reconnecting
               BackgroundTimer.setTimeout(() => {
@@ -201,18 +201,18 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
               }, 2000);
             } else if (intentionalDisconnectRef.current) {
               logMessage(
-                `ℹ️ Intentional disconnect detected - not auto-reconnecting`
+                `ℹ️ Intentional disconnect detected - not auto-reconnecting`,
               );
               // Reset the flag after 30 seconds so auto-reconnect works again for accidental disconnects
               BackgroundTimer.setTimeout(() => {
                 intentionalDisconnectRef.current = false;
                 logMessage(
-                  `🔄 Intentional disconnect flag cleared - auto-reconnect re-enabled`
+                  `🔄 Intentional disconnect flag cleared - auto-reconnect re-enabled`,
                 );
               }, 30000);
             }
           }
-        }
+        },
       );
 
       return () => {
@@ -223,7 +223,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       logMessage(
         `⚠️ Could not set up BLE disconnect listener: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
       return undefined;
     }
@@ -257,7 +257,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
           logMessage(
             `⚠️ Keep-alive signal failed: ${
               error instanceof Error ? error.message : String(error)
-            }`
+            }`,
           );
         }
       }, 5000); // Send keep-alive every 5 seconds
@@ -295,7 +295,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
 
       try {
         logMessage(
-          `🔍 Auto-scanning for ${registeredDevices.length} registered device(s)...`
+          `🔍 Auto-scanning for ${registeredDevices.length} registered device(s)...`,
         );
 
         // Start active BLE scan - use longer scan time to ensure discovery
@@ -312,7 +312,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
 
         // Get both connected and discovered devices
         const connectedPeripherals = await BleManager.getConnectedPeripherals(
-          []
+          [],
         );
         const discoveredPeripherals =
           await BleManager.getDiscoveredPeripherals();
@@ -327,7 +327,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
         for (const registeredDevice of registeredDevices) {
           // First try to match by ID
           let foundDevice = allFoundDevices.find(
-            (d) => d.id === registeredDevice.id
+            (d) => d.id === registeredDevice.id,
           );
 
           // If not found by ID, try to match by name
@@ -335,11 +335,11 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
             foundDevice = allFoundDevices.find(
               (d) =>
                 d.name === registeredDevice.name ||
-                d.name === registeredDevice.nickname
+                d.name === registeredDevice.nickname,
             );
             if (foundDevice) {
               logMessage(
-                `⚠️ Matched by name instead of ID. Device ID in database may be outdated: ${registeredDevice.id} → ${foundDevice.id}`
+                `⚠️ Matched by name instead of ID. Device ID in database may be outdated: ${registeredDevice.id} → ${foundDevice.id}`,
               );
             }
           }
@@ -348,17 +348,17 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
             logMessage(
               `✨ Registered device found in range: ${
                 registeredDevice.nickname || registeredDevice.id
-              }`
+              }`,
             );
 
             // Check if device is already in the connected peripherals list
             const isAlreadyConnected = connectedPeripherals.some(
-              (d) => d.id === foundDevice!.id
+              (d) => d.id === foundDevice!.id,
             );
 
             if (!isAlreadyConnected) {
               logMessage(
-                `🔗 Auto-connecting to ${registeredDevice.nickname}...`
+                `🔗 Auto-connecting to ${registeredDevice.nickname}...`,
               );
               try {
                 // If we matched by name, update the device ID to the actual found device
@@ -375,12 +375,12 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
                 logMessage(
                   `⚠️ Failed to auto-connect: ${
                     error instanceof Error ? error.message : String(error)
-                  }`
+                  }`,
                 );
               }
             } else {
               logMessage(
-                `ℹ️ Device already connected: ${registeredDevice.nickname}`
+                `ℹ️ Device already connected: ${registeredDevice.nickname}`,
               );
             }
           }
@@ -389,7 +389,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
         logMessage(
           `⚠️ Auto-scan error: ${
             error instanceof Error ? error.message : String(error)
-          }`
+          }`,
         );
       } finally {
         isAutoConnecting = false;
@@ -415,9 +415,8 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   // Enhanced version of verifyConnection that updates context state
   const verifyConnection = async (deviceId: string): Promise<boolean> => {
     try {
-      const isStillConnected = await bleConnectionHook.verifyConnection(
-        deviceId
-      );
+      const isStillConnected =
+        await bleConnectionHook.verifyConnection(deviceId);
       setIsConnected(isStillConnected);
       return isStillConnected;
     } catch (error) {
@@ -474,7 +473,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       logMessage(
         `Connection error: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
       return false;
     }
@@ -497,7 +496,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       logMessage(
         `Reconnection error: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
       return false;
     }
@@ -509,7 +508,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       // Mark this as an intentional disconnect so auto-reconnect won't trigger
       intentionalDisconnectRef.current = true;
       logMessage(
-        "🔐 Setting intentional disconnect flag - auto-reconnect disabled"
+        "🔐 Setting intentional disconnect flag - auto-reconnect disabled",
       );
 
       await bleConnectionHook.disconnectDevice();
@@ -523,7 +522,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       logMessage(
         `Disconnect error: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
     }
   };
@@ -534,7 +533,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       await bleConnectionHook.startScan();
     } catch (error) {
       logMessage(
-        `Scan error: ${error instanceof Error ? error.message : String(error)}`
+        `Scan error: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   };
@@ -551,10 +550,10 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       if (!success && rememberedDevice) {
         // Try with enhanced verification
         logMessage(
-          "First attempt failed, trying with enhanced verification..."
+          "First attempt failed, trying with enhanced verification...",
         );
         const enhancedVerified = await enhancedVerifyConnection(
-          rememberedDevice.id
+          rememberedDevice.id,
         );
 
         if (enhancedVerified) {
@@ -569,7 +568,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       logMessage(
         `Robust reconnect error: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
       return false;
     }
@@ -587,14 +586,14 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       logMessage(
         `Error loading registered devices: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
     }
   };
 
   // Connect to a registered device
   const connectToRegisteredDevice = async (
-    device: RegisteredDevice
+    device: RegisteredDevice,
   ): Promise<boolean> => {
     try {
       logMessage(`Connecting to registered device: ${device.nickname}`);
@@ -619,7 +618,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
       logMessage(
         `Error connecting to registered device: ${
           error instanceof Error ? error.message : String(error)
-        }`
+        }`,
       );
       return false;
     }
@@ -627,7 +626,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
 
   // Enhanced verification with additional checks
   const enhancedVerifyConnection = async (
-    deviceId: string
+    deviceId: string,
   ): Promise<boolean> => {
     try {
       // First try standard verification

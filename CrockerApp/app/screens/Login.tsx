@@ -96,16 +96,15 @@ const Login = () => {
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-
 
       if (!credential.identityToken) {
         throw new Error("Missing identityToken");
       }
-      
-      console.log("🍎 Apple credential received:", credential)
+
+      console.log("🍎 Apple credential received:", credential);
 
       // Extract the user's name from Apple credential
       let firstName = "";
@@ -176,11 +175,10 @@ const Login = () => {
     navigation.navigate("Signup");
   };
 
-
   const handleForgotPassword = () => {
     Alert.alert(
       "Password Reset",
-      "This functionality will be implemented later"
+      "This functionality will be implemented later",
     );
   };
 
@@ -270,9 +268,7 @@ const Login = () => {
             onPress={handleAppleSignIn}
             disabled={isLoading}
           >
-            <Text style={styles.appleButtonText}>
-              Sign in with Apple
-            </Text>
+            <Text style={styles.appleButtonText}>Sign in with Apple</Text>
           </TouchableOpacity>
 
           <View style={styles.createAccountSection}>

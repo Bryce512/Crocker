@@ -11,12 +11,12 @@ type AuthContextType = {
   error: AppError | null;
   signIn: (
     email: string,
-    password: string
+    password: string,
   ) => Promise<{ success: boolean; error?: AppError }>;
   signUp: (
     email: string,
     password: string,
-    name: string
+    name: string,
   ) => Promise<{
     success: boolean;
     user?: FirebaseAuthTypes.User;
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const unsubscribe = firebaseService.onAuthChange((user) => {
           console.log(
             "🔍 Auth state changed:",
-            user ? `User: ${user.uid}` : "No user"
+            user ? `User: ${user.uid}` : "No user",
           );
           setUser(user);
           setIsLoading(false);
@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 uid: user.uid,
                 email: user.email,
                 displayName: user.displayName,
-              })
+              }),
             );
           } else {
             AsyncStorage.removeItem("userData");
@@ -206,9 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log("❌ Apple sign-in failed:", response.error);
-      const appError = AppErrorService.handleFirebaseAuthError(
-        response.error
-      );
+      const appError = AppErrorService.handleFirebaseAuthError(response.error);
       setError(appError);
       return { success: false, error: appError };
     } catch (error) {

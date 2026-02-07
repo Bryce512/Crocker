@@ -11,20 +11,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  useColorScheme,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import LinearGradient from "react-native-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
-import Button from "../components/Button";
 import { useAuth } from "../contexts/AuthContext";
 import { colors } from "../theme/colors";
-import firebaseService from "../services/firebaseService";
 
 export default function SignupScreen() {
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const { signUp } = useAuth();
 
   const [firstName, setFirstName] = useState("");
@@ -63,7 +60,6 @@ export default function SignupScreen() {
         console.error("❌ DEBUG: Signup error:", error);
         let errorMessage = "Failed to create account";
 
-        // Handle specific Firebase error codes
         if (typeof error === "object" && error.code) {
           switch (error.code) {
             case "auth/email-already-in-use":
@@ -89,23 +85,13 @@ export default function SignupScreen() {
       } else if (user) {
         console.log(
           "✅ DEBUG: Account created successfully for user:",
-          user.uid
+          user.uid,
         );
-        Alert.alert("Success", "Account created successfully!", [
-          {
-            text: "OK",
-            onPress: () => {
-              // Navigation will happen automatically via AuthContext
-              console.log(
-                "🔍 DEBUG: Account creation completed, user should be logged in"
-              );
-            },
-          },
-        ]);
+        Alert.alert("Success", "Account created successfully!");
       } else {
         console.log("⚠️ DEBUG: Signup completed but no user or error returned");
-        Alert.alert("Success", "Please check your email for verification!");
-        navigation.navigate("Login" as never);
+        Alert.alert("Success", "Account created!");
+        navigation.navigate("Home" as never);
       }
     } catch (error) {
       console.error("❌ DEBUG: Unexpected signup error:", error);
@@ -115,175 +101,87 @@ export default function SignupScreen() {
     }
   };
 
-  const handleSignupAuthOnly = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter email and password");
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      console.log("🔍 DEBUG: Testing auth-only signup...");
-      const result = await firebaseService.signUpAuthOnly(email, password);
-
-      if (result.error) {
-        console.error("❌ DEBUG: Auth-only signup failed:", result.error);
-        Alert.alert(
-          "Auth Test Failed",
-          result.error.message || "Authentication failed"
-        );
-      } else if (result.user) {
-        console.log("✅ DEBUG: Auth-only signup succeeded:", result.user.uid);
-        Alert.alert(
-          "Auth Test Success",
-          "Authentication works! Database issue confirmed."
-        );
-      }
-    } catch (error) {
-      console.error("❌ DEBUG: Auth-only signup error:", error);
-      Alert.alert("Error", "Auth test failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoidingView}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          <View style={styles.logoContainer}>
-            <Feather name="tool" size={40} color={colors.primary[500]} />
-            <Text style={[styles.logoText, isDark && styles.textLight]}>
-              sori
-            </Text>
+    <LinearGradient
+      colors={["#f8f9fa", "#e8eef7"]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.headerContainer}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
           </View>
 
-          <Text style={[styles.title, isDark && styles.textLight]}>
-            Create Account
-          </Text>
-          <Text style={[styles.subtitle, isDark && styles.textMutedLight]}>
-            Sign up to get started with sori
-          </Text>
+          {/* Form Container */}
+          <View style={styles.formContainer}>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Join us to get started</Text>
 
-          <View style={styles.form}>
+            {/* First Name */}
             <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, isDark && styles.textLight]}>
-                First Name
-              </Text>
-              <View style={styles.inputWrapper}>
-                <Feather
-                  name="user"
-                  size={18}
-                  color={isDark ? colors.gray[400] : colors.gray[500]}
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={[
-                    styles.input,
-                    isDark && styles.inputDark,
-                    { paddingLeft: 40 },
-                  ]}
-                  placeholder="Enter your first name"
-                  placeholderTextColor={
-                    isDark ? colors.gray[400] : colors.gray[500]
-                  }
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  autoCapitalize="words"
-                />
-              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="First Name"
+                placeholderTextColor="#94a3b8"
+                value={firstName}
+                onChangeText={setFirstName}
+                autoCapitalize="words"
+                editable={!loading}
+              />
             </View>
 
+            {/* Last Name */}
             <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, isDark && styles.textLight]}>
-                Last Name
-              </Text>
-              <View style={styles.inputWrapper}>
-                <Feather
-                  name="user"
-                  size={18}
-                  color={isDark ? colors.gray[400] : colors.gray[500]}
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={[
-                    styles.input,
-                    isDark && styles.inputDark,
-                    { paddingLeft: 40 },
-                  ]}
-                  placeholder="Enter your last name"
-                  placeholderTextColor={
-                    isDark ? colors.gray[400] : colors.gray[500]
-                  }
-                  value={lastName}
-                  onChangeText={setLastName}
-                  autoCapitalize="words"
-                />
-              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Last Name"
+                placeholderTextColor="#94a3b8"
+                value={lastName}
+                onChangeText={setLastName}
+                autoCapitalize="words"
+                editable={!loading}
+              />
             </View>
 
+            {/* Email */}
             <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, isDark && styles.textLight]}>
-                Email
-              </Text>
-              <View style={styles.inputWrapper}>
-                <Feather
-                  name="mail"
-                  size={18}
-                  color={isDark ? colors.gray[400] : colors.gray[500]}
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={[
-                    styles.input,
-                    isDark && styles.inputDark,
-                    { paddingLeft: 40 },
-                  ]}
-                  placeholder="Enter your email"
-                  placeholderTextColor={
-                    isDark ? colors.gray[400] : colors.gray[500]
-                  }
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                />
-              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor="#94a3b8"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                editable={!loading}
+              />
             </View>
 
+            {/* Password */}
             <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, isDark && styles.textLight]}>
-                Password
-              </Text>
               <View style={styles.inputWrapper}>
-                <Feather
-                  name="lock"
-                  size={18}
-                  color={isDark ? colors.gray[400] : colors.gray[500]}
-                  style={styles.inputIcon}
-                />
                 <TextInput
-                  style={[
-                    styles.input,
-                    isDark && styles.inputDark,
-                    { paddingLeft: 40, paddingRight: 40 },
-                  ]}
-                  placeholder="Create a password"
-                  placeholderTextColor={
-                    isDark ? colors.gray[400] : colors.gray[500]
-                  }
+                  style={styles.input}
+                  placeholder="Password"
+                  placeholderTextColor="#94a3b8"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
                 />
                 <TouchableOpacity
                   style={styles.passwordToggle}
@@ -292,107 +190,55 @@ export default function SignupScreen() {
                   <Feather
                     name={showPassword ? "eye-off" : "eye"}
                     size={18}
-                    color={isDark ? colors.gray[400] : colors.gray[500]}
+                    color="#94a3b8"
                   />
                 </TouchableOpacity>
               </View>
             </View>
 
+            {/* Confirm Password */}
             <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, isDark && styles.textLight]}>
-                Confirm Password
-              </Text>
               <View style={styles.inputWrapper}>
-                <Feather
-                  name="lock"
-                  size={18}
-                  color={isDark ? colors.gray[400] : colors.gray[500]}
-                  style={styles.inputIcon}
-                />
                 <TextInput
-                  style={[
-                    styles.input,
-                    isDark && styles.inputDark,
-                    { paddingLeft: 40 },
-                  ]}
-                  placeholder="Confirm your password"
-                  placeholderTextColor={
-                    isDark ? colors.gray[400] : colors.gray[500]
-                  }
+                  style={styles.input}
+                  placeholder="Confirm Password"
+                  placeholderTextColor="#94a3b8"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
                 />
+                <TouchableOpacity
+                  style={styles.passwordToggle}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Feather
+                    name={showPassword ? "eye-off" : "eye"}
+                    size={18}
+                    color="#94a3b8"
+                  />
+                </TouchableOpacity>
               </View>
             </View>
 
-            <Button
-              title="Sign Up"
-              onPress={handleSignup}
-              loading={loading}
-              fullWidth
-              style={styles.signupButton}
-            />
-
-            <Button
-              title="🔍 Test Auth Only"
-              onPress={handleSignupAuthOnly}
-              loading={loading}
-              fullWidth
-              variant="outline"
-              style={styles.testButton}
-            />
-
-            <View style={styles.divider}>
-              <View
-                style={[styles.dividerLine, isDark && styles.dividerLineDark]}
-              />
-              <Text
-                style={[styles.dividerText, isDark && styles.textMutedLight]}
-              >
-                OR
-              </Text>
-              <View
-                style={[styles.dividerLine, isDark && styles.dividerLineDark]}
-              />
-            </View>
-
-            <Button
-              title="Sign Up as Mechanic"
-              onPress={() => navigation.navigate("MechanicSignup" as never)}
-              variant="outline"
-              fullWidth
-              style={styles.mechanicButton}
-            />
-
-            <Button
-              title="Complete Driver Onboarding"
-              onPress={() => navigation.navigate("DriverOnboarding" as never)}
-              variant="secondary"
-              fullWidth
-            />
-          </View>
-
-          <View style={styles.footer}>
-            <Text style={[styles.footerText, isDark && styles.textMutedLight]}>
-              Already have an account?
-            </Text>
+            {/* Sign Up Button */}
             <TouchableOpacity
-              onPress={() => navigation.navigate("Login" as never)}
+              style={[styles.signupButton, loading && styles.buttonDisabled]}
+              onPress={handleSignup}
+              disabled={loading}
             >
-              <Text
-                style={[
-                  styles.loginText,
-                  isDark && { color: colors.primary[400] },
-                ]}
-              >
-                Sign In
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <Text style={styles.signupButtonText}>Create Account</Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
@@ -400,125 +246,105 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  keyboardAvoidingView: {
+  safeArea: {
     flex: 1,
   },
-  scrollContainer: {
+  scrollContent: {
     flexGrow: 1,
-    padding: 20,
-    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
-  logoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 40,
-    gap: 12,
+  headerContainer: {
+    marginTop: 16,
+    marginBottom: 32,
   },
-  logoText: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: colors.gray[900],
+  backButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 0,
+  },
+  backButtonText: {
+    color: "#475569",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  formContainer: {
+    width: "100%",
+    maxWidth: 384,
+    alignSelf: "center",
   },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    textAlign: "center",
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#334155",
     marginBottom: 8,
-    color: colors.gray[900],
   },
   subtitle: {
     fontSize: 16,
-    textAlign: "center",
+    color: "#94a3b8",
     marginBottom: 32,
-    color: colors.gray[600],
-  },
-  form: {
-    gap: 20,
+    fontWeight: "500",
   },
   inputContainer: {
-    gap: 8,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.gray[900],
+    marginBottom: 16,
   },
   inputWrapper: {
     position: "relative",
   },
-  inputIcon: {
-    position: "absolute",
-    left: 12,
-    top: 12,
-    zIndex: 1,
-  },
   input: {
-    height: 44,
-    borderWidth: 1,
-    borderColor: colors.gray[300],
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    backgroundColor: colors.white,
-  },
-  inputDark: {
-    borderColor: colors.gray[700],
-    backgroundColor: colors.gray[800],
-    color: colors.white,
+    height: 56,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 28,
+    paddingHorizontal: 24,
+    paddingRight: 50,
+    fontSize: 16,
+    color: "#475569",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   passwordToggle: {
     position: "absolute",
-    right: 12,
-    top: 12,
-    zIndex: 1,
+    right: 20,
+    top: 18,
   },
-  signupButton: {
-    marginTop: 8,
-  },
-  testButton: {
-    marginTop: 8,
-  },
-  divider: {
-    flexDirection: "row",
+  showPasswordToggle: {
     alignItems: "center",
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.gray[300],
-  },
-  dividerLineDark: {
-    backgroundColor: colors.gray[700],
-  },
-  dividerText: {
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: colors.gray[500],
-  },
-  mechanicButton: {
-    marginBottom: 16,
-  },
-  footer: {
     flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 32,
-    gap: 4,
+    gap: 8,
+    marginBottom: 24,
   },
-  footerText: {
-    fontSize: 14,
-    color: colors.gray[600],
-  },
-  loginText: {
+  showPasswordText: {
+    color: "#0072f5",
     fontSize: 14,
     fontWeight: "500",
-    color: colors.primary[500],
   },
-  textLight: {
-    color: colors.white,
+  signupButton: {
+    height: 56,
+    backgroundColor: "#2dd4bf",
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  textMutedLight: {
-    color: colors.gray[400],
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  signupButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
+

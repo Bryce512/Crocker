@@ -84,7 +84,7 @@ export const signIn = async (email: string, password: string) => {
 
     const userCredential = await auth().signInWithEmailAndPassword(
       email,
-      password
+      password,
     );
 
     console.log("🔷 User signed in with UID:", userCredential.user.uid);
@@ -121,7 +121,7 @@ export const signUp = async (email: string, password: string, name: string) => {
     console.log("🔄 Signing up user...");
     const userCredential = await auth().createUserWithEmailAndPassword(
       email,
-      password
+      password,
     );
 
     console.log("🔷 New user created with UID:", userCredential.user.uid);
@@ -136,7 +136,7 @@ export const signUp = async (email: string, password: string, name: string) => {
 
     if (!dbTestResult) {
       console.error(
-        "🔴 Database connection test failed - proceeding anyway..."
+        "🔴 Database connection test failed - proceeding anyway...",
       );
     }
 
@@ -160,7 +160,7 @@ export const getCurrentUser = () => {
 
     console.log(
       "🔍 getCurrentUser result:",
-      user ? `User: ${user.uid}` : "No user"
+      user ? `User: ${user.uid}` : "No user",
     );
     return user;
   } catch (error) {
@@ -170,7 +170,7 @@ export const getCurrentUser = () => {
 };
 
 export const onAuthChange = (
-  callback: (user: FirebaseAuthTypes.User | null) => void
+  callback: (user: FirebaseAuthTypes.User | null) => void,
 ) => {
   return auth().onAuthStateChanged(callback);
 };
@@ -184,18 +184,21 @@ export const signInWithApple = async (credential: {
   lastName?: string;
 }) => {
   try {
-
     // Create Firebase credential from Apple credential
     const appleCredential = auth.AppleAuthProvider.credential(
       credential.identityToken,
-      credential.nonce
+      credential.nonce,
     );
 
     // Sign in with Firebase using the Apple credential
     const userCredential = await auth().signInWithCredential(appleCredential);
 
     // Ensure user profile exists in database and store firstName/lastName directly
-    await ensureUserProfile(userCredential.user, credential.firstName, credential.lastName);
+    await ensureUserProfile(
+      userCredential.user,
+      credential.firstName,
+      credential.lastName,
+    );
 
     return { user: userCredential.user, error: null };
   } catch (error: any) {
@@ -222,12 +225,11 @@ export const signInWithApple = async (credential: {
   }
 };
 
-
 // Creates a user profile in the database if it doesn't already exist
 export const ensureUserProfile = async (
   user: FirebaseAuthTypes.User,
   firstName?: string,
-  lastName?: string
+  lastName?: string,
 ) => {
   if (!user) return null;
 
@@ -246,7 +248,7 @@ export const ensureUserProfile = async (
     if (!snapshot.exists()) {
       console.log(
         "🔷 Creating new user profile in database for UID:",
-        user.uid
+        user.uid,
       );
 
       // Create new user profile with complete structure
@@ -267,7 +269,7 @@ export const ensureUserProfile = async (
       await set(userRef, userData);
       console.log(
         "✅ Successfully created user profile in database with path: users/" +
-          user.uid
+          user.uid,
       );
       return userData;
     } else {
@@ -290,29 +292,24 @@ export const ensureUserProfile = async (
         existingData.profile = {};
       }
 
-      if ((firstName || lastName) && (!existingData.profile.firstName || existingData.profile.firstName === "")) {
-        console.log(
-          "🔷 Updating user profile name to:",
-          firstName,
-          lastName
-        );
+      if (
+        (firstName || lastName) &&
+        (!existingData.profile.firstName ||
+          existingData.profile.firstName === "")
+      ) {
+        console.log("🔷 Updating user profile name to:", firstName, lastName);
         existingData.profile.firstName = firstName || "";
         existingData.profile.lastName = lastName || "";
         needsUpdate = true;
       }
 
-      if (
-        user.email &&
-        user.email !== existingData.profile.email
-      ) {
+      if (user.email && user.email !== existingData.profile.email) {
         existingData.profile.email = user.email;
         needsUpdate = true;
       }
 
       if (needsUpdate) {
-        console.log(
-          "🔷 Updating existing user profile"
-        );
+        console.log("🔷 Updating existing user profile");
         await set(userRef, existingData);
       }
 
@@ -327,10 +324,10 @@ export const ensureUserProfile = async (
 
     if (error.message && error.message.includes("Permission denied")) {
       console.error(
-        "🔴 FIREBASE RULES ERROR: The database security rules are blocking this write operation."
+        "🔴 FIREBASE RULES ERROR: The database security rules are blocking this write operation.",
       );
       console.error(
-        "🔴 Please check your Firebase Realtime Database rules in the Firebase Console."
+        "🔴 Please check your Firebase Realtime Database rules in the Firebase Console.",
       );
       console.error("🔴 Expected rules format:");
       console.error(`🔴 {
@@ -413,7 +410,7 @@ export const migrateEventsToIndividualObjects = async (eventsArray: any[]) => {
 
   try {
     console.log(
-      `🔄 Migrating ${eventsArray.length} events from array to individual objects`
+      `🔄 Migrating ${eventsArray.length} events from array to individual objects`,
     );
 
     // Create object structure from array
@@ -433,7 +430,7 @@ export const migrateEventsToIndividualObjects = async (eventsArray: any[]) => {
     await set(eventsRef, eventsObject);
 
     console.log(
-      `✅ Successfully migrated ${eventsArray.length} events to individual objects`
+      `✅ Successfully migrated ${eventsArray.length} events to individual objects`,
     );
     return eventsObject;
   } catch (error) {
@@ -620,7 +617,7 @@ export const setEvents = async (events: any[]) => {
     // Save as object structure (individual events)
     await set(eventsRef, eventsObject);
     console.log(
-      `Events saved successfully to Firebase as individual objects: ${events.length} events`
+      `Events saved successfully to Firebase as individual objects: ${events.length} events`,
     );
     return events;
   } catch (error) {
@@ -759,7 +756,7 @@ export const deleteEvent = async (eventId: string) => {
 
     if (!afterSnapshot.exists()) {
       console.log(
-        `✅ Event ${eventId} deleted successfully from Firebase at path: ${path}`
+        `✅ Event ${eventId} deleted successfully from Firebase at path: ${path}`,
       );
       return true;
     } else {
@@ -793,7 +790,7 @@ export const addKid = async (kidData: any) => {
       });
       await set(kidsRef, kidsObject);
       console.log(
-        `Kids saved successfully to Firebase: ${kidData.length} kids`
+        `Kids saved successfully to Firebase: ${kidData.length} kids`,
       );
       return kidData;
     } else {
@@ -981,7 +978,7 @@ export const verifyDatabaseAccess = async () => {
     if (snapshot.exists()) {
       const data = snapshot.val();
       console.log(
-        "✅ Successfully read user data from path: users/" + user.uid
+        "✅ Successfully read user data from path: users/" + user.uid,
       );
       console.log("🔷 User data structure keys:", Object.keys(data));
 
