@@ -236,6 +236,19 @@ const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
 
             <TouchableOpacity
               style={styles.menuItem}
+              onPress={() => handleMenuItemPress("Timer")}
+            >
+              <FontAwesome
+                name="clock-o"
+                size={20}
+                color={colors.gray[600]}
+                style={styles.menuIcon}
+              />
+              <Text style={styles.menuItemText}>Quick Timer</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
               onPress={handleImportCalendar}
               disabled={isImporting}
             >

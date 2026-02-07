@@ -10,6 +10,7 @@ import DeviceConnection from "../screens/ScanDevices";
 import CalendarScreen from "../screens/Calendar";
 import EventCreation from "../screens/NewEvent";
 import ProfileScreen from "../screens/Profile";
+import TimerScreen from "../screens/Timer";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -18,6 +19,7 @@ export type RootStackParamList = {
   CalendarScreen: undefined;
   EventCreation: undefined;
   Profile: undefined;
+  Timer: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -38,6 +40,7 @@ export default function AppNavigator() {
             <Stack.Screen name="ScanDevices" component={DeviceConnection} />
             <Stack.Screen name="EventCreation" component={EventCreation} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="Timer" component={TimerScreen} />
           </>
         ) : (
           <>

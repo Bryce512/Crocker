@@ -16,6 +16,7 @@ const FILE_TRANSFER_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440002";
 const STATUS_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440003";
 const TIME_SYNC_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440004";
 const IMAGE_TRANSFER_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440005";
+const TIMER_CHAR_UUID = "550e8400-e29b-41d4-a716-446655440006";
 
 // BLE MTU size (typically 512 bytes, minus overhead leaves ~480 for payload)
 const BLE_FILE_CHUNK_SIZE = 480;
@@ -595,6 +596,118 @@ export const sendEventScheduleToDevice = async (
     return {
       success: false,
       error: `Failed to send event schedule: ${error}`,
+    };
+  }
+};
+
+// Send timer duration to device via TIMER_CHAR_UUID (0006 characteristic)
+// Sends total seconds as a 4-byte integer
+export const sendTimerToDevice = async (
+  deviceId: string,
+  totalSeconds: number,
+): Promise<ServiceResponse<boolean>> => {
+  try {
+    console.log(
+      `⏱️  Sending timer to device ${deviceId}: ${totalSeconds} seconds`,
+    );
+
+    // Verify device is connected
+    const connectedDevices = await BleManager.getConnectedPeripherals([]);
+    const isConnected = connectedDevices.some(
+      (device) => device.id === deviceId,
+    );
+
+    if (!isConnected) {
+      console.warn(
+        `⚠️ Device ${deviceId} is not connected. Attempting to reconnect...`,
+      );
+      try {
+        await BleManager.connect(deviceId);
+        await BleManager.retrieveServices(deviceId);
+        console.log(`✅ Successfully reconnected to device ${deviceId}`);
+      } catch (reconnectError) {
+        console.error(`❌ Failed to reconnect: ${reconnectError}`);
+        return {
+          success: false,
+          error: `Device disconnected: ${reconnectError}`,
+        };
+      }
+    }
+
+    // Convert total seconds to 4-byte array (big-endian)
+    const timerData = [
+      (totalSeconds >> 24) & 0xff,
+      (totalSeconds >> 16) & 0xff,
+      (totalSeconds >> 8) & 0xff,
+      totalSeconds & 0xff,
+    ];
+
+    console.log(
+      `📤 Sending timer data: ${totalSeconds}s as bytes [${timerData.join(", ")}]`,
+    );
+
+    // Send timer data to device
+    await BleManager.write(deviceId, SERVICE_UUID, TIMER_CHAR_UUID, timerData);
+
+    console.log(
+      `✅ Timer sent successfully to TIMER_CHAR_UUID for device ${deviceId}`,
+    );
+
+    return {
+      success: true,
+      data: true,
+    };
+  } catch (error) {
+    console.error(`❌ Error sending timer to device:`, error);
+    return {
+      success: false,
+      error: `Failed to send timer: ${error}`,
+    };
+  }
+};
+
+// Cancel timer on device via TIMER_CHAR_UUID (0006 characteristic)
+// Sends 0xFFFFFFFF as cancel signal
+export const cancelTimerOnDevice = async (
+  deviceId: string,
+): Promise<ServiceResponse<boolean>> => {
+  try {
+    console.log(`⏹️  Cancelling timer on device ${deviceId}`);
+
+    // Verify device is connected
+    const connectedDevices = await BleManager.getConnectedPeripherals([]);
+    const isConnected = connectedDevices.some(
+      (device) => device.id === deviceId,
+    );
+
+    if (!isConnected) {
+      console.warn(
+        `⚠️ Device ${deviceId} is not connected. Cannot cancel timer.`,
+      );
+      return {
+        success: false,
+        error: "Device not connected",
+      };
+    }
+
+    // Send 0xFFFFFFFF as cancel signal
+    const cancelData = [0xff, 0xff, 0xff, 0xff];
+
+    console.log(`📤 Sending cancel signal: [${cancelData.join(", ")}]`);
+
+    await BleManager.write(deviceId, SERVICE_UUID, TIMER_CHAR_UUID, cancelData);
+
+    console.log(`✅ Timer cancelled successfully on device ${deviceId}`);
+
+    return {
+      success: true,
+      data: true,
+    };
+  } catch (error) {
+    console.error(`❌ Error cancelling timer on device:`, error);
+    return {
+      success: false,
+      error: `Failed to cancel timer: ${error}`,
     };
   }
 };
