@@ -54,8 +54,11 @@ const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
       }
     };
 
-    fetchUserProfile();
-  }, [user?.uid]);
+    // Fetch profile when menu opens or user changes
+    if (isOpen) {
+      fetchUserProfile();
+    }
+  }, [user?.uid, isOpen]);
 
   // Fallback padding in case safe area context fails
   const safeAreaTop = insets.top || 50; // Default to 50px if safe area fails

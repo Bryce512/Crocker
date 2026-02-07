@@ -289,16 +289,6 @@ export default function TimerScreen() {
 
         {/* Time Picker */}
         <View style={styles.pickerContainer}>
-          {/* Gradient overlay effect */}
-          <View
-            style={[styles.pickerOverlay, styles.topOverlay]}
-            pointerEvents="none"
-          />
-          <View
-            style={[styles.pickerOverlay, styles.bottomOverlay]}
-            pointerEvents="none"
-          />
-
           {/* Minutes Picker */}
           <View style={styles.timeUnitContainer}>
             <ScrollView
@@ -441,24 +431,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     position: "relative",
-  },
-  pickerOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT * 2,
-    pointerEvents: "none",
-    zIndex: 10,
-  },
-  topOverlay: {
-    top: 0,
-    backgroundColor:
-      "linear-gradient(to bottom, rgba(255,255,255,0.8), transparent)",
-  },
-  bottomOverlay: {
-    bottom: 0,
-    backgroundColor:
-      "linear-gradient(to top, rgba(255,255,255,0.8), transparent)",
   },
   timeUnitContainer: {
     alignItems: "center",

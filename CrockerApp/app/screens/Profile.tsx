@@ -100,6 +100,15 @@ export default function ProfileScreen() {
         phone: phone.trim(),
       });
       setHasChanges(false);
+      console.log("✅ Profile saved successfully");
+
+      // Show success message and navigate back
+      Alert.alert("Success", "Your profile has been updated successfully.", [
+        {
+          text: "OK",
+          onPress: () => navigation.goBack(),
+        },
+      ]);
     } catch (error) {
       console.error("❌ Error saving profile:", error);
       Alert.alert("Error", "Failed to save profile changes");
@@ -134,6 +143,8 @@ export default function ProfileScreen() {
               console.log("🗑️ Deleting account for UID:", user.uid);
               await firebaseService.deleteAccount(user.uid);
               console.log("✅ Account deleted successfully");
+              // Note: deleteAccount() deletes the Firebase Auth user,
+              // which automatically signs the user out
             } catch (error) {
               console.error("❌ Error deleting account:", error);
               Alert.alert(

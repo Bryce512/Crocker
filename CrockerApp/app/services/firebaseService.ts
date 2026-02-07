@@ -482,28 +482,29 @@ export const updateUserProfile = async (
 };
 
 export const deleteAccount = async (userId?: string) => {
-  const currentUser = userId ? null : getCurrentUser();
-  const user = userId ? { uid: userId } : currentUser;
+  const currentUser = auth().currentUser;
 
-  if (!user?.uid) {
-    throw new Error("No user found to delete");
+  if (!currentUser) {
+    throw new Error("No authenticated user found");
+  }
+
+  // Verify the userId matches the current user if provided
+  if (userId && userId !== currentUser.uid) {
+    throw new Error("Cannot delete another user's account");
   }
 
   try {
-    console.log("🗑️ Deleting account and user data for UID:", user.uid);
+    console.log("🗑️ Deleting account and user data for UID:", currentUser.uid);
 
     // Delete user data from database
     const db = database();
-    const userRef = db.ref(`users/${user.uid}`);
+    const userRef = db.ref(`users/${currentUser.uid}`);
     await userRef.remove();
     console.log("✅ User data deleted from database");
 
     // Delete Firebase Auth user
-    if (!userId) {
-      // Only if deleting current user
-      await auth().currentUser?.delete();
-      console.log("✅ Firebase Auth user deleted");
-    }
+    await currentUser.delete();
+    console.log("✅ Firebase Auth user deleted");
 
     return { success: true };
   } catch (error) {
