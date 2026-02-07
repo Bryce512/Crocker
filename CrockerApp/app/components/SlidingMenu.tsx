@@ -197,7 +197,7 @@ const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
           <View style={styles.menuItems}>
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => handleMenuItemPress()}
+              onPress={() => handleMenuItemPress("Profile")}
             >
               <FontAwesome
                 name="user"

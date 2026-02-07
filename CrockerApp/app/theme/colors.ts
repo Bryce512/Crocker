@@ -34,5 +34,7 @@ export const colors = {
   yellow: {
     500: "#f59e0b",
   },
-}
-
+  teal: {
+    500: "#2dd4bf",
+  },
+};

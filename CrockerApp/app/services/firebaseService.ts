@@ -442,6 +442,76 @@ export const getUserProfile = async (userId: string) => {
   }
 };
 
+export const updateUserProfile = async (
+  userId: string,
+  updates: {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+  }
+) => {
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+
+  const db = database();
+  const userRef = db.ref(`users/${userId}/profile`);
+
+  try {
+    console.log("📝 Updating user profile for UID:", userId, "with:", updates);
+    
+    // Only update fields that are provided
+    const updateData: any = {};
+    if (updates.firstName !== undefined) {
+      updateData.firstName = updates.firstName;
+    }
+    if (updates.lastName !== undefined) {
+      updateData.lastName = updates.lastName;
+    }
+    if (updates.phone !== undefined) {
+      updateData.phone = updates.phone;
+    }
+
+    await userRef.update(updateData);
+    console.log("✅ User profile updated successfully");
+    return updateData;
+  } catch (error) {
+    console.error("❌ Error updating user profile:", error);
+    throw error;
+  }
+};
+
+export const deleteAccount = async (userId?: string) => {
+  const currentUser = userId ? null : getCurrentUser();
+  const user = userId ? { uid: userId } : currentUser;
+
+  if (!user?.uid) {
+    throw new Error("No user found to delete");
+  }
+
+  try {
+    console.log("🗑️ Deleting account and user data for UID:", user.uid);
+
+    // Delete user data from database
+    const db = database();
+    const userRef = db.ref(`users/${user.uid}`);
+    await userRef.remove();
+    console.log("✅ User data deleted from database");
+
+    // Delete Firebase Auth user
+    if (!userId) {
+      // Only if deleting current user
+      await auth().currentUser?.delete();
+      console.log("✅ Firebase Auth user deleted");
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("❌ Error deleting account:", error);
+    throw error;
+  }
+};
+
 // Migrate legacy array-based events to individual objects
 export const migrateEventsToIndividualObjects = async (eventsArray: any[]) => {
   const user = getCurrentUser();
@@ -1070,6 +1140,8 @@ export default {
   onAuthChange,
   ensureUserProfile,
   getUserProfile,
+  updateUserProfile,
+  deleteAccount,
   getEvents,
   getKids,
   setEvents,
