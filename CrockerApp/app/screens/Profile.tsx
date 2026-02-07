@@ -136,14 +136,17 @@ export default function ProfileScreen() {
               console.log("✅ Account deleted successfully");
             } catch (error) {
               console.error("❌ Error deleting account:", error);
-              Alert.alert("Error", "Failed to delete account. Please try again.");
+              Alert.alert(
+                "Error",
+                "Failed to delete account. Please try again.",
+              );
             } finally {
               setSaving(false);
             }
           },
           style: "destructive",
         },
-      ]
+      ],
     );
   };
 

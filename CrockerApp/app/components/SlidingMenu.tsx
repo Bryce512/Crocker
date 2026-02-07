@@ -119,7 +119,7 @@ const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
         Alert.alert(
           "Calendar Access Denied",
           "Calendar access has been denied. Please go to Settings > Privacy & Security > Calendars and enable access for this app, then restart the app.",
-          [{ text: "OK", style: "default" }]
+          [{ text: "OK", style: "default" }],
         );
         return;
       }
@@ -154,7 +154,7 @@ const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
               }
             },
           },
-        ]
+        ],
       );
     } catch (error) {
       console.error("Error checking permissions:", error);

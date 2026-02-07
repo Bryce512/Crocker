@@ -448,7 +448,7 @@ export const updateUserProfile = async (
     firstName?: string;
     lastName?: string;
     phone?: string;
-  }
+  },
 ) => {
   if (!userId) {
     throw new Error("User ID is required");
@@ -459,7 +459,7 @@ export const updateUserProfile = async (
 
   try {
     console.log("📝 Updating user profile for UID:", userId, "with:", updates);
-    
+
     // Only update fields that are provided
     const updateData: any = {};
     if (updates.firstName !== undefined) {
