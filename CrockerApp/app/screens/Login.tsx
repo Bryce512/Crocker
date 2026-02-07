@@ -151,13 +151,17 @@ const Login = () => {
         Alert.alert("Sign-In Error", errorMessage);
       }
     } catch (error: any) {
-      console.error("❌ Apple sign-in exception:", error);
-
-      // Handle user cancellation
-      if (error.code === "ERR_CANCELED") {
-        console.log("ℹ️ User cancelled Apple sign-in");
+      // Handle user cancellation - do nothing, just exit silently
+      if (
+        error.code === "ERR_CANCELED" ||
+        error.code === 1001 ||
+        error.message?.includes("canceled the authorization attempt")
+      ) {
+        setIsLoading(false);
         return;
       }
+
+      console.error("❌ Apple sign-in exception:", error);
 
       let errorMessage = "Failed to sign in with Apple";
       if (error.message) {
@@ -176,9 +180,132 @@ const Login = () => {
   };
 
   const handleForgotPassword = () => {
-    Alert.alert(
-      "Password Reset",
-      "This functionality will be implemented later",
+    Alert.prompt(
+      "Reset Password",
+      "Enter your email address to receive a password reset link:",
+      [
+        {
+          text: "Cancel",
+          onPress: () => {},
+          style: "cancel",
+        },
+        {
+          text: "Send",
+          onPress: async (emailInput) => {
+            if (!emailInput || !emailInput.trim()) {
+              Alert.alert("Error", "Please enter your email address", [
+                {
+                  text: "Try Again",
+                  onPress: () => handleForgotPassword(),
+                },
+              ]);
+              return;
+            }
+
+            const trimmedEmail = emailInput.trim();
+            console.log("🔑 DEBUG: Password reset started for email:", trimmedEmail);
+            setIsLoading(true);
+            try {
+              const result = await firebaseService.sendPasswordResetEmail(trimmedEmail);
+              
+              if (result.success) {
+                Alert.alert(
+                  "Success",
+                  "Password reset email has been sent. Please check your email.",
+                );
+              } else {
+                // Show alert with options to try Apple or check email again
+                Alert.alert("Account Not Found", "Oops! We don't see an account with that email. Did you sign up with Apple?", [
+                  {
+                    text: "Try Apple Sign In",
+                    onPress: () => {},
+                  },
+                  {
+                    text: "Check Email",
+                    onPress: () => {
+                      // Reopen prompt with the email they tried
+                      Alert.prompt(
+                        "Reset Password",
+                        "Enter your email address to receive a password reset link:",
+                        [
+                          {
+                            text: "Cancel",
+                            onPress: () => {},
+                            style: "cancel",
+                          },
+                          {
+                            text: "Send",
+                            onPress: async (newEmailInput) => {
+                              if (!newEmailInput || !newEmailInput.trim()) {
+                                Alert.alert("Error", "Please enter your email address", [
+                                  {
+                                    text: "Try Again",
+                                    onPress: () => handleForgotPassword(),
+                                  },
+                                ]);
+                                return;
+                              }
+
+                              setIsLoading(true);
+                              try {
+                                const newResult = await firebaseService.sendPasswordResetEmail(newEmailInput.trim());
+                                
+                                if (newResult.success) {
+                                  Alert.alert(
+                                    "Success",
+                                    "Password reset email has been sent. Please check your email.",
+                                  );
+                                } else {
+                                  Alert.alert("Account Not Found", "Oops! We don't see an account with that email. Did you sign up with Apple?", [
+                                    {
+                                      text: "Try Apple Sign In",
+                                      onPress: () => {},
+                                    },
+                                    {
+                                      text: "Try Again",
+                                      onPress: () => handleForgotPassword(),
+                                    },
+                                  ]);
+                                }
+                              } catch (error) {
+                                console.error("Error sending password reset:", error);
+                                Alert.alert("Error", "Failed to send password reset email", [
+                                  {
+                                    text: "Try Again",
+                                    onPress: () => handleForgotPassword(),
+                                  },
+                                ]);
+                              } finally {
+                                setIsLoading(false);
+                              }
+                            },
+                          },
+                        ],
+                        "plain-text",
+                        emailInput.trim(),
+                        "email-address",
+                      );
+                    },
+                  },
+                ]);
+              }
+            } catch (error) {
+              console.error("Error sending password reset:", error);
+              Alert.alert("Error", "Failed to send password reset email", [
+                {
+                  text: "Try Again",
+                  onPress: () => handleForgotPassword(),
+                },
+              ]);
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ],
+      "plain-text",
+      email || "",
+      "email-address",
     );
   };
 
@@ -270,7 +397,6 @@ const Login = () => {
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.divider} />
           </View>
-
 
           <View style={styles.createAccountSection}>
             <Text style={styles.createAccountLabel}>

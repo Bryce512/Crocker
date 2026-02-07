@@ -118,13 +118,14 @@ export const signIn = async (email: string, password: string) => {
 
 export const signUp = async (email: string, password: string, name: string) => {
   try {
-    console.log("🔄 Signing up user...");
+    console.log("🔄 Signing up user with email:", email);
     const userCredential = await auth().createUserWithEmailAndPassword(
       email,
       password,
     );
 
     console.log("🔷 New user created with UID:", userCredential.user.uid);
+    console.log("🔷 User email in auth:", userCredential.user.email);
 
     // Set the user's display name
     await userCredential.user.updateProfile({ displayName: name });
@@ -152,6 +153,44 @@ export const signUp = async (email: string, password: string, name: string) => {
 
 export const signOut = async () => {
   return auth().signOut();
+};
+
+export const checkEmailExists = async (email: string) => {
+  try {
+    console.log("🔍 Checking if email exists:", email);
+    const signInMethods = await auth().fetchSignInMethodsForEmail(email);
+    console.log("✅ Sign-in methods found:", signInMethods);
+    const exists = signInMethods.length > 0;
+    console.log("📧 Email exists result:", exists);
+    return exists;
+  } catch (error: any) {
+    console.error("🔴 Error checking email:", error.code, error.message);
+    return false;
+  }
+};
+
+export const sendPasswordResetEmail = async (email: string) => {
+  try {
+    console.log("🔐 Password reset requested for email:", email);
+    console.log("📧 Sending password reset email to:", email);
+    await auth().sendPasswordResetEmail(email);
+    console.log("✅ Password reset email sent successfully");
+    return { success: true, message: "Password reset email has been sent. Check your email (and spam folder) for the reset link." };
+  } catch (error: any) {
+    console.error("🔴 Password reset error:", error.code, error.message);
+    let errorMessage = "Failed to send password reset email";
+
+    if (error.code === "auth/user-not-found") {
+      console.log("🔴 Email not found in Firebase Auth");
+      errorMessage = "Oops! We don't see an account with that email. Did you log in with Apple?";
+    } else if (error.code === "auth/invalid-email") {
+      errorMessage = "Invalid email format";
+    } else if (error.code === "auth/too-many-requests") {
+      errorMessage = "Too many requests. Please try again later";
+    }
+
+    return { success: false, message: errorMessage };
+  }
 };
 
 export const getCurrentUser = () => {
@@ -1033,6 +1072,7 @@ export default {
   updateEvent,
   deleteEvent,
   addKid,
+  sendPasswordResetEmail,
   // Device management
   getDevices,
   addDevice,

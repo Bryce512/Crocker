@@ -83,14 +83,8 @@ export default function SignupScreen() {
 
         Alert.alert("Signup Error", errorMessage);
       } else if (user) {
-        console.log(
-          "✅ DEBUG: Account created successfully for user:",
-          user.uid,
-        );
-        Alert.alert("Success", "Account created successfully!");
+
       } else {
-        console.log("⚠️ DEBUG: Signup completed but no user or error returned");
-        Alert.alert("Success", "Account created!");
         navigation.navigate("Home" as never);
       }
     } catch (error) {
