@@ -196,7 +196,7 @@ const Login = () => {
               <Text style={styles.logoR}>r</Text>
               <Text style={styles.logoI}>i</Text>
             </Text>
-            <Text style={styles.tagline}>soften the switch</Text>
+            <Text style={styles.tagline}>Soften the Switch</Text>
           </View>
         </View>
 
@@ -248,6 +248,15 @@ const Login = () => {
             )}
           </TouchableOpacity>
 
+          {/* Apple Sign-In Button */}
+          <TouchableOpacity
+            style={styles.appleButton}
+            onPress={handleAppleSignIn}
+            disabled={isLoading}
+          >
+            <Text style={styles.appleButtonText}>Log in with Apple</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={handleForgotPassword}
             style={styles.forgotPassword}
@@ -262,14 +271,6 @@ const Login = () => {
             <View style={styles.divider} />
           </View>
 
-          {/* Apple Sign-In Button */}
-          <TouchableOpacity
-            style={styles.appleButton}
-            onPress={handleAppleSignIn}
-            disabled={isLoading}
-          >
-            <Text style={styles.appleButtonText}>Sign in with Apple</Text>
-          </TouchableOpacity>
 
           <View style={styles.createAccountSection}>
             <Text style={styles.createAccountLabel}>
@@ -354,6 +355,7 @@ const styles = StyleSheet.create({
   },
   logoSection: {
     alignItems: "center",
+    marginTop: 60,
     marginBottom: 64,
   },
   logoContainer: {
@@ -540,6 +542,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 28,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
