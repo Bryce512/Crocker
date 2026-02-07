@@ -175,14 +175,19 @@ export const sendPasswordResetEmail = async (email: string) => {
     console.log("📧 Sending password reset email to:", email);
     await auth().sendPasswordResetEmail(email);
     console.log("✅ Password reset email sent successfully");
-    return { success: true, message: "Password reset email has been sent. Check your email (and spam folder) for the reset link." };
+    return {
+      success: true,
+      message:
+        "Password reset email has been sent. Check your email (and spam folder) for the reset link.",
+    };
   } catch (error: any) {
     console.error("🔴 Password reset error:", error.code, error.message);
     let errorMessage = "Failed to send password reset email";
 
     if (error.code === "auth/user-not-found") {
       console.log("🔴 Email not found in Firebase Auth");
-      errorMessage = "Oops! We don't see an account with that email. Did you log in with Apple?";
+      errorMessage =
+        "Oops! We don't see an account with that email. Did you log in with Apple?";
     } else if (error.code === "auth/invalid-email") {
       errorMessage = "Invalid email format";
     } else if (error.code === "auth/too-many-requests") {
