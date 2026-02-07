@@ -15,12 +15,20 @@ type AuthContextType = {
   ) => Promise<{ success: boolean; error?: AppError }>;
   signUp: (
     email: string,
-    password: string
+    password: string,
+    name: string
   ) => Promise<{
     success: boolean;
     user?: FirebaseAuthTypes.User;
     error?: AppError;
   }>;
+  signInWithApple: (credential: {
+    identityToken: string;
+    nonce: string;
+    displayName?: string;
+    firstName?: string;
+    lastName?: string;
+  }) => Promise<{ success: boolean; error?: AppError }>;
   signOut: () => Promise<void>;
   clearError: () => void;
 };
@@ -135,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, name: string) => {
     try {
       // Validate input first
       const emailError = AppErrorService.validateEmail(email);
@@ -151,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log("🔄 Signing up user...");
-      const response = await firebaseService.signUp(email, password);
+      const response = await firebaseService.signUp(email, password, name);
 
       if (response.user && !response.error) {
         console.log("✅ Sign up successful");
@@ -184,9 +192,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithApple = async (credential: {
+    identityToken: string;
+    nonce: string;
+  }) => {
+    try {
+      console.log("🔄 Signing in with Apple...");
+      const response = await firebaseService.signInWithApple(credential);
+
+      if (response.user && !response.error) {
+        setError(null);
+        return { success: true };
+      }
+
+      console.log("❌ Apple sign-in failed:", response.error);
+      const appError = AppErrorService.handleFirebaseAuthError(
+        response.error
+      );
+      setError(appError);
+      return { success: false, error: appError };
+    } catch (error) {
+      console.error("❌ Apple sign-in error:", error);
+      const appError = AppErrorService.handleFirebaseAuthError(error);
+      setError(appError);
+      return { success: false, error: appError };
+    }
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, error, signIn, signUp, signOut, clearError }}
+      value={{
+        user,
+        isLoading,
+        error,
+        signIn,
+        signUp,
+        signInWithApple,
+        signOut,
+        clearError,
+      }}
     >
       {children}
     </AuthContext.Provider>

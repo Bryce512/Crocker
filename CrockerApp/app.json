@@ -91,7 +91,13 @@
           }
         }
       ],
-      "react-native-ble-plx"
+      "react-native-ble-plx",
+      [
+        "expo-apple-authentication",
+        {
+          "skipUserInfo": false
+        }
+      ]
     ]
   }
 }

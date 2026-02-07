@@ -116,7 +116,7 @@ export const signIn = async (email: string, password: string) => {
   }
 };
 
-export const signUp = async (email: string, password: string) => {
+export const signUp = async (email: string, password: string, name: string) => {
   try {
     console.log("🔄 Signing up user...");
     const userCredential = await auth().createUserWithEmailAndPassword(
@@ -125,6 +125,10 @@ export const signUp = async (email: string, password: string) => {
     );
 
     console.log("🔷 New user created with UID:", userCredential.user.uid);
+
+    // Set the user's display name
+    await userCredential.user.updateProfile({ displayName: name });
+    console.log("🔷 User display name set to:", name);
 
     // Test database connection first
     console.log("🔍 Testing database permissions...");
@@ -171,32 +175,60 @@ export const onAuthChange = (
   return auth().onAuthStateChanged(callback);
 };
 
-// Get diagnostic logs for a specific vehicle
-export const getDiagnosticLogs = async (userId: string, vehicleId: string) => {
-  const db = database();
-  const logsRef = ref(db, `users/${userId}/diagnostic_logs`);
-
+// Sign in with Apple
+export const signInWithApple = async (credential: {
+  identityToken: string;
+  nonce: string;
+  displayName?: string;
+  firstName?: string;
+  lastName?: string;
+}) => {
   try {
-    const snapshot = await get(logsRef);
-    if (snapshot.exists()) {
-      const logsData = snapshot.val();
-      // Filter logs for the specific vehicle and convert to array
-      return Object.keys(logsData)
-        .filter((key) => logsData[key].vehicleId === vehicleId)
-        .map((key) => ({
-          id: key,
-          ...logsData[key],
-        }));
+
+    // Create Firebase credential from Apple credential
+    const appleCredential = auth.AppleAuthProvider.credential(
+      credential.identityToken,
+      credential.nonce
+    );
+
+    // Sign in with Firebase using the Apple credential
+    const userCredential = await auth().signInWithCredential(appleCredential);
+
+    // Ensure user profile exists in database and store firstName/lastName directly
+    await ensureUserProfile(userCredential.user, credential.firstName, credential.lastName);
+
+    return { user: userCredential.user, error: null };
+  } catch (error: any) {
+    console.error("🔴 Apple sign-in error:", error.code, error.message);
+
+    let errorMessage = "Failed to sign in with Apple";
+    if (error.code === "auth/account-exists-with-different-credential") {
+      errorMessage =
+        "An account already exists with a different sign-in method";
+    } else if (error.code === "auth/invalid-credential") {
+      errorMessage = "Invalid Apple credentials";
+    } else if (error.code === "auth/operation-not-allowed") {
+      errorMessage = "Apple sign-in is not enabled";
     }
-    return [];
-  } catch (error) {
-    console.error("Error fetching diagnostic logs:", error);
-    throw error;
+
+    return {
+      user: null,
+      error: {
+        code: error.code || "auth/unknown",
+        message: errorMessage,
+        originalError: error,
+      },
+    };
   }
 };
 
+
 // Creates a user profile in the database if it doesn't already exist
-export const ensureUserProfile = async (user: FirebaseAuthTypes.User) => {
+export const ensureUserProfile = async (
+  user: FirebaseAuthTypes.User,
+  firstName?: string,
+  lastName?: string
+) => {
   if (!user) return null;
 
   console.log("🔷 Ensuring user profile for UID:", user.uid);
@@ -220,12 +252,12 @@ export const ensureUserProfile = async (user: FirebaseAuthTypes.User) => {
       // Create new user profile with complete structure
       const userData = {
         profile: {
-          name: user.displayName || "",
+          firstName: firstName || "",
+          lastName: lastName || "",
           email: user.email || "",
           phone: user.phoneNumber || "",
           createdAt: new Date().toISOString(),
         },
-        maintenance_records: {},
         events: {},
         kids: {},
         devices: {}, // For registered Bluetooth devices
@@ -239,8 +271,6 @@ export const ensureUserProfile = async (user: FirebaseAuthTypes.User) => {
       );
       return userData;
     } else {
-      console.log("🔷 User profile already exists for UID:", user.uid);
-
       // Check if we need to add missing sections for existing users
       const existingData = snapshot.val();
       let needsUpdate = false;
@@ -255,9 +285,33 @@ export const ensureUserProfile = async (user: FirebaseAuthTypes.User) => {
         needsUpdate = true;
       }
 
+      // Update profile if we have new name data
+      if (!existingData.profile) {
+        existingData.profile = {};
+      }
+
+      if ((firstName || lastName) && (!existingData.profile.firstName || existingData.profile.firstName === "")) {
+        console.log(
+          "🔷 Updating user profile name to:",
+          firstName,
+          lastName
+        );
+        existingData.profile.firstName = firstName || "";
+        existingData.profile.lastName = lastName || "";
+        needsUpdate = true;
+      }
+
+      if (
+        user.email &&
+        user.email !== existingData.profile.email
+      ) {
+        existingData.profile.email = user.email;
+        needsUpdate = true;
+      }
+
       if (needsUpdate) {
         console.log(
-          "🔷 Updating existing user profile to include device sections"
+          "🔷 Updating existing user profile"
         );
         await set(userRef, existingData);
       }
@@ -968,11 +1022,11 @@ export default {
   readData,
   writeData,
   signIn,
+  signInWithApple,
   signUp,
   signOut,
   getCurrentUser,
   onAuthChange,
-  getDiagnosticLogs,
   ensureUserProfile,
   getUserProfile,
   getEvents,

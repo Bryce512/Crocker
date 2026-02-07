@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 import { useAuth } from "../contexts/AuthContext";
 import { useCalendar } from "../contexts/CalendarContext";
 import { calendarService } from "../services/calendarService";
+import firebaseService from "../services/firebaseService";
 import { colors } from "../theme/colors";
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -29,16 +30,32 @@ interface SlidingMenuProps {
 
 const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { importCalendarEvents, isImporting } = useCalendar();
   const insets = useSafeAreaInsets();
+  const [firstName, setFirstName] = useState<string>("");
 
   const slideAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const [isVisible, setIsVisible] = React.useState(false);
 
-  // Get username from user email (first part before @)
-  const username = user?.displayName || user?.email?.split("@")[0] || "User";
+  // Fetch user profile on mount and when user changes
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (user?.uid) {
+        try {
+          const profile = await firebaseService.getUserProfile(user.uid);
+          if (profile?.firstName) {
+            setFirstName(profile.firstName);
+          }
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+        }
+      }
+    };
+
+    fetchUserProfile();
+  }, [user?.uid]);
 
   // Fallback padding in case safe area context fails
   const safeAreaTop = insets.top || 50; // Default to 50px if safe area fails
@@ -89,7 +106,7 @@ const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
 
   const handleLogout = () => {
     onClose();
-    setTimeout(() => signOut(), 300);
+    setTimeout(() => firebaseService.signOut(), 300);
   };
 
   const handleImportCalendar = async () => {
@@ -170,7 +187,7 @@ const SlidingMenu: React.FC<SlidingMenuProps> = ({ isOpen, onClose }) => {
         <View style={[styles.menuContainer, { paddingTop: safeAreaTop }]}>
           {/* Menu Header */}
           <View style={[styles.menuHeader, { marginTop: 20 }]}>
-            <Text style={styles.menuGreeting}>Hey {username},</Text>
+            <Text style={styles.menuGreeting}> Welcome {firstName || ""} </Text>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Text style={styles.closeButtonText}>×</Text>
             </TouchableOpacity>

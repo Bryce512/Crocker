@@ -269,7 +269,7 @@ export const BluetoothProvider = ({ children }: { children: ReactNode }) => {
   // Auto-connect effect: Continuously scan for registered devices and auto-connect
   // Skip when syncing to prevent BLE operation interference
   useEffect(() => {
-    let scanInterval: NodeJS.Timeout | null = null;
+    let scanInterval: number | null = null;
     let isAutoConnecting = false;
 
     const startAutoConnect = async () => {

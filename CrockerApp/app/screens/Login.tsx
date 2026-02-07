@@ -12,6 +12,8 @@ import {
 import { useNavigation, NavigationProp } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { useAuth } from "../contexts/AuthContext"; // Assuming you have a custom hook for authentication
 import firebaseService from "../services/firebaseService";
@@ -23,7 +25,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { signIn } = useAuth(); // Assuming useAuth is a custom hook for authentication
+  const { signIn, signInWithApple } = useAuth(); // Assuming useAuth is a custom hook for authentication
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -74,6 +76,97 @@ const Login = () => {
       console.error("❌ DEBUG: Unexpected login error:", error);
       setErrorMessage("An unexpected error occurred");
       Alert.alert("Error", "An unexpected error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      // Generate a random nonce for security
+      const randomBytes = await Crypto.getRandomBytes(16);
+      const nonce = Array.from(randomBytes)
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
+
+      // Request Apple authentication
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL
+        ],
+      });
+
+
+      if (!credential.identityToken) {
+        throw new Error("Missing identityToken");
+      }
+      
+      console.log("🍎 Apple credential received:", credential)
+
+      // Extract the user's name from Apple credential
+      let firstName = "";
+      let lastName = "";
+      if (credential.fullName) {
+        const { givenName, familyName } = credential.fullName;
+        firstName = givenName || "";
+        lastName = familyName || "";
+      }
+      console.log("🍎 First name:", firstName || "Not provided");
+      console.log("🍎 Last name:", lastName || "Not provided");
+
+      // Sign in with Firebase using Apple credential
+      const result = await signInWithApple({
+        identityToken: credential.identityToken,
+        nonce: nonce,
+        displayName: firstName, // Set displayName to just firstName
+        firstName: firstName,
+        lastName: lastName,
+      });
+
+      if (result.error) {
+        console.error("❌ Apple sign-in error:", result.error);
+        let errorMessage = "Apple sign-in failed";
+
+        if (typeof result.error === "object" && result.error.code) {
+          switch (result.error.code) {
+            case "auth/account-exists-with-different-credential":
+              errorMessage =
+                "An account already exists with a different sign-in method";
+              break;
+            case "auth/invalid-credential":
+              errorMessage = "Invalid Apple credentials";
+              break;
+            case "auth/operation-not-allowed":
+              errorMessage = "Apple sign-in is not enabled";
+              break;
+            default:
+              errorMessage = result.error.message || "Apple sign-in failed";
+          }
+        }
+
+        setErrorMessage(errorMessage);
+        Alert.alert("Sign-In Error", errorMessage);
+      }
+    } catch (error: any) {
+      console.error("❌ Apple sign-in exception:", error);
+
+      // Handle user cancellation
+      if (error.code === "ERR_CANCELED") {
+        console.log("ℹ️ User cancelled Apple sign-in");
+        return;
+      }
+
+      let errorMessage = "Failed to sign in with Apple";
+      if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setErrorMessage(errorMessage);
+      Alert.alert("Error", errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -164,6 +257,23 @@ const Login = () => {
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
+          {/* Divider */}
+          <View style={styles.dividerContainer}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.divider} />
+          </View>
+
+          {/* Apple Sign-In Button */}
+          <TouchableOpacity
+            style={styles.appleButton}
+            onPress={handleAppleSignIn}
+            disabled={isLoading}
+          >
+            <Text style={styles.appleButtonText}>
+              Sign in with Apple
+            </Text>
+          </TouchableOpacity>
 
           <View style={styles.createAccountSection}>
             <Text style={styles.createAccountLabel}>
@@ -411,6 +521,42 @@ const styles = StyleSheet.create({
     color: "#10b981",
     fontSize: 14,
     fontWeight: "500",
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 28,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#cbd5e1",
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    color: "#94a3b8",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  appleButton: {
+    height: 56,
+    backgroundColor: "#1f2937",
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  appleButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   createAccountSection: {
     alignItems: "center",

@@ -27,6 +27,8 @@ export default function SignupScreen() {
   const isDark = colorScheme === "dark";
   const { signUp } = useAuth();
 
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -34,7 +36,7 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (!email || !password || !confirmPassword) {
+    if (!firstName || !lastName || !email || !password || !confirmPassword) {
       Alert.alert("Error", "Please fill in all fields");
       return;
     }
@@ -53,7 +55,8 @@ export default function SignupScreen() {
 
     try {
       console.log("🔍 DEBUG: Attempting signup with email:", email);
-      const { error, user } = await signUp(email, password);
+      const fullName = `${firstName} ${lastName}`.trim();
+      const { error, user } = await signUp(email, password, fullName);
       console.log("🔍 DEBUG: Signup result - user:", !!user, "error:", error);
 
       if (error) {
@@ -172,6 +175,62 @@ export default function SignupScreen() {
           </Text>
 
           <View style={styles.form}>
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, isDark && styles.textLight]}>
+                First Name
+              </Text>
+              <View style={styles.inputWrapper}>
+                <Feather
+                  name="user"
+                  size={18}
+                  color={isDark ? colors.gray[400] : colors.gray[500]}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    isDark && styles.inputDark,
+                    { paddingLeft: 40 },
+                  ]}
+                  placeholder="Enter your first name"
+                  placeholderTextColor={
+                    isDark ? colors.gray[400] : colors.gray[500]
+                  }
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, isDark && styles.textLight]}>
+                Last Name
+              </Text>
+              <View style={styles.inputWrapper}>
+                <Feather
+                  name="user"
+                  size={18}
+                  color={isDark ? colors.gray[400] : colors.gray[500]}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={[
+                    styles.input,
+                    isDark && styles.inputDark,
+                    { paddingLeft: 40 },
+                  ]}
+                  placeholder="Enter your last name"
+                  placeholderTextColor={
+                    isDark ? colors.gray[400] : colors.gray[500]
+                  }
+                  value={lastName}
+                  onChangeText={setLastName}
+                  autoCapitalize="words"
+                />
+              </View>
+            </View>
+
             <View style={styles.inputContainer}>
               <Text style={[styles.inputLabel, isDark && styles.textLight]}>
                 Email
